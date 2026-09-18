@@ -1,0 +1,27 @@
+.DS_Store
+node_modules/
+coverage/
+work/
+.env
+.env.*
+!.env.example
+
+# Everything below re-includes paths that a typical global gitignore excludes.
+# Getting this wrong is silent: git just never stages the files, the push looks
+# fine, and the published script breaks. tests/build/published-output.test.cjs
+# fails if any of these become unreachable again.
+#
+# dist/ holds the published userscripts that Tampermonkey fetches.
+!dist/
+!dist/**
+# scripts/build/ is the build pipeline itself and tests/build/ guards it; a bare
+# "build/" pattern in a global gitignore matches both.
+!scripts/build/
+!scripts/build/**
+!tests/build/
+!tests/build/**
+
+# Browser captures and account/session data stay out of version control.
+*.har
+analysis/
+filtered_requests.json

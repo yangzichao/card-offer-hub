@@ -1,0 +1,20 @@
+{
+    "repository": "https://github.com/yangzichao/card-offer-hub",
+    "publishBranch": "main",
+    "scripts": [
+        {
+            "id": "amex-offer-lite",
+            "name": "Amex Offer Lite",
+            "version": "5.0.0",
+            "description": "Detect cards, rank them by drag, scan Offers Hub slowly, and add every offer to one card at a time",
+            "issuer": "amex",
+            "matches": [
+                "https://global.americanexpress.com/*"
+            ],
+            "publishedFile": "dist/amex-offer-lite.user.js",
+            "installUrl": "https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/amex-offer-lite.user.js",
+            "updateUrl": "https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/amex-offer-lite.user.js",
+            "sourceDirectory": "issuers/amex/amex-offer-lite"
+        }
+    ]
+}

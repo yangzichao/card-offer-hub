@@ -1,0 +1,21 @@
+name: build
+
+# Tampermonkey installs whatever sits in dist/ on the publish branch, so a stale
+# or unbuilt dist/ ships old code to everyone. This job fails the push instead.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify-published-output:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify dist/ matches the sources
+        run: npm run check
+      - name: Run offline regressions
+        run: npm test

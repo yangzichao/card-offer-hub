@@ -1,0 +1,49 @@
+{
+    "id": "amex-offer-lite",
+    "name": "Amex Offer Lite",
+    "version": "5.0.0",
+    "description": "Detect cards, rank them by drag, scan Offers Hub slowly, and add every offer to one card at a time",
+    "author": "Zichao Yang",
+    "issuer": "amex",
+    "matches": [
+        "https://global.americanexpress.com/*"
+    ],
+    "grants": [
+        "GM_getValue",
+        "GM_setValue",
+        "unsafeWindow"
+    ],
+    "connects": [],
+    "runAt": "document-idle",
+    "noFrames": true,
+    "sharedModules": [],
+    "sources": [
+        "core/state.js",
+        "core/card-priority.js",
+        "core/storage.js",
+        "core/saved-cards.js",
+        "core/offer-snapshots.js",
+        "core/saved-offers.js",
+        "core/page-state.js",
+        "core/offer-statistics.js",
+        "api/requests.js",
+        "api/transport.js",
+        "api/accounts.js",
+        "api/offers.js",
+        "api/enrollment-contract.js",
+        "api/enrollment.js",
+        "workflows/cards.js",
+        "workflows/scan-results.js",
+        "workflows/scan.js",
+        "workflows/enrollment-plan.js",
+        "workflows/enrollment-requests.js",
+        "workflows/enrollment.js",
+        "ui/styles.js",
+        "ui/panel.js",
+        "ui/card-priority.js",
+        "ui/cards.js",
+        "ui/offers.js",
+        "ui/render.js",
+        "initialize.js"
+    ]
+}
