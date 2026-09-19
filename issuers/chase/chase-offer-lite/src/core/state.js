@@ -4,6 +4,7 @@ const SETTINGS = {
     defaultCooldownMilliseconds: 300000
 };
 const state = {
+    lastScanAt: 0, workspaceScope: '', restoredWorkspace: false,
     accounts: [], selected: new Set(), offers: [], busy: false, stopRequested: false,
     needsScan: true, nextRequestAt: 0, cooldownUntil: 0, storageError: '',
     status: 'Open Chase Offers or switch its selected card, then detect cards. Scans start only when you click.',

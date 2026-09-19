@@ -1,3 +1,4 @@
+const { webcrypto } = require('node:crypto');
 const { readFileSync } = require('node:fs');
 const { resolve } = require('node:path');
 const { runInNewContext } = require('node:vm');
@@ -30,12 +31,13 @@ function createHarness(respond = () => jsonResponse(listing()), options = {}) {
         static now() { return now; }
     }
     const context = {
-        Date: TestDate, URL, AbortController, console,
+        TextEncoder, crypto: webcrypto, Date: TestDate, URL, AbortController, console,
         location: { origin: 'https://web.secure.wellsfargo.com', pathname: '/auth/deals-portal' },
         document: { querySelectorAll: () => (options.scripts ?? [bootstrap()]).map(textContent => ({ textContent })) },
         navigator: { locks: { request: async (name, config, action) => action(options.locked ? null : {}) } },
         GM_getValue: (key, fallback) => structuredClone(storage.get(key) ?? fallback),
         GM_setValue: (key, value) => {
+            options.onSave?.(key, value);
             if (options.failStorage) throw new Error('Synthetic storage failure');
             storage.set(key, structuredClone(value));
         },
@@ -61,7 +63,8 @@ function createHarness(respond = () => jsonResponse(listing()), options = {}) {
             } };
         }
     };
-    const probe = `globalThis.wellsTestAccess = { state, SETTINGS, normalizeOffers,
+    const probe = `globalThis.wellsTestAccess = { state, SETTINGS, restoreWorkspace, saveWorkspace, requireWorkspaceSaved, markWorkspaceOfferPending, finishWorkspaceOffer,
+        recordWorkspaceScan, workspaceScopeFingerprint, normalizeOffers,
         enrollmentBody, enrollmentConfirmed, activationUrl, retryAfterMilliseconds, restorePacing,
         requestJson, scanOffers, addAllOffers, stopRun };})();`;
     if (!source.includes(marker)) throw new Error('Missing test initialization boundary');

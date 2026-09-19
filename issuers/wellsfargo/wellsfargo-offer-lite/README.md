@@ -8,7 +8,7 @@
 
 1. 登录 Wells Fargo，从银行导航打开 **My Wells Fargo Deals**。脚本在 `web.secure.wellsfargo.com/auth/deals-portal` 或 `/deals-portal/` 显示浮动面板。
 2. 点击 **Scan offers**，查看当前账户的优惠。
-3. 勾选 **Activate eligible offers for this signed-in account**，明确选择当前账户范围。刷新后需要重新勾选。
+3. 勾选 **Activate eligible offers for this signed-in account**，明确选择当前账户范围。刷新后保留勾选；会话变化后需要重新确认。
 4. 点击 **Scan & add all**，脚本重新扫描，然后串行激活符合条件的优惠。
 5. 点击 **Stop** 可停止后续请求。已发出的请求会等待返回，并按实际响应记录。
 
@@ -24,7 +24,7 @@
 - 只有响应 `status === "SUCCESS"` 才计为成功。HTTP 错误、超时、未知响应立即停止，重新扫描后才能继续。
 - 429 按 `Retry-After` 冷却，冷却时间不会缩短；冷却期间手动扫描也被阻止。
 - Web Locks 防止同一浏览器同源标签页的本脚本并行运行；不控制银行自己的请求或其他浏览器。
-- GM storage 只保存带 `schemaVersion: 1` 的请求间隔和冷却时间。会话 token、优惠和账户选择不写入存储；存储失败显示错误并阻止新请求。未知 schema 保留原数据并停止。
+- GM storage 用独立的版本化快照保存优惠展示结果、账户确认、搜索和面板状态，继续保留限速快照。仅存页面会话的 SHA-256 指纹用于比较，不存 token；会话变化清除旧确认。存储失败可见并阻止请求，未知 schema 保留原数据。
 - 完成后刷新 Wells Fargo 页面更新原生徽标；面板展示的是 API 确认结果。
 
 ## 验证边界
@@ -32,3 +32,9 @@
 依据用户提供的 2026-09-19 HAR：1 次列表请求、78 条未激活优惠及 5 次成功激活。开发未重放 HAR、未访问真实账户、未新增真实激活。合成单元测试和 Chromium 浏览器回归验证本地产物，不代表真实 Tampermonkey 会话已验证。
 
 完整协议依据和待现场验证见 [接口记录](../../../docs/wellsfargo-api-contract.md)。
+
+## 本地保存与恢复
+
+扫描结果、已有选择、搜索条件和面板折叠状态保存在 Tampermonkey 本地存储，刷新或重新打开后恢复。页面显示最后完整扫描时间；恢复本身不发网络请求、不自动添加。取消勾选也会保存，不因刷新重新选中。
+
+保存失败会显示错误；未知或损坏的快照保留原数据，不静默覆盖。快照只保存展示字段和选择，Cookie、登录 token、请求头、原始响应和地理位置不写入快照。正在添加时刷新，未确认的项目保留为未确认，后续先扫描核验。详见[持久化说明](../../../docs/local-persistence.md)。

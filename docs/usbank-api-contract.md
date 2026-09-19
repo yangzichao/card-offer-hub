@@ -26,7 +26,7 @@
 
 ## 安全与运行
 
-手动扫描后显式选择优惠；执行前再刷新，只处理原先选择的 ID。串行间隔依照工作区统一配置为响应完成后 500 毫秒。429、存储失败、会话变化、Stop、GraphQL 部分错误均阻止后续请求。GM storage 只保存 schemaVersion 1 的 pacing，不保存会话或优惠。
+手动扫描后显式选择优惠；执行前再刷新，只处理原先选择的 ID。串行间隔依照工作区统一配置为响应完成后 500 毫秒。429、存储失败、会话变化、Stop、GraphQL 部分错误均阻止后续请求。GM storage 保留 schemaVersion 1 的 pacing，并增加独立的 schemaVersion 1 workspace 快照，保存展示字段和用户选择；不保存会话或 serving token。详见 [本地持久化](local-persistence.md)。
 
 初始版本没有历史快照需要迁移。将来改变 schema 必须增加前向迁移；未知版本当前保留原值并阻止请求，禁止静默覆盖。
 

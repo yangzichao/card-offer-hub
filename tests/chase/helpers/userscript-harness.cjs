@@ -1,3 +1,4 @@
+const { webcrypto } = require('node:crypto');
 const { readFileSync } = require('node:fs');
 const { resolve } = require('node:path');
 const { runInNewContext } = require('node:vm');
@@ -16,12 +17,13 @@ function createHarness(respond, options = {}) {
         static now() { return now; }
     }
     const context = {
-        Date: TestDate, AbortController, URL, URLSearchParams, Headers, Request, Response, console,
+        TextEncoder, crypto: webcrypto, Date: TestDate, AbortController, URL, URLSearchParams, Headers, Request, Response, console,
         location: { origin: 'https://secure.chase.com', pathname: '/web/auth/dashboard' },
         document: { cookie: options.cookie ?? '', querySelector: () => null },
         navigator: { locks: { request: async (name, config, action) => action(options.locked ? null : {}) } },
         GM_getValue: (key, fallback) => structuredClone(storage.get(key) ?? fallback),
         GM_setValue: (key, value) => {
+            options.onSave?.(key, value);
             if (options.failStorage) throw new Error('Synthetic storage failure');
             storage.set(key, structuredClone(value));
         },
@@ -46,7 +48,8 @@ function createHarness(respond, options = {}) {
             } finally { active--; }
         }
     };
-    const probe = `globalThis.chaseTestAccess = { state, SETTINGS, normalizeAccounts, normalizeOffers,
+    const probe = `globalThis.chaseTestAccess = { state, SETTINGS, restoreWorkspace, saveWorkspace, requireWorkspaceSaved, markWorkspaceOfferPending, finishWorkspaceOffer,
+        recordWorkspaceScan, workspaceScopeFingerprint, normalizeAccounts, normalizeOffers,
         retryAfterMilliseconds, restorePacing, requestJson, detectCards, setCardSelected,
         scanOffers, addAllOffers, stopRun, captureSessionRequest, captureSessionResponse,
         sessionHeaders, currentSession, getCapturedAccountsPayload, buildOffersRequest, installSessionObserver };})();`;

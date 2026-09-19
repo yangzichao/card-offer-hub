@@ -16,18 +16,19 @@ function mountPanel() {
         <p class="muted">Search only filters the display. Card selection controls the scan.</p>
       </section><section><p id="counts"></p><input id="search" type="search" aria-label="Search Chase offers" placeholder="Search merchants">
       <div id="offers" class="offers"></div></section>
-      <footer><div id="status" role="status" aria-live="polite"></div><div id="storage-error" class="error" role="alert"></div></footer></div></div>`;
+      <footer><p id="workspace-cache" class="muted"></p><div id="status" role="status" aria-live="polite"></div><div id="storage-error" class="error" role="alert"></div></footer></div></div>`;
     panel.querySelector('h2').textContent = `${SETTINGS.name} ${SETTINGS.version}`;
     panel.getElementById('detect').addEventListener('click', detectCards);
     panel.getElementById('scan').addEventListener('click', scanOffers);
     panel.getElementById('add').addEventListener('click', addAllOffers);
     panel.getElementById('stop').addEventListener('click', stopRun);
     panel.getElementById('search').addEventListener('input', event => {
-        state.search = event.target.value;
+        state.search = event.target.value; saveWorkspace();
         renderOffers();
     });
     panel.getElementById('collapse').addEventListener('click', () => {
         state.collapsed = !state.collapsed;
+        saveWorkspace();
         panel.getElementById('body').hidden = state.collapsed;
         const button = panel.getElementById('collapse');
         button.textContent = state.collapsed ? '+' : '−';
@@ -36,5 +37,6 @@ function mountPanel() {
     });
     document.body.appendChild(host);
     state.panel = panel;
+    restoreWorkspacePanel(panel, 'Chase');
     renderPanel();
 }

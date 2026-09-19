@@ -4,6 +4,7 @@ const SETTINGS = {
     gapMilliseconds: 500, timeoutMilliseconds: 45000, defaultCooldownMilliseconds: 300000
 };
 const state = {
+    lastScanAt: 0, workspaceScope: '', restoredWorkspace: false,
     offers: [], accountConsent: false, busy: false, stopRequested: false, needsScan: true,
     nextRequestAt: 0, cooldownUntil: 0, storageError: '',
     status: 'Open My Wells Fargo Deals and click Scan offers. Nothing runs automatically.',

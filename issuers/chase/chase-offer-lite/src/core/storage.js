@@ -1,5 +1,4 @@
-// Store only pacing state. Account IDs, offers, cookies, and request headers stay
-// in memory; a reload always requires fresh discovery and manual card selection.
+// Keep the original pacing schema/key; result snapshots use a separate versioned key.
 function restorePacing() {
     try {
         const saved = GM_getValue(`${SETTINGS.id}:pacing`, null);

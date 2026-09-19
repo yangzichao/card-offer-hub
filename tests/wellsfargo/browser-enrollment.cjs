@@ -1,3 +1,4 @@
+const { verifyWorkspaceReload } = require('../helpers/browser-workspace.cjs');
 const assert = require('node:assert/strict');
 const { readFileSync, mkdirSync } = require('node:fs');
 const { resolve } = require('node:path');
@@ -85,6 +86,7 @@ async function main() {
         assert.equal(await page.locator('.offer').count(), 4);
         assert.deepEqual(successful.errors, []);
         await page.screenshot({ path: resolve(outputDirectory, 'wellsfargo-enrollment-complete.png') });
+        await verifyWorkspaceReload({ page: page, script, id: 'wellsfargo-offer-lite', bank: 'Wells Fargo', requests: successful.requests, activationName: 'Scan and add all Wells Fargo offers' });
         await page.getByRole('button', { name: 'Minimize Wells Fargo panel' }).click();
         assert.equal(await page.getByRole('button', { name: 'Scan Wells Fargo offers', exact: true }).isVisible(), false);
         await page.getByRole('button', { name: 'Expand Wells Fargo panel' }).click();

@@ -5,6 +5,7 @@ const SETTINGS = {
     defaultCooldownMilliseconds: 300000
 };
 const state = {
+    lastScanAt: 0, workspaceScope: '', restoredWorkspace: false,
     offers: [], selected: new Set(), session: null, busy: false, stopRequested: false,
     needsScan: true, nextRequestAt: 0, cooldownUntil: 0, storageError: '',
     status: 'Open Cash Back Deals, then scan. Nothing runs automatically.',

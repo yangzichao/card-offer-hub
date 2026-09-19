@@ -1,10 +1,10 @@
 async function scanOffers() {
     return runExclusive(async () => {
         state.needsScan = true;
-        state.consent = false;
-        state.offers = [];
+
         state.confirmed = 0;
         state.sessionToken = currentSessionToken();
+        bindWorkspaceScope(await workspaceScopeFingerprint(state.sessionToken));
         updateStatus('Reading current Deals location…');
         state.proximity = normalizeLocation(await requestJson('/geo', 'GET'));
         const collected = new Map();
@@ -28,6 +28,7 @@ async function scanOffers() {
         }
         state.offers = [...collected.values()];
         state.needsScan = false;
+        recordWorkspaceScan();
         const available = state.offers.filter(offer => offer.eligible).length;
         updateStatus(`Scan complete: ${available} eligible, ${state.offers.length - available} skipped. Upside offers are excluded.`);
     });
@@ -53,6 +54,7 @@ async function activateOffers() {
                 throw new Error('Offer eligibility changed since scanning. Scan again before continuing.');
             }
             offer.result = 'Unconfirmed';
+            markWorkspaceOfferPending(offer);
             updateStatus(`Activating offer ${state.confirmed + 1}/${queue.length}…`);
             const result = await requestJson(`/api/activate-offer/${offer.id}`, 'PUT');
             if (result?.ok !== true) throw new Error('Activation not explicitly confirmed. Scan again.');
@@ -62,8 +64,8 @@ async function activateOffers() {
             if (!verified.activated) throw new Error('Activation readback is unconfirmed. Scan again.');
             Object.assign(offer, verified, { result: 'Confirmed' });
             state.confirmed++;
+            finishWorkspaceOffer(offer);
         }
-        state.consent = false;
         updateStatus(`Finished: ${state.confirmed}/${queue.length} activations confirmed by readback. Scan again to refresh.`);
     });
 }

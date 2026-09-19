@@ -1,3 +1,4 @@
+const { verifyWorkspaceReload } = require('../helpers/browser-workspace.cjs');
 const assert = require('node:assert/strict');
 const { mkdirSync } = require('node:fs');
 const { resolve } = require('node:path');
@@ -75,6 +76,7 @@ async function main() {
             if (mode === 'success') {
                 mkdirSync(resolve(__dirname, '../../work/browser'), { recursive: true });
                 await page.screenshot({ path: resolve(__dirname, '../../work/browser/bofa-activation.png') });
+                await verifyWorkspaceReload({ page, script: source(), id: 'bofa-offer-lite', bank: 'Deals', requests: item.requests, activationName: 'Activate eligible Deals offers' });
                 await page.getByRole('button', { name: 'Minimize Deals panel' }).click();
                 assert.equal(await page.getByRole('status').isVisible(), false);
                 await page.getByRole('button', { name: 'Expand Deals panel' }).click();

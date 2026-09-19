@@ -108,6 +108,9 @@ async function run() {
         assert.equal(requests.length, 6);
         assert.equal(await page.locator('.offer').count(), 1, 'failed refresh keeps the filtered saved offer visible');
         await reload();
+        assert.equal(await page.getByRole('searchbox').inputValue(), 'shared offer');
+        assert.equal(await page.locator('.offer').count(), 1);
+        await page.getByRole('searchbox').fill('');
         assert.equal(await page.locator('.offer').count(), 2);
         assert.equal(requests.length, 6);
 

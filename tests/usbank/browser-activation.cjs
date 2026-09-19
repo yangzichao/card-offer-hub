@@ -1,3 +1,4 @@
+const { verifyWorkspaceReload } = require('../helpers/browser-workspace.cjs');
 const assert = require('node:assert/strict');
 const { readFileSync, mkdirSync } = require('node:fs');
 const { resolve } = require('node:path');
@@ -75,14 +76,18 @@ async function main() {
         assert.equal(successful.requests.length, 0, 'installation does not send requests');
         assert.equal(await page.getByRole('button', { name: 'Activate selected US Bank offers' }).isEnabled(), false);
         await successful.scanAndSelect();
+        await verifyWorkspaceReload({ page, script, id: 'usbank-offer-lite', bank: 'US Bank', requests: successful.requests, activationName: 'Activate selected US Bank offers' });
+        await page.getByRole('button', { name: 'Scan US Bank offers', exact: true }).click();
+        await successful.advanceUntil(/Scan complete/);
+        assert.equal(await page.getByRole('checkbox', { checked: true }).count(), 2, 'a fresh scan preserves saved selections');
         await page.getByRole('button', { name: 'Clear US Bank offer selection' }).click();
         assert.equal(await page.getByRole('checkbox', { checked: true }).count(), 0);
         await page.getByRole('searchbox', { name: 'Search US Bank offers' }).fill('Example a');
         await page.getByRole('button', { name: 'Select all available US Bank offers' }).click();
         await page.getByRole('button', { name: 'Activate selected US Bank offers' }).click();
         await successful.advanceUntil(/Finished: 2\/2/);
-        assert.equal(successful.requests.length, 6);
-        assert.deepEqual(successful.requests.map(request => request.activation), [false, false, true, false, true, false]);
+        assert.equal(successful.requests.length, 7);
+        assert.deepEqual(successful.requests.map(request => request.activation), [false, false, false, true, false, true, false]);
         assert.deepEqual(successful.requests.filter(request => request.activation).map(request => request.body.variables.request.clientEvents[0].clientOfferId), ['a', 'b']);
         await page.getByRole('searchbox', { name: 'Search US Bank offers' }).fill('');
         await page.screenshot({ path: resolve(outputDirectory, 'usbank-activation-complete.png') });

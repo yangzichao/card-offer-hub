@@ -1,7 +1,7 @@
 {
     "id": "chase-offer-lite",
     "name": "Chase Offer Lite",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "Manually select Chase cards and scan Chase Offers serially; read-only until activation is verified",
     "author": "Zichao Yang",
     "issuer": "chase",
@@ -16,10 +16,16 @@
     "connects": [],
     "runAt": "document-start",
     "noFrames": true,
-    "sharedModules": [],
+    "sharedModules": [
+        "persistence/workspace-records.js",
+        "persistence/workspace-storage.js",
+        "persistence/workspace-scope.js",
+        "persistence/workspace-ui.js"
+    ],
     "sources": [
         "core/state.js",
         "core/storage.js",
+        "core/workspace-fields.js",
         "api/contracts.js",
         "api/session.js",
         "api/observer.js",

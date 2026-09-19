@@ -23,6 +23,7 @@ function renderOffers() {
 function renderPanel() {
     if (!state.panel) return;
     const panel = state.panel;
+    panel.getElementById('workspace-cache').textContent = workspaceCacheNotice();
     const blocked = state.busy || Boolean(state.storageError);
     panel.getElementById('scan').disabled = blocked;
     panel.getElementById('add').disabled = blocked || !state.accountConsent || state.needsScan;

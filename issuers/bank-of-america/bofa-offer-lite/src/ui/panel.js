@@ -15,12 +15,12 @@ function mountPanel() {
         <p>Current signed-in Deals profile only. Shopping-link and Upside offers are excluded. Activation may start an expiry window; review terms first.</p>
         <label><input type="checkbox" aria-label="Confirm activation for current Deals profile">Activate all eligible offers in this profile</label>
         <div class="actions"><button aria-label="Scan Deals offers">Scan</button><button aria-label="Activate eligible Deals offers">Activate all</button><button aria-label="Stop Deals activation">Stop</button></div>
-        <p role="status" aria-live="polite"></p><div class="muted">0.5s between completed requests · no automatic retries</div><div class="offers"></div>
+        <p class="workspace-cache muted"></p><p role="status" aria-live="polite"></p><div class="muted">0.5s between completed requests · no automatic retries</div><div class="offers"></div>
     </main></section>`;
     state.panel = root;
     root.querySelector('header span').textContent = `${SETTINGS.name} · ${SETTINGS.version}`;
-    root.querySelector('header button').onclick = () => { state.collapsed = !state.collapsed; renderPanel(); };
-    root.querySelector('input').onchange = event => { state.consent = event.target.checked; renderPanel(); };
+    root.querySelector('header button').onclick = () => { state.collapsed = !state.collapsed; saveWorkspace(); renderPanel(); };
+    root.querySelector('input').onchange = event => { state.consent = event.target.checked; saveWorkspace(); renderPanel(); };
     root.querySelector('[aria-label="Scan Deals offers"]').onclick = scanOffers;
     root.querySelector('[aria-label="Activate eligible Deals offers"]').onclick = activateOffers;
     root.querySelector('[aria-label="Stop Deals activation"]').onclick = stopRun;

@@ -44,7 +44,8 @@ function captureSessionResponse(context, payload) {
             || !Array.isArray(payload.customerOffers)
             || !payload.customerOffers.some(account => chaseIdentifier(account.digitalAccountIdentifier) === context.accountId)) return false;
         // Only discovery fields survive observation. Impression/session tokens,
-        // profile identity and the native offer payload are never persisted.
+        // credentials and the native offer payload stay in memory. Workspace snapshots
+        // separately retain normalized display records and the non-secret profile ID.
         chaseCapturedAccounts = { digitalProfileAccounts: payload.digitalProfileAccounts.map(card => ({
             digitalAccountIdentifier: chaseIdentifier(card.digitalAccountIdentifier),
             accountNickname: typeof card.accountNickname === 'string' ? card.accountNickname : '',

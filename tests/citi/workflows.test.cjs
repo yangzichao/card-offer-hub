@@ -28,7 +28,7 @@ test('one click scans selected cards and serially enrolls the same offer on each
     }
     assert.match(harness.state.status, /Finished: 2\/2/);
     const stored = JSON.stringify([...harness.storage]);
-    for (const forbidden of ['card-a', 'offerId', 'synthetic-session', 'synthetic-client']) assert.equal(stored.includes(forbidden), false);
+    for (const forbidden of ['synthetic-session', 'synthetic-client', 'X-XSRF-TOKEN']) assert.equal(stored.includes(forbidden), false);
 });
 
 test('unconfirmed enrollment stops the queue; only a new scan unlocks adding', async () => {

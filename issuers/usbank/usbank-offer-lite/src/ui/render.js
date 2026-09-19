@@ -10,7 +10,7 @@ function renderOffers() {
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.checked = state.selected.has(offer.offerId);
-        checkbox.disabled = state.busy || state.needsScan || offer.status !== 'AVAILABLE';
+        checkbox.disabled = state.busy || Boolean(state.storageError) || offer.status !== 'AVAILABLE';
         checkbox.setAttribute('aria-label', `Select ${offer.merchant}: ${offer.title}`);
         checkbox.addEventListener('change', () => setOfferSelected(offer.offerId, checkbox.checked));
         const title = document.createElement('strong');
@@ -25,10 +25,11 @@ function renderOffers() {
 function renderPanel() {
     if (!state.panel) return;
     const panel = state.panel;
+    panel.getElementById('workspace-cache').textContent = workspaceCacheNotice();
     const blocked = state.busy || Boolean(state.storageError);
     const available = state.offers.filter(offer => offer.status === 'AVAILABLE').length;
     panel.getElementById('scan').disabled = blocked;
-    panel.getElementById('select-all').disabled = blocked || state.needsScan || !available;
+    panel.getElementById('select-all').disabled = blocked || !available;
     panel.getElementById('clear').disabled = blocked || !state.selected.size;
     panel.getElementById('activate').disabled = blocked || !state.selected.size || state.needsScan;
     panel.getElementById('stop').disabled = !state.busy || state.stopRequested;

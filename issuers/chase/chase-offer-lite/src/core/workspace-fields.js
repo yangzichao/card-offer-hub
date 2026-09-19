@@ -1,0 +1,17 @@
+const WORKSPACE_FIELDS = {
+    "accounts": {
+        "accountId": "id",
+        "name": "text",
+        "lastFour": "text",
+        "eligible": "boolean"
+    },
+    "offers": {
+        "accountId": "id",
+        "offerId": "id",
+        "status": "text",
+        "merchant": "text",
+        "title": "text",
+        "category": "text",
+        "expires": "text"
+    }
+};

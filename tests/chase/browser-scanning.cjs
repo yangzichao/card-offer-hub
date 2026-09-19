@@ -1,3 +1,4 @@
+const { verifyWorkspaceReload } = require('../helpers/browser-workspace.cjs');
 const assert = require('node:assert/strict');
 const { readFileSync, mkdirSync } = require('node:fs');
 const { resolve } = require('node:path');
@@ -20,7 +21,7 @@ async function fixture(browser, mode = 'success') {
         window.fixtureBodyMissingAtInitialization = document.body === null;
         window.fixtureDOMContentLoaded = false;
         document.addEventListener('DOMContentLoaded', () => { window.fixtureDOMContentLoaded = true; }, { once: true });
-        window.fixtureStorage = {};
+        window.fixtureStorage = JSON.parse(sessionStorage.getItem('__fixtureUserscriptStorage') || '{}');
         window.unsafeWindow = window;
         window.GM_getValue = (key, fallback) => window.fixtureStorage[key] ?? fallback;
         window.GM_setValue = (key, value) => {
@@ -80,7 +81,7 @@ async function fixture(browser, mode = 'success') {
         assert.equal(payload.customerOffers[0].offers.length, 4, 'observer preserves the page response');
         // Response.clone parsing can finish after the page has consumed its copy.
         await page.getByRole('button', { name: 'Detect Chase cards', exact: true }).click();
-        await advanceUntil(/Detected 2/);
+        await advanceUntil(mode === 'storage' ? /Cannot save/ : /Detected 2/);
         assert.equal(await page.getByRole('checkbox', { checked: true }).count(), 0);
     }
     return { context, page, requests, errors, status, advanceUntil, captureNativeRequest };
@@ -107,6 +108,7 @@ async function main() {
         await successful.page.getByRole('searchbox', { name: 'Search Chase offers' }).fill('');
         assert.equal(await successful.page.locator('.offer').count(), 6);
         await successful.page.screenshot({ path: resolve(outputDirectory, 'chase-scan-complete.png') });
+        await verifyWorkspaceReload({ page: successful.page, script, id: 'chase-offer-lite', bank: 'Chase', requests: successful.requests, activationName: 'Scan and add all Chase offers', documentStart: true });
         await successful.page.getByRole('button', { name: 'Minimize Chase panel' }).click();
         assert.equal(await successful.page.getByRole('button', { name: 'Detect Chase cards' }).isVisible(), false);
         await successful.page.getByRole('button', { name: 'Expand Chase panel' }).click();
@@ -116,6 +118,14 @@ async function main() {
         for (const mode of ['429', 'partial', 'storage']) {
             const failed = await fixture(browser, mode);
             await failed.captureNativeRequest('xhr');
+            if (mode === 'storage') {
+                assert.match(await failed.page.getByRole('alert').innerText(), /Cannot save/);
+                assert.equal(await failed.page.getByRole('button', { name: 'Scan selected Chase cards' }).isEnabled(), false);
+                await failed.page.clock.runFor(60000);
+                assert.equal(failed.requests.filter(request => !request.native).length, 0);
+                await failed.context.close();
+                continue;
+            }
             await failed.page.getByRole('checkbox', { name: 'Select Synthetic Card A · 0000', exact: true }).check();
             await failed.page.getByRole('button', { name: 'Scan selected Chase cards', exact: true }).click();
             await failed.advanceUntil(mode === '429' ? /HTTP 429/ : mode === 'partial' ? /partial|incomplete/ : /Cannot save/);

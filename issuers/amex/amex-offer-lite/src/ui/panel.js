@@ -30,6 +30,7 @@ function createUI() {
     header.append(element('h2', `${__USERSCRIPT_NAME__} ${SETTINGS.version}`));
     const toggle = button('btn-toggle', 'Minimize', () => {
         state.minimized = !state.minimized;
+        persistViewSettings();
         renderControls();
     });
     header.append(toggle);
@@ -73,10 +74,12 @@ function createUI() {
     const filter = element('input');
     filter.type = 'search';
     filter.id = 'input-search';
+    filter.value = state.filter;
     filter.placeholder = 'Filter scanned offers';
     filter.setAttribute('aria-label', 'Filter scanned offers');
     filter.oninput = () => {
         state.filter = filter.value.trim().toLowerCase();
+        persistViewSettings();
         renderOffers();
         renderControls();
     };

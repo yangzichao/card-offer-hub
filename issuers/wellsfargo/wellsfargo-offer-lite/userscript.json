@@ -1,7 +1,7 @@
 {
     "id": "wellsfargo-offer-lite",
     "name": "Wells Fargo Offer Lite",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "Manually scan and activate eligible account-wide Wells Fargo Deals with conservative serial pacing",
     "author": "Zichao Yang",
     "issuer": "wellsfargo",
@@ -16,10 +16,16 @@
     "connects": [],
     "runAt": "document-idle",
     "noFrames": true,
-    "sharedModules": [],
+    "sharedModules": [
+        "persistence/workspace-records.js",
+        "persistence/workspace-storage.js",
+        "persistence/workspace-scope.js",
+        "persistence/workspace-ui.js"
+    ],
     "sources": [
         "core/state.js",
         "core/storage.js",
+        "core/workspace-fields.js",
         "api/session.js",
         "api/transport.js",
         "api/contracts.js",

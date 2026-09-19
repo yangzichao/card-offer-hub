@@ -1,3 +1,4 @@
+const { verifyWorkspaceReload } = require('../helpers/browser-workspace.cjs');
 const assert = require('node:assert/strict');
 const { readFileSync, mkdirSync } = require('node:fs');
 const { resolve } = require('node:path');
@@ -96,6 +97,7 @@ async function main() {
         assert.equal(await page.locator('.offer').count(), 3);
         assert.deepEqual(successful.errors, []);
         await page.screenshot({ path: resolve(outputDirectory, 'citi-enrollment-complete.png') });
+        await verifyWorkspaceReload({ page: page, script, id: 'citi-offer-lite', bank: 'Citi', requests: successful.requests, activationName: 'Scan and add all Citi offers' });
         await page.getByRole('button', { name: 'Minimize Citi panel' }).click();
         assert.equal(await page.getByRole('button', { name: 'Detect Citi cards' }).isVisible(), false);
         await page.getByRole('button', { name: 'Expand Citi panel' }).click();

@@ -1,7 +1,7 @@
 {
     "id": "amex-offer-lite",
     "name": "Amex Offer Lite",
-    "version": "5.0.1",
+    "version": "5.1.0",
     "description": "Detect cards, rank them by drag, scan Offers Hub slowly, and add every offer to one card at a time",
     "author": "Zichao Yang",
     "issuer": "amex",
@@ -21,6 +21,7 @@
         "core/state.js",
         "core/card-priority.js",
         "core/storage.js",
+        "core/view-settings.js",
         "core/saved-cards.js",
         "core/offer-snapshots.js",
         "core/saved-offers.js",

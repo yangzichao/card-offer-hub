@@ -17,7 +17,7 @@ test('manual scan and selection; activation read-back after every write, serial 
         assert.equal(harness.requests[index].startedAt - harness.requests[index - 1].finishedAt, 500);
     }
     const storage = JSON.stringify([...harness.storage]);
-    for (const secret of ['synthetic-customer', 'synthetic-token', 'synthetic-deals-session', 'synthetic-serve', 'offerId']) assert.equal(storage.includes(secret), false);
+    for (const secret of ['synthetic-customer', 'synthetic-token', 'synthetic-deals-session', 'synthetic-serve', 'serveToken']) assert.equal(storage.includes(secret), false);
 });
 
 test('only selected offers activate; refresh uses changed serving tokens', async () => {

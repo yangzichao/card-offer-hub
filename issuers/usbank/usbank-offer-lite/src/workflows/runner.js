@@ -1,5 +1,6 @@
 async function runExclusive(action) {
     if (state.busy) return;
+    let workspaceActionStarted = false;
     state.busy = true;
     state.stopRequested = false;
     renderPanel();
@@ -10,6 +11,7 @@ async function runExclusive(action) {
             restorePacing();
             if (state.storageError) throw new Error(state.storageError);
             ensureRunning();
+            workspaceActionStarted = true;
             await action();
         });
     } catch (error) {
@@ -17,16 +19,19 @@ async function runExclusive(action) {
         updateStatus(error.message);
     } finally {
         state.busy = false;
+        if (workspaceActionStarted) saveWorkspace();
         renderPanel();
     }
 }
 function setOfferSelected(offerId, selected) {
-    if (state.busy || state.needsScan || !state.offers.some(offer => offer.offerId === offerId && offer.status === 'AVAILABLE')) return;
+    if (state.busy || Boolean(state.storageError) || !state.offers.some(offer => offer.offerId === offerId && offer.status === 'AVAILABLE')) return;
     if (selected) state.selected.add(offerId); else state.selected.delete(offerId);
+    saveWorkspace();
     renderPanel();
 }
 function selectAllOffers() {
-    if (state.busy || state.needsScan) return;
+    if (state.busy || Boolean(state.storageError)) return;
     state.selected = new Set(state.offers.filter(offer => offer.status === 'AVAILABLE').map(offer => offer.offerId));
+    saveWorkspace();
     renderPanel();
 }

@@ -7,6 +7,7 @@ const SETTINGS = {
     defaultCooldownMilliseconds: 300000
 };
 const state = {
+    lastScanAt: 0, workspaceScope: '', restoredWorkspace: false,
     accounts: [], selected: new Set(), offers: [], busy: false, stopRequested: false,
     needsScan: false, nextRequestAt: 0, cooldownUntil: 0, storageError: '',
     status: 'Open Merchant Offers, then detect cards. Nothing runs automatically.',

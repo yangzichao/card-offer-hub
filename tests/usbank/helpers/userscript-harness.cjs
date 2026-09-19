@@ -17,12 +17,13 @@ function createHarness(respond, options = {}) {
         static now() { return now; }
     }
     const context = {
-        Date: TestDate, AbortController, console, crypto: webcrypto,
+        TextEncoder, crypto: webcrypto, Date: TestDate, AbortController, console,
         location: { origin: 'https://onlinebanking.usbank.com', pathname: '/digital/servicing/dominjection/cashback-deals' },
         sessionStorage: { getItem: key => key === 'offerhubobject' ? JSON.stringify(options.session ?? sessionFixture) : 'synthetic-user' },
         navigator: { locks: { request: async (name, config, action) => action(options.locked ? null : {}) } },
         GM_getValue: (key, fallback) => structuredClone(storage.get(key) ?? fallback),
         GM_setValue: (key, value) => {
+            options.onSave?.(key, value);
             if (options.failStorage) throw new Error('Synthetic storage failure');
             storage.set(key, structuredClone(value));
         },
@@ -46,7 +47,8 @@ function createHarness(respond, options = {}) {
             } finally { active--; }
         }
     };
-    const probe = `globalThis.usbankTestAccess = { state, SETTINGS, normalizeListing, isActivatable,
+    const probe = `globalThis.usbankTestAccess = { state, SETTINGS, restoreWorkspace, saveWorkspace, requireWorkspaceSaved, markWorkspaceOfferPending, finishWorkspaceOffer,
+        recordWorkspaceScan, workspaceScopeFingerprint, normalizeListing, isActivatable,
         activationBody, activationAcknowledged, activationConfirmed, readSession, sessionHeaders,
         retryAfterMilliseconds, restorePacing, requestGraphql, scanOffers, activateSelectedOffers,
         setOfferSelected, selectAllOffers, stopRun };})();`;

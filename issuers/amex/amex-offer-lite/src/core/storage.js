@@ -1,6 +1,7 @@
 function restoreLocalSettings() {
     restoreSavedCards();
     restoreSavedOffers();
+    restoreViewSettings();
     try {
         const cooldownUntil = Number(localStorage.getItem(SETTINGS.cooldownKey));
         if (Number.isFinite(cooldownUntil)) state.cooldownUntil = cooldownUntil;

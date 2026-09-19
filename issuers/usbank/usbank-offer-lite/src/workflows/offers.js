@@ -5,16 +5,17 @@ async function fetchListing(session) {
 function scanOffers() {
     return runExclusive(async () => {
         state.needsScan = true;
-        state.offers = [];
-        state.selected.clear();
         state.confirmed = 0;
         state.total = 0;
         state.session = readSession();
+        bindWorkspaceScope(await workspaceScopeFingerprint(JSON.stringify([state.session.sourceCustomerId, state.session.userId])));
         updateStatus('Scanning Cash Back Deals…');
         const listing = await fetchListing(state.session);
         ensureRunning();
         state.offers = listing.offers;
+        state.selected = new Set([...state.selected].filter(id => state.offers.some(offer => offer.offerId === id && offer.status === 'AVAILABLE')));
         state.needsScan = false;
+        recordWorkspaceScan();
         updateStatus(`Scan complete: ${state.offers.filter(offer => offer.status === 'AVAILABLE').length} available. Select offers to activate.`);
     });
 }
@@ -29,6 +30,7 @@ function activateSelectedOffers() {
         updateStatus('Refreshing selected offers before activation…');
         let listing = await fetchListing(state.session);
         state.offers = listing.offers;
+        state.selected = new Set([...state.selected].filter(id => listing.offers.some(offer => offer.offerId === id)));
         for (const offerId of selectedIds) {
             ensureRunning();
             const offer = listing.offers.find(item => item.offerId === offerId);
@@ -36,6 +38,7 @@ function activateSelectedOffers() {
             if (!offer || offer.status !== 'AVAILABLE') throw new Error('A selected offer changed or disappeared. Scan and select again.');
             updateStatus(`Activating ${offer.merchant}; each request waits ${SETTINGS.gapMilliseconds / 1000} seconds after the previous response…`);
             try {
+                markWorkspaceOfferPending(offer);
                 const payload = await requestGraphql(ACTIVATE_OFFER_QUERY, () => activationBody(offer, listing), state.session);
                 offer.status = 'UNCONFIRMED';
                 if (!activationAcknowledged(payload)) throw new Error('Activation was not acknowledged. Scan again; no automatic retry.');
@@ -47,7 +50,8 @@ function activateSelectedOffers() {
                 listing = verified;
                 state.offers = listing.offers;
                 state.confirmed++;
-                state.selected.delete(offerId);
+                state.selected = new Set([...state.selected].filter(id => listing.offers.some(candidate => candidate.offerId === id && candidate.status === 'AVAILABLE')));
+                finishWorkspaceOffer(offer);
                 renderPanel();
             } catch (error) {
                 offer.status = 'UNCONFIRMED';
@@ -55,7 +59,7 @@ function activateSelectedOffers() {
             }
         }
         ensureRunning();
-        // Every new run requires a fresh manual scan and selection.
+        // Every new run requires a fresh manual scan; existing eligible selections survive.
         updateStatus(`Finished: ${state.confirmed}/${state.total} newly confirmed. Already activated offers were skipped. Scan again for a new selection.`);
     });
 }

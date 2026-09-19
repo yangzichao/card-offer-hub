@@ -1,5 +1,6 @@
 async function runExclusive(action) {
     if (state.busy) return;
+    let workspaceActionStarted = false;
     state.busy = true;
     state.stopRequested = false;
     renderPanel();
@@ -9,11 +10,15 @@ async function runExclusive(action) {
             if (!lock) throw new Error('This script is running in another tab.');
             restorePacing();
             if (state.storageError) throw new Error(state.storageError);
+            workspaceActionStarted = true;
             await action();
         });
     } catch (error) {
         state.needsScan = true;
-        state.consent = false;
         updateStatus(error.message);
-    } finally { state.busy = false; renderPanel(); }
+    } finally {
+        state.busy = false;
+        if (workspaceActionStarted) saveWorkspace();
+        renderPanel();
+    }
 }

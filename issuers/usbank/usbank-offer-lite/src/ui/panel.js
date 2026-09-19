@@ -15,23 +15,25 @@ function mountPanel() {
         <p class="muted">${SETTINGS.gapMilliseconds / 1000} seconds between requests; each activation needs a verification request. No automatic retries. Search only filters the display; select all includes hidden offers.</p>
       </section><section><p id="counts"></p><input id="search" type="search" aria-label="Search US Bank offers" placeholder="Search merchants">
       <div id="offers" class="offers"></div></section>
-      <footer><div id="status" role="status" aria-live="polite"></div><div id="storage-error" class="error" role="alert"></div></footer></div></div>`;
+      <footer><p id="workspace-cache" class="muted"></p><div id="status" role="status" aria-live="polite"></div><div id="storage-error" class="error" role="alert"></div></footer></div></div>`;
     panel.querySelector('h2').textContent = `${SETTINGS.name} ${SETTINGS.version}`;
     panel.getElementById('scan').addEventListener('click', scanOffers);
     panel.getElementById('select-all').addEventListener('click', selectAllOffers);
     panel.getElementById('clear').addEventListener('click', () => {
-        if (!state.busy) { state.selected.clear(); renderPanel(); }
+        if (!state.busy) { state.selected.clear(); saveWorkspace(); renderPanel(); }
     });
     panel.getElementById('activate').addEventListener('click', activateSelectedOffers);
     panel.getElementById('stop').addEventListener('click', stopRun);
-    panel.getElementById('search').addEventListener('input', event => { state.search = event.target.value; renderOffers(); });
+    panel.getElementById('search').addEventListener('input', event => { state.search = event.target.value; saveWorkspace(); renderOffers(); });
     panel.getElementById('collapse').addEventListener('click', () => {
         state.collapsed = !state.collapsed;
+        saveWorkspace();
         panel.getElementById('body').hidden = state.collapsed;
         panel.getElementById('collapse').textContent = state.collapsed ? '+' : '−';
         panel.getElementById('collapse').setAttribute('aria-label', state.collapsed ? 'Expand US Bank panel' : 'Minimize US Bank panel');
     });
     document.body.appendChild(host);
     state.panel = panel;
+    restoreWorkspacePanel(panel, 'US Bank');
     renderPanel();
 }

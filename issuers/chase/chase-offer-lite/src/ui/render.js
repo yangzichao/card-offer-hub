@@ -36,6 +36,7 @@ function renderOffers() {
 function renderPanel() {
     if (!state.panel) return;
     const panel = state.panel;
+    panel.getElementById('workspace-cache').textContent = workspaceCacheNotice();
     const blocked = state.busy || Boolean(state.storageError);
     panel.getElementById('detect').disabled = blocked;
     panel.getElementById('scan').disabled = blocked || !state.selected.size;

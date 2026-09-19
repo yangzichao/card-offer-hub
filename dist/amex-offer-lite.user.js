@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Amex Offer Lite
 // @namespace    https://github.com/yangzichao/card-offer-hub
-// @version      5.0.1
+// @version      5.1.0
 // @description  Detect cards, rank them by drag, scan Offers Hub slowly, and add every offer to one card at a time
 // @author       Zichao Yang
 // @match        https://global.americanexpress.com/*
@@ -23,7 +23,7 @@
 
     // Source: core/state.js
     const SETTINGS = Object.freeze({
-        version: "5.0.1",
+        version: "5.1.0",
         requestGapMs: 500,
         rateLimitCooldownMs: 120000,
         requestTimeoutMs: 30000,
@@ -150,6 +150,7 @@
     function restoreLocalSettings() {
         restoreSavedCards();
         restoreSavedOffers();
+        restoreViewSettings();
         try {
             const cooldownUntil = Number(localStorage.getItem(SETTINGS.cooldownKey));
             if (Number.isFinite(cooldownUntil)) state.cooldownUntil = cooldownUntil;
@@ -164,6 +165,30 @@
         } catch {
             log('Cooldown is active for this page; browser storage is unavailable.');
         }
+    }
+
+    // Source: core/view-settings.js
+    const SAVED_VIEW_SETTINGS_KEY = `${"amex-offer-lite"}:view`;
+    let viewSettingsReadFailed = false;
+    function restoreViewSettings() {
+        try {
+            const saved = GM_getValue(SAVED_VIEW_SETTINGS_KEY, null);
+            if (saved === null) return;
+            if (saved.schemaVersion !== 1 || typeof saved.filter !== 'string' || typeof saved.minimized !== 'boolean') {
+                throw new Error('Unsupported saved view');
+            }
+            state.filter = saved.filter;
+            state.minimized = saved.minimized;
+        } catch {
+            viewSettingsReadFailed = true;
+            log('Could not restore display settings. Stored data was preserved.');
+        }
+    }
+    function persistViewSettings() {
+        if (viewSettingsReadFailed) return;
+        try {
+            GM_setValue(SAVED_VIEW_SETTINGS_KEY, { schemaVersion: 1, filter: state.filter, minimized: state.minimized });
+        } catch { log('Could not save search and panel settings. Check Tampermonkey storage.'); }
     }
 
     // Source: core/saved-cards.js
@@ -1005,6 +1030,7 @@
         header.append(element('h2', `${"Amex Offer Lite"} ${SETTINGS.version}`));
         const toggle = button('btn-toggle', 'Minimize', () => {
             state.minimized = !state.minimized;
+            persistViewSettings();
             renderControls();
         });
         header.append(toggle);
@@ -1048,10 +1074,12 @@
         const filter = element('input');
         filter.type = 'search';
         filter.id = 'input-search';
+        filter.value = state.filter;
         filter.placeholder = 'Filter scanned offers';
         filter.setAttribute('aria-label', 'Filter scanned offers');
         filter.oninput = () => {
             state.filter = filter.value.trim().toLowerCase();
+            persistViewSettings();
             renderOffers();
             renderControls();
         };

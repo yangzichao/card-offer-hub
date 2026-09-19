@@ -19,6 +19,11 @@ async function requestJson(path, body) {
     await waitForRequestSlot();
     const enrollment = path === SETTINGS.enrollmentPath;
     const url = enrollment ? activationUrl() : path;
+    if (enrollment && state.workspaceScope && await workspaceScopeFingerprint(url) !== state.workspaceScope) {
+        state.accountConsent = false;
+        throw new Error('The signed-in account session changed. Scan and confirm account activation again.');
+    }
+    ensureRunning();
     const headers = { Accept: 'application/json' };
     if (enrollment) headers['Content-Type'] = 'application/json';
     // Reserve a slot before sending. A reload or closed tab releases Web Locks,

@@ -1,3 +1,4 @@
+const { webcrypto } = require('node:crypto');
 const { readFileSync } = require('node:fs');
 const { resolve } = require('node:path');
 const { runInNewContext } = require('node:vm');
@@ -21,12 +22,13 @@ function createHarness(respond, options = {}) {
         static now() { return now; }
     }
     const context = {
-        Date: TestDate, AbortController, URLSearchParams, atob,
+        TextEncoder, crypto: webcrypto, Date: TestDate, AbortController, URLSearchParams, atob,
         location: { origin: 'https://deals.merchant-rewards.com', search: '' },
         localStorage: { getItem: () => session },
         navigator: { locks: { request: async (name, config, callback) => callback(options.locked ? null : {}) } },
         GM_getValue: (key, fallback) => structuredClone(storage.get(key) ?? fallback),
         GM_setValue: (key, value) => {
+            options.onSave?.(key, value);
             if (options.failStorage) throw new Error('Synthetic storage error');
             storage.set(key, structuredClone(value));
         },
@@ -55,7 +57,8 @@ function createHarness(respond, options = {}) {
     const marker = '    // --- Init ---';
     if (!compiled.includes(marker)) throw new Error('Missing initialization boundary');
     runInNewContext(compiled.slice(0, compiled.indexOf(marker)) + `globalThis.testAccess = {
-        state, SETTINGS, normalizeOffer, normalizeLocation, normalizePage, normalizeDetail,
+        state, SETTINGS, restoreWorkspace, saveWorkspace, requireWorkspaceSaved, markWorkspaceOfferPending, finishWorkspaceOffer,
+        recordWorkspaceScan, workspaceScopeFingerprint, normalizeOffer, normalizeLocation, normalizePage, normalizeDetail,
         currentSessionToken, retryAfterMilliseconds, requestJson, restorePacing, scanOffers, activateOffers, stopRun
     };})();`, context);
     return { ...context.testAccess, requests, storage, setSession: value => { session = value; }, advance: delay => { now += delay; } };

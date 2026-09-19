@@ -1,5 +1,6 @@
 async function runExclusive(action) {
     if (state.busy) return;
+    let workspaceActionStarted = false;
     state.busy = true;
     state.stopRequested = false;
     renderPanel();
@@ -10,6 +11,7 @@ async function runExclusive(action) {
             restorePacing();
             if (state.storageError) throw new Error(state.storageError);
             ensureRunning();
+            workspaceActionStarted = true;
             await action();
         });
     } catch (error) {
@@ -17,6 +19,7 @@ async function runExclusive(action) {
         updateStatus(error.message);
     } finally {
         state.busy = false;
+        if (workspaceActionStarted) saveWorkspace();
         renderPanel();
     }
 }

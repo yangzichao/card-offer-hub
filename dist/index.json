@@ -5,7 +5,7 @@
         {
             "id": "amex-offer-lite",
             "name": "Amex Offer Lite",
-            "version": "5.0.1",
+            "version": "5.1.0",
             "description": "Detect cards, rank them by drag, scan Offers Hub slowly, and add every offer to one card at a time",
             "issuer": "amex",
             "matches": [
@@ -19,7 +19,7 @@
         {
             "id": "bofa-offer-lite",
             "name": "BankAmeriDeals Lite",
-            "version": "1.0.0",
+            "version": "1.1.0",
             "description": "Manually scan and activate ordinary card-linked BankAmeriDeals with verified results",
             "issuer": "bank-of-america",
             "matches": [
@@ -33,7 +33,7 @@
         {
             "id": "chase-offer-lite",
             "name": "Chase Offer Lite",
-            "version": "1.0.0",
+            "version": "1.1.0",
             "description": "Manually select Chase cards and scan Chase Offers serially; read-only until activation is verified",
             "issuer": "chase",
             "matches": [
@@ -47,7 +47,7 @@
         {
             "id": "citi-offer-lite",
             "name": "Citi Offer Lite",
-            "version": "1.0.1",
+            "version": "1.1.0",
             "description": "Manually select Citi cards, scan Merchant Offers, and enroll all available offers serially",
             "issuer": "citi",
             "matches": [
@@ -61,7 +61,7 @@
         {
             "id": "usbank-offer-lite",
             "name": "US Bank Offer Lite",
-            "version": "1.0.0",
+            "version": "1.1.0",
             "description": "Manually scan and select US Bank Cash Back Deals, activate serially, and verify server state",
             "issuer": "usbank",
             "matches": [
@@ -75,7 +75,7 @@
         {
             "id": "wellsfargo-offer-lite",
             "name": "Wells Fargo Offer Lite",
-            "version": "1.0.0",
+            "version": "1.1.0",
             "description": "Manually scan and activate eligible account-wide Wells Fargo Deals with conservative serial pacing",
             "issuer": "wellsfargo",
             "matches": [

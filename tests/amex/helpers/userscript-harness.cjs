@@ -56,7 +56,7 @@ function createUserscriptHarness(fetchResponse = () => { throw new Error('Unexpe
     };
     const probe = `
     globalThis.amexTestAccess = {
-        state, SETTINGS, restoreLocalSettings, selectedAccounts, decodePageState, readPageState, accountsFromPage,
+        state, SETTINGS, restoreViewSettings, persistViewSettings, SAVED_VIEW_SETTINGS_KEY, restoreLocalSettings, selectedAccounts, decodePageState, readPageState, accountsFromPage,
         normalizeAccounts, detectCards, setCardWhitelisted, startScan, getAllOffersForAccount,
         offersInSection, normalizeHubOffer, requestJson, retryAfterMilliseconds, cancelRun,
         enrollOffer, cardEnrollmentBody, cardEnrollmentStatus, enrollmentUserOffset, startEnrollment, enrollmentCandidates, groupedOffers,

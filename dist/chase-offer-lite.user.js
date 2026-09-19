@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chase Offer Lite
 // @namespace    https://github.com/yangzichao/card-offer-hub
-// @version      1.0.0
+// @version      1.1.0
 // @description  Manually select Chase cards and scan Chase Offers serially; read-only until activation is verified
 // @author       Zichao Yang
 // @match        https://secure.chase.com/web/auth/*
@@ -21,13 +21,166 @@
 (function () {
     'use strict';
 
+    // Source: shared/persistence/workspace-records.js
+    function serializeWorkspaceRecord(record, fields) {
+        const normalized = {};
+        for (const [field, type] of Object.entries(fields)) {
+            normalized[field] = type === 'text' && typeof record[field] !== 'string' ? '' : record[field];
+        }
+        return workspaceRecord(normalized, fields);
+    }
+    // Only adapter-declared display fields enter persistent storage. Request tokens,
+    // raw responses, headers, locations and runtime locks never cross this boundary.
+    function workspaceRecord(record, fields) {
+        if (!record || typeof record !== 'object' || Array.isArray(record)) throw new Error('Invalid saved record');
+        const result = {};
+        for (const [field, type] of Object.entries(fields)) {
+            const value = record[field];
+            if (type === 'boolean') {
+                if (typeof value !== 'boolean') throw new Error('Invalid saved flag');
+                result[field] = value;
+            } else {
+                if (typeof value !== 'string' || (type === 'id' && !value.trim())) throw new Error('Invalid saved text');
+                result[field] = value;
+            }
+        }
+        return result;
+    }
+    function workspaceOfferKey(offer) {
+        return JSON.stringify([offer.accountId || '', offer.offerId || offer.id]);
+    }
+    function validateWorkspaceSnapshot(saved) {
+        if (!saved || saved.schemaVersion !== 1 || !Number.isFinite(saved.savedAt) || saved.savedAt < 0
+            || !Number.isFinite(saved.lastScanAt) || saved.lastScanAt < 0
+            || typeof saved.scopeIdentity !== 'string' || typeof saved.consent !== 'boolean'
+            || typeof saved.search !== 'string' || typeof saved.collapsed !== 'boolean'
+            || !Array.isArray(saved.accounts) || !Array.isArray(saved.offers) || !Array.isArray(saved.selected)) {
+            throw new Error('Unsupported or incomplete workspace snapshot');
+        }
+        const accounts = saved.accounts.map(record => workspaceRecord(record, WORKSPACE_FIELDS.accounts));
+        const offers = saved.offers.map(record => workspaceRecord(record, WORKSPACE_FIELDS.offers));
+        const accountIds = new Set(accounts.map(account => account.accountId));
+        const offerIds = new Set(offers.map(workspaceOfferKey));
+        if (accountIds.size !== accounts.length || offerIds.size !== offers.length
+            || (!WORKSPACE_FIELDS.accounts && accounts.length)
+            || (WORKSPACE_FIELDS.accounts && offers.some(offer => !accountIds.has(offer.accountId)))) {
+            throw new Error('Conflicting saved records');
+        }
+        const allowedSelections = WORKSPACE_FIELDS.accounts ? accountIds : new Set(offers.map(offer => offer.offerId));
+        if (saved.selected.some(id => typeof id !== 'string' || !allowedSelections.has(id))
+            || new Set(saved.selected).size !== saved.selected.length) throw new Error('Invalid saved selections');
+        return { ...saved, accounts, offers };
+    }
+
+    // Source: shared/persistence/workspace-storage.js
+    const pendingWorkspaceOffers = new Set();
+    function saveWorkspace() {
+        if (state.storageError) return false;
+        try {
+            const offers = state.offers.map(offer => {
+                const record = serializeWorkspaceRecord(offer, WORKSPACE_FIELDS.offers);
+                if (pendingWorkspaceOffers.has(workspaceOfferKey(offer))) {
+                    if ('status' in record) record.status = 'UNCONFIRMED';
+                    else { record.result = 'Unconfirmed'; record.eligible = false; }
+                }
+                return record;
+            });
+            const snapshot = validateWorkspaceSnapshot({
+                schemaVersion: 1, savedAt: Date.now(), lastScanAt: state.lastScanAt,
+                scopeIdentity: state.workspaceScope, accounts: (state.accounts || []).map(account => serializeWorkspaceRecord(account, WORKSPACE_FIELDS.accounts)),
+                offers, selected: [...(state.selected || [])], consent: state.consent ?? state.accountConsent ?? false,
+                search: state.search || '', collapsed: state.collapsed
+            });
+            GM_setValue(`${SETTINGS.id}:workspace`, snapshot);
+            return true;
+        } catch {
+            state.storageError = 'Cannot save scan results and selections. Further requests are blocked; fix Tampermonkey storage and reload.';
+            renderPanel();
+            return false;
+        }
+    }
+    function requireWorkspaceSaved() {
+        if (!saveWorkspace()) throw new Error(state.storageError);
+    }
+    function restoreWorkspace() {
+        try {
+            const saved = GM_getValue(`${SETTINGS.id}:workspace`, null);
+            if (saved === null) return; // Older releases only saved pacing; keep it intact.
+            const snapshot = validateWorkspaceSnapshot(saved);
+            if (WORKSPACE_FIELDS.accounts) state.accounts = snapshot.accounts;
+            state.offers = snapshot.offers;
+            if (state.selected) state.selected = new Set(snapshot.selected);
+            if ('consent' in state) state.consent = snapshot.consent;
+            if ('accountConsent' in state) state.accountConsent = snapshot.consent;
+            state.search = snapshot.search;
+            state.collapsed = snapshot.collapsed;
+            state.lastScanAt = snapshot.lastScanAt;
+            state.workspaceScope = snapshot.scopeIdentity;
+            state.restoredWorkspace = true;
+            state.needsScan = true;
+            state.status = 'Saved results and selections restored. Scan manually to verify the current account before adding.';
+        } catch {
+            state.storageError = 'Cannot read saved results and selections. Stored data was preserved; resolve Tampermonkey storage before running.';
+        }
+    }
+    function recordWorkspaceScan() {
+        state.lastScanAt = Date.now();
+        state.restoredWorkspace = false;
+        pendingWorkspaceOffers.clear();
+        requireWorkspaceSaved();
+    }
+    function markWorkspaceOfferPending(offer) {
+        pendingWorkspaceOffers.add(workspaceOfferKey(offer));
+        requireWorkspaceSaved(); // Must succeed before a write request can leave.
+    }
+    function finishWorkspaceOffer(offer) {
+        pendingWorkspaceOffers.delete(workspaceOfferKey(offer));
+        requireWorkspaceSaved();
+    }
+
+    // Source: shared/persistence/workspace-scope.js
+    async function workspaceScopeFingerprint(value) {
+        // A one-way scope marker can detect a changed opaque session without storing
+        // the credential itself. It cannot be used to authenticate any request.
+        const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+        return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+    }
+    function bindWorkspaceScope(scope) {
+        if (state.workspaceScope && state.workspaceScope !== scope) {
+            if (state.selected) state.selected.clear();
+            if ('consent' in state) state.consent = false;
+            if ('accountConsent' in state) state.accountConsent = false;
+            state.offers = [];
+            state.lastScanAt = 0;
+            pendingWorkspaceOffers.clear();
+        }
+        state.workspaceScope = scope;
+    }
+
+    // Source: shared/persistence/workspace-ui.js
+    function workspaceCacheNotice() {
+        if (!state.lastScanAt) return 'Results and selections are saved locally. Nothing runs automatically.';
+        return `Last complete scan: ${new Date(state.lastScanAt).toLocaleString()}. ${state.restoredWorkspace || state.needsScan
+            ? 'Saved results; scan again before adding.' : 'Results and selections saved locally.'}`;
+    }
+    function restoreWorkspacePanel(panel, bankName) {
+        const search = panel.getElementById('search');
+        if (search) search.value = state.search || '';
+        panel.getElementById('body').hidden = state.collapsed;
+        const toggle = panel.getElementById('collapse');
+        toggle.textContent = state.collapsed ? '+' : '−';
+        toggle.setAttribute('aria-expanded', String(!state.collapsed));
+        toggle.setAttribute('aria-label', `${state.collapsed ? 'Expand' : 'Minimize'} ${bankName} panel`);
+    }
+
     // Source: core/state.js
     const SETTINGS = {
-        id: "chase-offer-lite", name: "Chase Offer Lite", version: "1.0.0",
+        id: "chase-offer-lite", name: "Chase Offer Lite", version: "1.1.0",
         gapMilliseconds: 500, timeoutMilliseconds: 45000,
         defaultCooldownMilliseconds: 300000
     };
     const state = {
+        lastScanAt: 0, workspaceScope: '', restoredWorkspace: false,
         accounts: [], selected: new Set(), offers: [], busy: false, stopRequested: false,
         needsScan: true, nextRequestAt: 0, cooldownUntil: 0, storageError: '',
         status: 'Open Chase Offers or switch its selected card, then detect cards. Scans start only when you click.',
@@ -50,8 +203,7 @@
     }
 
     // Source: core/storage.js
-    // Store only pacing state. Account IDs, offers, cookies, and request headers stay
-    // in memory; a reload always requires fresh discovery and manual card selection.
+    // Keep the original pacing schema/key; result snapshots use a separate versioned key.
     function restorePacing() {
         try {
             const saved = GM_getValue(`${SETTINGS.id}:pacing`, null);
@@ -76,6 +228,25 @@
             renderPanel();
         }
     }
+
+    // Source: core/workspace-fields.js
+    const WORKSPACE_FIELDS = {
+        "accounts": {
+            "accountId": "id",
+            "name": "text",
+            "lastFour": "text",
+            "eligible": "boolean"
+        },
+        "offers": {
+            "accountId": "id",
+            "offerId": "id",
+            "status": "text",
+            "merchant": "text",
+            "title": "text",
+            "category": "text",
+            "expires": "text"
+        }
+    };
 
     // Source: api/contracts.js
     const CHASE_OFFERS_PATH = '/svc/wr/profile/secure/gateway/ccb/marketing/offer-management/digital-customer-targeted-offers/v3/customer-offers';
@@ -198,7 +369,8 @@
                 || !Array.isArray(payload.customerOffers)
                 || !payload.customerOffers.some(account => chaseIdentifier(account.digitalAccountIdentifier) === context.accountId)) return false;
             // Only discovery fields survive observation. Impression/session tokens,
-            // profile identity and the native offer payload are never persisted.
+            // credentials and the native offer payload stay in memory. Workspace snapshots
+            // separately retain normalized display records and the non-secret profile ID.
             chaseCapturedAccounts = { digitalProfileAccounts: payload.digitalProfileAccounts.map(card => ({
                 digitalAccountIdentifier: chaseIdentifier(card.digitalAccountIdentifier),
                 accountNickname: typeof card.accountNickname === 'string' ? card.accountNickname : '',
@@ -363,6 +535,7 @@
     // Source: workflows/runner.js
     async function runExclusive(action) {
         if (state.busy) return;
+        let workspaceActionStarted = false;
         state.busy = true;
         state.stopRequested = false;
         renderPanel();
@@ -373,6 +546,7 @@
                 restorePacing();
                 if (state.storageError) throw new Error(state.storageError);
                 ensureRunning();
+                workspaceActionStarted = true;
                 await action();
             });
         } catch (error) {
@@ -380,6 +554,7 @@
             updateStatus(error.message);
         } finally {
             state.busy = false;
+            if (workspaceActionStarted) saveWorkspace();
             renderPanel();
         }
     }
@@ -389,31 +564,40 @@
         if (state.busy || state.storageError
             || !state.accounts.some(card => card.accountId === accountId && card.eligible !== false)) return;
         if (selected) state.selected.add(accountId); else state.selected.delete(accountId);
-        state.offers = [];
         state.needsScan = true;
+        saveWorkspace();
         state.completed = 0;
         state.total = 0;
         renderPanel();
     }
     function detectCards() {
         return runExclusive(async () => {
-            state.accounts = [];
-            state.selected.clear();
-            state.offers = [];
+            const accounts = normalizeAccounts(getCapturedAccountsPayload());
+            const identity = currentSession().enterprisePartyIdentifier;
+            bindWorkspaceScope(identity);
+            const eligibleIds = new Set(accounts.filter(card => card.eligible).map(card => card.accountId));
+            state.accounts = accounts;
+            state.selected = new Set([...state.selected].filter(id => eligibleIds.has(id)));
+            state.offers = state.offers.filter(offer => accounts.some(card => card.accountId === offer.accountId));
             state.needsScan = true;
-            state.completed = 0;
-            state.total = 0;
-            state.sessionIdentity = '';
-            state.accounts = normalizeAccounts(getCapturedAccountsPayload());
-            state.sessionIdentity = currentSession().enterprisePartyIdentifier;
-            updateStatus(`Detected ${state.accounts.length} cards from Chase's page. Select cards to scan; no card is selected automatically.`);
+            state.sessionIdentity = identity;
+            state.restoredWorkspace = false;
+            requireWorkspaceSaved();
+            updateStatus(`Detected ${state.accounts.length} cards from Chase's page. Your existing card selections were preserved.`);
         });
     }
     function scanOffers() {
         const accounts = state.accounts.filter(card => state.selected.has(card.accountId));
         if (!accounts.length) return;
         return runExclusive(async () => {
-            state.offers = [];
+            if (state.restoredWorkspace) {
+                const currentAccounts = normalizeAccounts(getCapturedAccountsPayload());
+                const identity = currentSession().enterprisePartyIdentifier;
+                if (identity !== state.workspaceScope || accounts.some(card => !currentAccounts.some(current => current.accountId === card.accountId && current.eligible))) {
+                    throw new Error('Saved cards do not match this login. Detect cards and review selections.');
+                }
+                state.sessionIdentity = identity;
+            }
             state.needsScan = true;
             state.completed = 0;
             state.total = accounts.length;
@@ -422,13 +606,16 @@
                 updateStatus(`Scanning card ${index + 1}/${accounts.length}; requests are spaced 0.5 seconds apart…`);
                 const payload = await requestJson(buildOffersRequest(card.accountId));
                 ensureSelectedSession(card.accountId, { allowStopped: true });
-                state.offers.push(...normalizeOffers(payload, card.accountId, state.sessionIdentity));
+                const scannedOffers = normalizeOffers(payload, card.accountId, state.sessionIdentity);
+                state.offers = state.offers.filter(offer => offer.accountId !== card.accountId).concat(scannedOffers);
+                requireWorkspaceSaved();
                 state.completed++;
                 renderPanel();
                 if (state.storageError) throw new Error(state.storageError);
                 ensureRunning();
             }
             state.needsScan = false;
+            recordWorkspaceScan();
             updateStatus(`Scan complete: ${state.offers.length} offers across ${accounts.length} selected cards. To add offers, use the Chase website.`);
         });
     }
@@ -466,18 +653,19 @@
             <p class="muted">Search only filters the display. Card selection controls the scan.</p>
           </section><section><p id="counts"></p><input id="search" type="search" aria-label="Search Chase offers" placeholder="Search merchants">
           <div id="offers" class="offers"></div></section>
-          <footer><div id="status" role="status" aria-live="polite"></div><div id="storage-error" class="error" role="alert"></div></footer></div></div>`;
+          <footer><p id="workspace-cache" class="muted"></p><div id="status" role="status" aria-live="polite"></div><div id="storage-error" class="error" role="alert"></div></footer></div></div>`;
         panel.querySelector('h2').textContent = `${SETTINGS.name} ${SETTINGS.version}`;
         panel.getElementById('detect').addEventListener('click', detectCards);
         panel.getElementById('scan').addEventListener('click', scanOffers);
         panel.getElementById('add').addEventListener('click', addAllOffers);
         panel.getElementById('stop').addEventListener('click', stopRun);
         panel.getElementById('search').addEventListener('input', event => {
-            state.search = event.target.value;
+            state.search = event.target.value; saveWorkspace();
             renderOffers();
         });
         panel.getElementById('collapse').addEventListener('click', () => {
             state.collapsed = !state.collapsed;
+            saveWorkspace();
             panel.getElementById('body').hidden = state.collapsed;
             const button = panel.getElementById('collapse');
             button.textContent = state.collapsed ? '+' : '−';
@@ -486,6 +674,7 @@
         });
         document.body.appendChild(host);
         state.panel = panel;
+        restoreWorkspacePanel(panel, 'Chase');
         renderPanel();
     }
 
@@ -528,6 +717,7 @@
     function renderPanel() {
         if (!state.panel) return;
         const panel = state.panel;
+        panel.getElementById('workspace-cache').textContent = workspaceCacheNotice();
         const blocked = state.busy || Boolean(state.storageError);
         panel.getElementById('detect').disabled = blocked;
         panel.getElementById('scan').disabled = blocked || !state.selected.size;
@@ -561,6 +751,7 @@
     // --- Init ---
     installSessionObserver();
     restorePacing();
+    restoreWorkspace();
     if (document.body) mountPanel();
     else document.addEventListener('DOMContentLoaded', mountPanel, { once: true });
 })();

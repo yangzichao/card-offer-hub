@@ -1,3 +1,4 @@
 // --- Init ---
 restorePacing();
+restoreWorkspace();
 mountPanel();

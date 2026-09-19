@@ -35,7 +35,7 @@ test('fresh scan, deduplication, serial activation, response-completion pacing, 
     }
     assert.match(harness.state.status, /Finished: 2\/2/);
     const stored = JSON.stringify([...harness.storage]);
-    for (const forbidden of ['1001', 'offerId', 'synthetic-token', 'checkSum']) assert.equal(stored.includes(forbidden), false);
+    for (const forbidden of ['synthetic-token', 'checkSum', 'clDealsActivateAction']) assert.equal(stored.includes(forbidden), false);
 });
 
 test('unconfirmed activation stops and requires a new scan', async () => {
@@ -122,6 +122,6 @@ test('storage errors, future schema, missing token, and cross-tab locking fail c
     const missing = createHarness(normalResponse, { scripts: [] });
     await consentAndScan(missing);
     await missing.addAllOffers();
-    assert.equal(missing.requests.length, 1);
+    assert.equal(missing.requests.length, 0);
     assert.match(missing.state.status, /session is unavailable/);
 });

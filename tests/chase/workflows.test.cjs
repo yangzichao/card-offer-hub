@@ -55,14 +55,14 @@ test('Chase scans only selected accounts, serially, with 0.5 seconds after respo
     assert.equal(harness.requests.length, 2, 'unverified enrollment never issues any request');
 });
 
-test('Chase deselection excludes the account and clears stale scan results', async () => {
+test('Chase deselection excludes the account and preserves saved scan results', async () => {
     const harness = createHarness(request => jsonResponse(listing(accountForRequest(request))));
     selectCards(harness, ['101', '202']);
     harness.setCardSelected('202', false);
     await harness.scanOffers();
     assert.deepEqual(harness.requests.map(accountForRequest), ['101']);
     harness.setCardSelected('101', false);
-    assert.equal(harness.state.offers.length, 0);
+    assert.equal(harness.state.offers.length, 1);
     assert.equal(harness.state.needsScan, true);
 });
 
