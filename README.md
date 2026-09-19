@@ -9,7 +9,11 @@
 | 脚本 | 发卡行 | 版本 | 生效站点 | 安装 |
 | --- | --- | --- | --- | --- |
 | [Amex Offer Lite](issuers/amex/amex-offer-lite/README.md) | amex | 5.0.1 | https://global.americanexpress.com/* | [安装 / 更新](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/amex-offer-lite.user.js) |
+| [BankAmeriDeals Lite](issuers/bank-of-america/bofa-offer-lite/README.md) | bank-of-america | 1.0.0 | https://deals.merchant-rewards.com/* | [安装 / 更新](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/bofa-offer-lite.user.js) |
+| [Chase Offer Lite](issuers/chase/chase-offer-lite/README.md) | chase | 1.0.0 | https://secure.chase.com/web/auth/* | [安装 / 更新](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/chase-offer-lite.user.js) |
 | [Citi Offer Lite](issuers/citi/citi-offer-lite/README.md) | citi | 1.0.1 | https://online.citi.com/US/* | [安装 / 更新](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/citi-offer-lite.user.js) |
+| [US Bank Offer Lite](issuers/usbank/usbank-offer-lite/README.md) | usbank | 1.0.0 | https://onlinebanking.usbank.com/* | [安装 / 更新](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/usbank-offer-lite.user.js) |
+| [Wells Fargo Offer Lite](issuers/wellsfargo/wellsfargo-offer-lite/README.md) | wellsfargo | 1.0.0 | https://web.secure.wellsfargo.com/auth/deals-portal*<br>https://web.secure.wellsfargo.com/deals-portal/* | [安装 / 更新](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/wellsfargo-offer-lite.user.js) |
 
 <!-- published-scripts:end -->
 

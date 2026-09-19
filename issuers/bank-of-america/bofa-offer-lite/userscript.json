@@ -1,0 +1,15 @@
+{
+  "id": "bofa-offer-lite",
+  "name": "BankAmeriDeals Lite",
+  "version": "1.0.0",
+  "description": "Manually scan and activate ordinary card-linked BankAmeriDeals with verified results",
+  "author": "Zichao Yang",
+  "issuer": "bank-of-america",
+  "matches": ["https://deals.merchant-rewards.com/*"],
+  "grants": ["GM_getValue", "GM_setValue"],
+  "connects": [],
+  "runAt": "document-idle",
+  "noFrames": true,
+  "sharedModules": [],
+  "sources": ["core/state.js", "core/storage.js", "api/session.js", "api/transport.js", "api/contracts.js", "workflows/runner.js", "workflows/offers.js", "ui/panel.js", "ui/render.js", "initialize.js"]
+}
