@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Citi Offer Lite
 // @namespace    https://github.com/yangzichao/card-offer-hub
-// @version      1.0.0
+// @version      1.0.1
 // @description  Manually select Citi cards, scan Merchant Offers, and enroll all available offers serially
 // @author       Zichao Yang
 // @match        https://online.citi.com/US/*
@@ -22,11 +22,11 @@
 
     // Source: core/state.js
     const SETTINGS = {
-        id: "citi-offer-lite", name: "Citi Offer Lite", version: "1.0.0",
+        id: "citi-offer-lite", name: "Citi Offer Lite", version: "1.0.1",
         apiBase: '/gcgapi/prod/public/v1',
         retrievePath: '/digital/customers/creditCards/merchantOffers/retrieve',
         enrollmentPath: '/digital/customers/creditCards/accounts/rewards/specialOffers/enrollMerchantOffer',
-        gapMilliseconds: 15000, timeoutMilliseconds: 45000,
+        gapMilliseconds: 500, timeoutMilliseconds: 45000,
         defaultCooldownMilliseconds: 300000
     };
     const state = {
@@ -271,7 +271,7 @@
         state.total = 0;
         for (const [index, card] of accounts.entries()) {
             ensureRunning();
-            updateStatus(`Scanning card ${index + 1}/${accounts.length}; requests are spaced 15 seconds apart…`);
+            updateStatus(`Scanning card ${index + 1}/${accounts.length}; requests are spaced 0.5 seconds apart…`);
             const payload = await requestJson(SETTINGS.retrievePath, { accountId: card.accountId });
             ensureRunning();
             state.offers.push(...normalizeOffers(payload, card.accountId));

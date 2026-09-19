@@ -34,6 +34,7 @@ async function run() {
         const enrollmentRequests = [];
         page.on('pageerror', (error) => errors.push(error.message));
         await page.clock.install({ time: new Date('2026-09-10T12:00:00Z') });
+        await page.clock.pauseAt(new Date('2026-09-10T12:00:01Z'));
         await page.route('**/*', async (route) => {
             const request = route.request();
             if (request.isNavigationRequest()) {
@@ -108,20 +109,21 @@ async function run() {
             /^Goes to Test card 0 · \(10000\)$/, 'a card-exclusive offer stays on its own card');
         await page.screenshot({ path: resolve(screenshotPath, 'priority-allocation.png') });
 
-        // One unattended run: two offers, one request each, 15s apart, nothing overlapping.
+        // One unattended run: two offers, one request each, 0.5s apart, nothing overlapping.
         await page.clock.runFor(16000); // Clear the gap left over from the last scan response.
         await page.getByRole('button', { name: 'Add all offers (2)', exact: true }).click();
         await page.waitForFunction(() => window.__testEnrollmentRequests === 1);
         assert.equal(enrollmentRequests.length, 1);
         assert.equal(enrollmentRequests[0].payload.accountNumberProxy, 'card-3');
         assert.equal(enrollmentRequests[0].payload.identifier, 'acme-3');
-        await page.clock.runFor(10000);
+        await waitForStatus(page, 'Waiting');
+        await page.clock.runFor(499);
         assert.equal(enrollmentRequests.length, 1, 'the next offer waits the full gap');
-        await page.clock.runFor(8000);
+        await page.clock.runFor(1);
         await page.waitForFunction(() => window.__testEnrollmentRequests === 2);
         assert.equal(enrollmentRequests[1].payload.accountNumberProxy, 'card-0');
         assert.equal(enrollmentRequests[1].payload.identifier, 'card-zero-offer');
-        assert.ok(enrollmentRequests[1].startedAt - enrollmentRequests[0].startedAt >= 15000);
+        assert.ok(enrollmentRequests[1].startedAt - enrollmentRequests[0].startedAt >= 500);
         await waitForStatus(page, 'Enrollment complete. 2 offers added');
         assert.equal(await openOffer.locator('.offer-counts').textContent(), 'Eligible on 4 cards · Added on 1 · Seen on 5');
         assert.match(await openOffer.locator('.offer-target').textContent(), /^Already on Test card 3 · \(10003\) · no other card will be used/);
@@ -131,7 +133,7 @@ async function run() {
         await page.clock.runFor(60000);
         assert.equal(enrollmentRequests.length, 2);
         assert.deepEqual(errors, []);
-        console.log('PASS: seven-card scan, cross-card counts, reordered priority re-targeting shared offers, one-card-per-offer allocation, serial 15s enrollment, and no repeat run.');
+        console.log('PASS: seven-card scan, cross-card counts, reordered priority re-targeting shared offers, one-card-per-offer allocation, serial 0.5s enrollment, and no repeat run.');
     } finally {
         await browser.close();
     }

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Amex Offer Lite
 // @namespace    https://github.com/yangzichao/card-offer-hub
-// @version      5.0.0
+// @version      5.0.1
 // @description  Detect cards, rank them by drag, scan Offers Hub slowly, and add every offer to one card at a time
 // @author       Zichao Yang
 // @match        https://global.americanexpress.com/*
@@ -23,8 +23,8 @@
 
     // Source: core/state.js
     const SETTINGS = Object.freeze({
-        version: "5.0.0",
-        requestGapMs: 15000,
+        version: "5.0.1",
+        requestGapMs: 500,
         rateLimitCooldownMs: 120000,
         requestTimeoutMs: 30000,
         whitelistKey: 'card_offer_hub_amex_whitelist_v1',
@@ -1036,7 +1036,7 @@
 
         const scan = element('section');
         scan.append(element('h3', '3. Scan whitelist offers'));
-        scan.append(element('p', 'Available + added offers · one request at a time · 15s minimum gap · no automatic retries', 'muted'));
+        scan.append(element('p', 'Available + added offers · one request at a time · 0.5s minimum gap · no automatic retries', 'muted'));
         scan.append(element('p', 'Offers and card statuses are saved. Reloading shows saved results; use Scan whitelist to refresh them manually.', 'muted'));
         const scanActions = element('div', '', 'actions');
         scanActions.append(button('btn-scan', 'Scan whitelist', startScan, 'primary'));
@@ -1056,7 +1056,7 @@
             renderControls();
         };
         offersSection.append(filter);
-        offersSection.append(element('p', 'Add all offers runs unattended: one offer per card, one request at a time, 15s apart, no retries. Stop takes effect immediately.', 'muted'));
+        offersSection.append(element('p', 'Add all offers runs unattended: one offer per card, one request at a time, 0.5s apart, no retries. Stop takes effect immediately.', 'muted'));
         const enrollmentActions = element('div', '', 'actions');
         enrollmentActions.append(button('btn-enroll-all', 'Add all offers', () => startEnrollment(), 'primary'));
         offersSection.append(enrollmentActions);

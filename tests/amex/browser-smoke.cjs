@@ -19,6 +19,7 @@ async function run() {
         let rateLimitMode = false;
         page.on('pageerror', (error) => errors.push(error.message));
         await page.clock.install({ time: new Date('2026-09-10T12:00:00Z') });
+        await page.clock.pauseAt(new Date('2026-09-10T12:00:01Z'));
         await page.route('**/*', async (route) => {
             const request = route.request();
             if (request.isNavigationRequest()) {
@@ -70,7 +71,7 @@ async function run() {
         await page.clock.runFor(16000);
         await page.waitForFunction(() => document.getElementById('amex-offer-lite-ui').shadowRoot.getElementById('status').textContent.startsWith('Scan complete'));
         assert.equal(requests.length, 2);
-        assert.ok(requests[1].time - requests[0].time >= 15000);
+        assert.ok(requests[1].time - requests[0].time >= 500);
         assert.ok(requests.every((request) => request.payload.accountNumberProxy === 'card-a'));
         assert.equal(await page.locator('.offer').count(), 4, 'both lists and informational offers should render');
         await page.screenshot({ path: resolve(screenshotDirectory, 'whitelist-scan.png') });
@@ -94,9 +95,11 @@ async function run() {
 
         // Cancel while rate spacing is active: no read or enrollment may start later.
         await page.getByRole('button', { name: 'Scan whitelist (1)', exact: true }).click();
+        await page.waitForFunction(() => document.getElementById('amex-offer-lite-ui').shadowRoot.getElementById('status').textContent.includes('Waiting'));
+        const requestCountBeforeStop = requests.length;
         await page.getByRole('button', { name: 'Stop', exact: true }).click();
         await page.clock.runFor(16000);
-        assert.equal(requests.length, requestCountBeforeRemount);
+        assert.equal(requests.length, requestCountBeforeStop);
 
         // 429 stops once, keeps the whitelist and requires a manual restart after cooldown.
         rateLimitMode = true;
@@ -114,7 +117,7 @@ async function run() {
         const bounds = await page.locator('.panel').boundingBox();
         assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= 390, 'panel must fit narrow screens');
         assert.deepEqual(errors, []);
-        console.log('PASS: real Chromium UI, manual-only startup, whitelist-only requests, complete lists, 15s spacing, enrollment/filter state, SPA remount, cancellation, 429 cooldown, and narrow viewport.');
+        console.log('PASS: real Chromium UI, manual-only startup, whitelist-only requests, complete lists, 0.5s spacing, enrollment/filter state, SPA remount, cancellation, 429 cooldown, and narrow viewport.');
     } finally {
         await browser.close();
     }

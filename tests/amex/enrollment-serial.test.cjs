@@ -24,7 +24,7 @@ async function drainMicrotasks() {
     for (let index = 0; index < 30; index++) await Promise.resolve();
 }
 
-test('one run adds every planned offer, one request at a time, 15 seconds apart', async () => {
+test('one run adds every planned offer, one request at a time, 0.5 seconds apart', async () => {
     const harness = preparedHarness(confirmEveryRequest);
     assert.deepEqual(Array.from(harness.enrollmentPlan(), ({ account, offer }) => `${offer.name}@${account.token}`),
         ['Only A@card-a', 'Shared@card-a', 'Only B@card-b']);
@@ -32,7 +32,7 @@ test('one run adds every planned offer, one request at a time, 15 seconds apart'
     assert.equal(harness.requests.length, 3);
     assert.equal(harness.maximumActiveRequests(), 1, 'nothing overlaps');
     const gaps = harness.requests.slice(1).map((request, index) => request.startedAt - harness.requests[index].startedAt);
-    assert.ok(gaps.every((gap) => gap >= 15000), `expected every gap to be at least 15s, saw ${gaps}`);
+    assert.ok(gaps.every((gap) => gap === 500), `expected every gap to be exactly 0.5s, saw ${gaps}`);
     assert.match(harness.state.status, /Enrollment complete\. 3 offers added/);
     assert.equal(harness.state.busy, null);
     assert.equal(harness.state.offersByAccount.get('card-a')[0].status, 'ENROLLED');

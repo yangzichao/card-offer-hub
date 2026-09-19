@@ -9,14 +9,14 @@ function scanResponse(request) {
         : hubResponse('addedToCardViewAll', [rawOffer('enrolled', 'ENROLLED')]));
 }
 
-test('scan touches only whitelist cards, reads both lists, and serializes requests 15 seconds apart', async () => {
+test('scan touches only whitelist cards, reads both lists, and serializes requests 0.5 seconds apart', async () => {
     const harness = createUserscriptHarness(scanResponse);
     configureAccounts(harness, ['card-a', 'card-b', 'card-c'], ['card-a', 'card-c']);
     await Promise.all([harness.startScan(), harness.startScan()]);
     assert.deepEqual(harness.requests.map((request) => request.body.accountNumberProxy), ['card-a', 'card-a', 'card-c', 'card-c']);
     assert.deepEqual(harness.requests.map((request) => request.body.requestType), ['OFFERSHUB_LANDING', 'ADDEDTOCARD_LANDING', 'OFFERSHUB_LANDING', 'ADDEDTOCARD_LANDING']);
     for (let index = 1; index < harness.requests.length; index++) {
-        assert.ok(harness.requests[index].startedAt - harness.requests[index - 1].startedAt >= 15000);
+        assert.ok(harness.requests[index].startedAt - harness.requests[index - 1].startedAt >= 500);
     }
     assert.equal(harness.maximumActiveRequests(), 1);
     assert.equal(harness.state.offersByAccount.has('card-b'), false);

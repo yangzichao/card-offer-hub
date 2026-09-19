@@ -1,6 +1,6 @@
 const SETTINGS = Object.freeze({
     version: __USERSCRIPT_VERSION__,
-    requestGapMs: 15000,
+    requestGapMs: 500,
     rateLimitCooldownMs: 120000,
     requestTimeoutMs: 30000,
     whitelistKey: 'card_offer_hub_amex_whitelist_v1',

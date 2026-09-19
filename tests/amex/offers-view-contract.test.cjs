@@ -26,7 +26,7 @@ test('seven whitelist cards all finish with the official full-view response shap
     assert.ok([...harness.state.scanReports.values()].every((report) => report === 'Complete'));
     assert.match(harness.state.status, /Scan complete: 7\/7/);
     for (let index = 1; index < harness.requests.length; index++) {
-        assert.ok(harness.requests[index].startedAt - harness.requests[index - 1].startedAt >= 15000);
+        assert.ok(harness.requests[index].startedAt - harness.requests[index - 1].startedAt >= 500);
     }
 });
 

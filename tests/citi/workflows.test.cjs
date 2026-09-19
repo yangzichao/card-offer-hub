@@ -24,7 +24,7 @@ test('one click scans selected cards and serially enrolls the same offer on each
     assert.equal(harness.maximumActive(), 1);
     assert.deepEqual(harness.requests.map(request => request.body.accountId), ['card-a', 'card-b', 'card-a', 'card-b']);
     for (let index = 1; index < harness.requests.length; index++) {
-        assert.ok(harness.requests[index].startedAt - harness.requests[index - 1].finishedAt >= 15000);
+        assert.equal(harness.requests[index].startedAt - harness.requests[index - 1].finishedAt, 500);
     }
     assert.match(harness.state.status, /Finished: 2\/2/);
     const stored = JSON.stringify([...harness.storage]);

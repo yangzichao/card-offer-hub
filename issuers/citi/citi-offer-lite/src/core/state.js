@@ -3,7 +3,7 @@ const SETTINGS = {
     apiBase: '/gcgapi/prod/public/v1',
     retrievePath: '/digital/customers/creditCards/merchantOffers/retrieve',
     enrollmentPath: '/digital/customers/creditCards/accounts/rewards/specialOffers/enrollMerchantOffer',
-    gapMilliseconds: 15000, timeoutMilliseconds: 45000,
+    gapMilliseconds: 500, timeoutMilliseconds: 45000,
     defaultCooldownMilliseconds: 300000
 };
 const state = {

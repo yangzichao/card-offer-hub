@@ -1,7 +1,7 @@
 {
     "id": "amex-offer-lite",
     "name": "Amex Offer Lite",
-    "version": "5.0.0",
+    "version": "5.0.1",
     "description": "Detect cards, rank them by drag, scan Offers Hub slowly, and add every offer to one card at a time",
     "author": "Zichao Yang",
     "issuer": "amex",

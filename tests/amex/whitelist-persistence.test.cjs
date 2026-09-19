@@ -126,7 +126,7 @@ test('a temporarily missing card recovers its approval on a later manual refresh
     accounts = [rawAccount('card-a'), rawAccount('card-b')];
     await nextVisit.detectCards({ forceRefresh: true });
     assert.deepEqual(Array.from(nextVisit.selectedAccounts(), (account) => account.token), ['card-a']);
-    assert.ok(nextVisit.requests[1].startedAt - nextVisit.requests[0].startedAt >= 15000);
+    assert.ok(nextVisit.requests[1].startedAt - nextVisit.requests[0].startedAt >= 500);
 });
 
 for (const [label, response] of [['HTTP error', jsonResponse({}, 500)], ['bad schema', jsonResponse({ unknown: [] })], ['empty catalog', jsonResponse({ accounts: [] })]]) {

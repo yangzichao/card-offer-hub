@@ -19,7 +19,7 @@ async function scanSelectedCards(accounts) {
     state.total = 0;
     for (const [index, card] of accounts.entries()) {
         ensureRunning();
-        updateStatus(`Scanning card ${index + 1}/${accounts.length}; requests are spaced 15 seconds apart…`);
+        updateStatus(`Scanning card ${index + 1}/${accounts.length}; requests are spaced 0.5 seconds apart…`);
         const payload = await requestJson(SETTINGS.retrievePath, { accountId: card.accountId });
         ensureRunning();
         state.offers.push(...normalizeOffers(payload, card.accountId));

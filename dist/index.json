@@ -5,7 +5,7 @@
         {
             "id": "amex-offer-lite",
             "name": "Amex Offer Lite",
-            "version": "5.0.0",
+            "version": "5.0.1",
             "description": "Detect cards, rank them by drag, scan Offers Hub slowly, and add every offer to one card at a time",
             "issuer": "amex",
             "matches": [
@@ -19,7 +19,7 @@
         {
             "id": "citi-offer-lite",
             "name": "Citi Offer Lite",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "description": "Manually select Citi cards, scan Merchant Offers, and enroll all available offers serially",
             "issuer": "citi",
             "matches": [

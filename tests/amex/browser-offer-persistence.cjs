@@ -18,6 +18,7 @@ async function run() {
         let holdEnrollments = false;
         page.on('pageerror', (error) => errors.push(error.message));
         await page.clock.install({ time: new Date('2026-09-10T12:00:00Z') });
+        await page.clock.pauseAt(new Date('2026-09-10T12:00:01Z'));
         await page.route('**/*', async (route) => {
             const request = route.request();
             if (request.isNavigationRequest()) {

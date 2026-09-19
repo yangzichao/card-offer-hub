@@ -21,6 +21,7 @@ async function fixture(browser, mode = 'success') {
     let maximumActive = 0;
     page.on('pageerror', error => errors.push(error.message));
     await page.clock.install({ time: new Date('2026-09-19T12:00:00Z') });
+    await page.clock.pauseAt(new Date('2026-09-19T12:00:01Z'));
     await page.addInitScript(() => {
         window.fixtureStorage = {};
         window.GM_getValue = (key, fallback) => window.fixtureStorage[key] ?? fallback;
@@ -68,7 +69,7 @@ async function fixture(browser, mode = 'success') {
     }
     async function selectCard() {
         await page.getByRole('button', { name: 'Detect Citi cards', exact: true }).click();
-        await advanceUntil(/Detected 2/);
+        await page.getByRole('status').filter({ hasText: /Detected 2/ }).waitFor();
         assert.equal(await page.getByRole('checkbox', { checked: true }).count(), 0);
         await page.getByRole('checkbox', { name: 'Select Synthetic Card A', exact: true }).check();
     }
@@ -90,7 +91,7 @@ async function main() {
         assert.equal(successful.requests.length, 4, 'detect, scan selected card, two unique available offers');
         assert.equal(successful.maximumActive(), 1);
         assert.ok(successful.requests.slice(1).every(request => request.body.accountId === 'card-a'));
-        assert.ok(successful.requests.slice(1).every((request, index) => request.time - successful.requests[index].time >= 15000));
+        assert.ok(successful.requests.slice(1).every((request, index) => request.time - successful.requests[index].time >= 500));
         await page.getByRole('searchbox', { name: 'Search Citi offers' }).fill('');
         assert.equal(await page.locator('.offer').count(), 3);
         assert.deepEqual(successful.errors, []);

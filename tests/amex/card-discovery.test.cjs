@@ -48,7 +48,7 @@ test('failed detection requires another manual attempt and a minimum delay', asy
     assert.equal(harness.requests.length, 1);
     assert.equal(harness.state.busy, null);
     assert.equal(harness.state.detected, false);
-    harness.advanceTime(15000);
+    harness.advanceTime(500);
     await harness.detectCards();
     assert.equal(harness.requests.length, 2);
 });
