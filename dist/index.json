@@ -15,6 +15,20 @@
             "installUrl": "https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/amex-offer-lite.user.js",
             "updateUrl": "https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/amex-offer-lite.user.js",
             "sourceDirectory": "issuers/amex/amex-offer-lite"
+        },
+        {
+            "id": "citi-offer-lite",
+            "name": "Citi Offer Lite",
+            "version": "1.0.0",
+            "description": "Manually select Citi cards, scan Merchant Offers, and enroll all available offers serially",
+            "issuer": "citi",
+            "matches": [
+                "https://online.citi.com/US/*"
+            ],
+            "publishedFile": "dist/citi-offer-lite.user.js",
+            "installUrl": "https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/citi-offer-lite.user.js",
+            "updateUrl": "https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/citi-offer-lite.user.js",
+            "sourceDirectory": "issuers/citi/citi-offer-lite"
         }
     ]
 }

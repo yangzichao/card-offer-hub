@@ -9,6 +9,7 @@
 | 脚本 | 发卡行 | 版本 | 生效站点 | 安装 |
 | --- | --- | --- | --- | --- |
 | [Amex Offer Lite](issuers/amex/amex-offer-lite/README.md) | amex | 5.0.0 | https://global.americanexpress.com/* | [安装 / 更新](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/amex-offer-lite.user.js) |
+| [Citi Offer Lite](issuers/citi/citi-offer-lite/README.md) | citi | 1.0.0 | https://online.citi.com/US/* | [安装 / 更新](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/citi-offer-lite.user.js) |
 
 <!-- published-scripts:end -->
 
