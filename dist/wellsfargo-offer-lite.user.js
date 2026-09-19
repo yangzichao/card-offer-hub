@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Wells Fargo Offer Lite
 // @namespace    https://github.com/yangzichao/card-offer-hub
-// @version      1.1.0
+// @version      1.2.0
 // @description  Manually scan and activate eligible account-wide Wells Fargo Deals with conservative serial pacing
 // @author       Zichao Yang
 // @match        https://web.secure.wellsfargo.com/auth/deals-portal*
@@ -20,6 +20,39 @@
 
 (function () {
     'use strict';
+
+    // Source: shared/ui/design-system.js
+    const HUB_DESIGN_STYLES = `
+    :host{all:initial;--hub-ink:#20322f;--hub-muted:#64746e;--hub-accent:#176653;--hub-tint:#edf6f1;--hub-line:#dce5df;--hub-canvas:#f5f7f4;--hub-radius:16px;position:fixed;right:16px;bottom:16px;z-index:2147483646;color:var(--hub-ink);font:13px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:light}
+    *,*::before,*::after{box-sizing:border-box}[hidden]{display:none!important}
+    .panel{width:min(464px,calc(100vw - 24px));max-height:88vh;max-height:88dvh;overflow:auto;background:#fff;border:1px solid var(--hub-line);border-radius:var(--hub-radius);box-shadow:0 16px 60px #21392d20}
+    header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;border-bottom:1px solid var(--hub-line);background:#fff}
+    .hub-heading{min-width:0;flex:1}.hub-eyebrow{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--hub-accent);font-weight:750;margin-bottom:3px}.hub-version{font-size:10px;color:var(--hub-muted);font-variant-numeric:tabular-nums}
+    h2{font-size:18px;line-height:1.3;letter-spacing:-.035em;margin:0;font-weight:650}h3{font-size:12px;margin:0 0 8px;font-weight:650}p{margin:6px 0}
+    section,main{padding:16px 20px;border-bottom:1px solid var(--hub-line)}footer,.status{padding:14px 20px;background:var(--hub-canvas);overflow-wrap:anywhere}.muted,.card-report,.logs{color:var(--hub-muted);font-size:12px}.error,.storage-error{color:#a33232}.notice{border-left:3px solid #a2b9ac;background:var(--hub-canvas);padding:10px 12px}
+    button,input,select{font:inherit}button,select{border:1px solid var(--hub-line);border-radius:9px;color:var(--hub-ink);background:#fff;padding:8px 12px;min-height:36px}button{cursor:pointer;font-weight:550}button:not(:disabled):hover{background:var(--hub-tint);border-color:#a8c6b9}button.primary{background:var(--hub-accent);color:#fff;border-color:var(--hub-accent)}button.primary:not(:disabled):hover{background:#10523f}button:disabled{opacity:.45;cursor:not-allowed}button.stop{color:#a33232}button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #79ad99;outline-offset:3px}
+    input[type=search]{width:100%;padding:11px 13px;border:1px solid var(--hub-line);border-radius:10px;background:var(--hub-canvas);color:var(--hub-ink)}input[type=checkbox]{accent-color:var(--hub-accent);flex:none;width:15px;height:15px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}.cards{max-height:180px;overflow:auto}.card{display:flex;align-items:flex-start;gap:9px;padding:9px 0;overflow-wrap:anywhere}.card input{margin-top:3px}.card-info{min-width:0;flex:1}
+    .offers{max-height:260px;overflow:auto;margin-top:10px}.offer{display:block;padding:13px 0;border-bottom:1px solid var(--hub-line);overflow-wrap:anywhere}.offer:last-child{border-bottom:0}.offer small{display:block;color:var(--hub-muted);margin-top:5px}.offer-title{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.offer-title button{flex-shrink:0}.badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.badge{border-radius:5px;background:var(--hub-canvas);padding:3px 7px;font-size:11px}.badge.enrolled{background:var(--hub-tint);color:var(--hub-accent)}.badge.unconfirmed,.badge.failed{background:#fff1da;color:#865711}.card-counts,.offer-counts,.offer-target{color:var(--hub-accent);font-size:12px}.logs{max-height:90px;overflow:auto}a{color:var(--hub-accent);text-underline-offset:3px}
+    .hub-search-launcher{display:flex;align-items:center;justify-content:space-between;width:100%;border:0;border-bottom:1px solid var(--hub-line);border-radius:0;background:var(--hub-tint);padding:11px 20px;color:var(--hub-accent);text-align:left}.hub-search-launcher span:last-child{font-size:11px;font-weight:400}
+    @media(max-width:500px){:host{right:12px;bottom:12px}header{padding:16px}section,main,footer,.status{padding:14px 16px}}
+    `;
+
+    // Source: shared/ui/panel-branding.js
+    function decorateHubPanel(shadowRoot, version) {
+        const header = shadowRoot.querySelector('header');
+        const title = header.querySelector('h2');
+        const heading = document.createElement('div');
+        heading.className = 'hub-heading';
+        const eyebrow = document.createElement('div');
+        eyebrow.className = 'hub-eyebrow';
+        eyebrow.textContent = 'Card Offer Hub';
+        header.insertBefore(heading, title);
+        heading.append(eyebrow, title);
+        const release = document.createElement('span');
+        release.className = 'hub-version';
+        release.textContent = `v${version}`;
+        heading.append(release);
+    }
 
     // Source: shared/persistence/workspace-records.js
     function serializeWorkspaceRecord(record, fields) {
@@ -175,7 +208,7 @@
 
     // Source: core/state.js
     const SETTINGS = {
-        id: "wellsfargo-offer-lite", name: "Wells Fargo Offer Lite", version: "1.1.0",
+        id: "wellsfargo-offer-lite", name: "Wells Fargo Offer Lite", version: "1.2.0",
         retrievePath: '/deals-portal/as/getDeals', enrollmentPath: '/deals-portal/as/activateCLDeal',
         gapMilliseconds: 500, timeoutMilliseconds: 45000, defaultCooldownMilliseconds: 300000
     };
@@ -465,15 +498,7 @@
     }
 
     // Source: ui/styles.js
-    const PANEL_STYLES = `
-    :host{all:initial;position:fixed;bottom:18px;right:18px;z-index:2147483646;font:13px/1.5 system-ui,sans-serif;color:#253247}
-    *{box-sizing:border-box} .panel{width:min(440px,calc(100vw - 24px));max-height:85vh;overflow:auto;background:white;border:1px solid #d7dfe8;border-radius:12px;box-shadow:0 10px 36px #19304926}
-    header,section,footer{padding:12px 16px} header{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e5eaf0} h2{font-size:16px;margin:0}p{margin:6px 0}
-    button,input{font:inherit}button{padding:7px 10px;border:1px solid #c7d2df;border-radius:6px;background:#f7f9fc;color:#253247;cursor:pointer}button.primary{background:#1763a6;color:white;border-color:#1763a6}button:disabled{opacity:.45;cursor:not-allowed}
-    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.muted{color:#637185;font-size:12px}.cards{max-height:160px;overflow:auto}.card{display:flex;gap:8px;padding:6px 0}.card input{flex:none}
-    input[type=search]{width:100%;padding:8px;border:1px solid #c7d2df;border-radius:6px}.offers{max-height:190px;overflow:auto}.offer{padding:8px 0;border-bottom:1px solid #e5eaf0;overflow-wrap:anywhere}.offer small{display:block;color:#637185}
-    footer{background:#f6f8fb;overflow-wrap:anywhere}.error{color:#a13030}[hidden]{display:none!important}
-    `;
+    const PANEL_STYLES = HUB_DESIGN_STYLES;
 
     // Source: ui/panel.js
     function mountPanel() {
@@ -494,7 +519,7 @@
           </section><section><p id="counts"></p><input id="search" type="search" aria-label="Search Wells Fargo offers" placeholder="Search merchants">
           <div id="offers" class="offers"></div></section>
           <footer><p id="workspace-cache" class="muted"></p><div id="status" role="status" aria-live="polite"></div><div id="storage-error" class="error" role="alert"></div></footer></div></div>`;
-        panel.querySelector('h2').textContent = `${SETTINGS.name} ${SETTINGS.version}`;
+        panel.querySelector('h2').textContent = SETTINGS.name;
         panel.getElementById('scan').addEventListener('click', scanOffers);
         panel.getElementById('add').addEventListener('click', addAllOffers);
         panel.getElementById('stop').addEventListener('click', stopRun);
@@ -512,6 +537,7 @@
             panel.getElementById('collapse').textContent = state.collapsed ? '+' : '−';
             panel.getElementById('collapse').setAttribute('aria-label', state.collapsed ? 'Expand Wells Fargo panel' : 'Minimize Wells Fargo panel');
         });
+        decorateHubPanel(panel, SETTINGS.version);
         document.body.appendChild(host);
         state.panel = panel;
         restoreWorkspacePanel(panel, 'Wells Fargo');

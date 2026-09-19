@@ -15,6 +15,7 @@ function button(identifier, label, handler, className = '') {
     const control = element('button', label, className);
     control.id = identifier;
     control.type = 'button';
+    control.setAttribute('aria-label', label);
     control.onclick = handler;
     return control;
 }
@@ -27,7 +28,7 @@ function createUI() {
     shadow.append(element('style', PANEL_STYLES));
     const panel = element('div', '', 'panel');
     const header = element('header');
-    header.append(element('h2', `${__USERSCRIPT_NAME__} ${SETTINGS.version}`));
+    header.append(element('h2', __USERSCRIPT_NAME__));
     const toggle = button('btn-toggle', 'Minimize', () => {
         state.minimized = !state.minimized;
         persistViewSettings();
@@ -115,6 +116,7 @@ function createUI() {
     content.append(footer);
     panel.append(content);
     shadow.append(panel);
+    decorateHubPanel(shadow, SETTINGS.version);
     document.body.append(panelRoot);
     render();
 }

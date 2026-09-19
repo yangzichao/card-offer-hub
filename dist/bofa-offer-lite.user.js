@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         BankAmeriDeals Lite
 // @namespace    https://github.com/yangzichao/card-offer-hub
-// @version      1.1.0
+// @version      1.2.0
 // @description  Manually scan and activate ordinary card-linked BankAmeriDeals with verified results
 // @author       Zichao Yang
 // @match        https://deals.merchant-rewards.com/*
@@ -19,6 +19,39 @@
 
 (function () {
     'use strict';
+
+    // Source: shared/ui/design-system.js
+    const HUB_DESIGN_STYLES = `
+    :host{all:initial;--hub-ink:#20322f;--hub-muted:#64746e;--hub-accent:#176653;--hub-tint:#edf6f1;--hub-line:#dce5df;--hub-canvas:#f5f7f4;--hub-radius:16px;position:fixed;right:16px;bottom:16px;z-index:2147483646;color:var(--hub-ink);font:13px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:light}
+    *,*::before,*::after{box-sizing:border-box}[hidden]{display:none!important}
+    .panel{width:min(464px,calc(100vw - 24px));max-height:88vh;max-height:88dvh;overflow:auto;background:#fff;border:1px solid var(--hub-line);border-radius:var(--hub-radius);box-shadow:0 16px 60px #21392d20}
+    header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;border-bottom:1px solid var(--hub-line);background:#fff}
+    .hub-heading{min-width:0;flex:1}.hub-eyebrow{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--hub-accent);font-weight:750;margin-bottom:3px}.hub-version{font-size:10px;color:var(--hub-muted);font-variant-numeric:tabular-nums}
+    h2{font-size:18px;line-height:1.3;letter-spacing:-.035em;margin:0;font-weight:650}h3{font-size:12px;margin:0 0 8px;font-weight:650}p{margin:6px 0}
+    section,main{padding:16px 20px;border-bottom:1px solid var(--hub-line)}footer,.status{padding:14px 20px;background:var(--hub-canvas);overflow-wrap:anywhere}.muted,.card-report,.logs{color:var(--hub-muted);font-size:12px}.error,.storage-error{color:#a33232}.notice{border-left:3px solid #a2b9ac;background:var(--hub-canvas);padding:10px 12px}
+    button,input,select{font:inherit}button,select{border:1px solid var(--hub-line);border-radius:9px;color:var(--hub-ink);background:#fff;padding:8px 12px;min-height:36px}button{cursor:pointer;font-weight:550}button:not(:disabled):hover{background:var(--hub-tint);border-color:#a8c6b9}button.primary{background:var(--hub-accent);color:#fff;border-color:var(--hub-accent)}button.primary:not(:disabled):hover{background:#10523f}button:disabled{opacity:.45;cursor:not-allowed}button.stop{color:#a33232}button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #79ad99;outline-offset:3px}
+    input[type=search]{width:100%;padding:11px 13px;border:1px solid var(--hub-line);border-radius:10px;background:var(--hub-canvas);color:var(--hub-ink)}input[type=checkbox]{accent-color:var(--hub-accent);flex:none;width:15px;height:15px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}.cards{max-height:180px;overflow:auto}.card{display:flex;align-items:flex-start;gap:9px;padding:9px 0;overflow-wrap:anywhere}.card input{margin-top:3px}.card-info{min-width:0;flex:1}
+    .offers{max-height:260px;overflow:auto;margin-top:10px}.offer{display:block;padding:13px 0;border-bottom:1px solid var(--hub-line);overflow-wrap:anywhere}.offer:last-child{border-bottom:0}.offer small{display:block;color:var(--hub-muted);margin-top:5px}.offer-title{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.offer-title button{flex-shrink:0}.badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.badge{border-radius:5px;background:var(--hub-canvas);padding:3px 7px;font-size:11px}.badge.enrolled{background:var(--hub-tint);color:var(--hub-accent)}.badge.unconfirmed,.badge.failed{background:#fff1da;color:#865711}.card-counts,.offer-counts,.offer-target{color:var(--hub-accent);font-size:12px}.logs{max-height:90px;overflow:auto}a{color:var(--hub-accent);text-underline-offset:3px}
+    .hub-search-launcher{display:flex;align-items:center;justify-content:space-between;width:100%;border:0;border-bottom:1px solid var(--hub-line);border-radius:0;background:var(--hub-tint);padding:11px 20px;color:var(--hub-accent);text-align:left}.hub-search-launcher span:last-child{font-size:11px;font-weight:400}
+    @media(max-width:500px){:host{right:12px;bottom:12px}header{padding:16px}section,main,footer,.status{padding:14px 16px}}
+    `;
+
+    // Source: shared/ui/panel-branding.js
+    function decorateHubPanel(shadowRoot, version) {
+        const header = shadowRoot.querySelector('header');
+        const title = header.querySelector('h2');
+        const heading = document.createElement('div');
+        heading.className = 'hub-heading';
+        const eyebrow = document.createElement('div');
+        eyebrow.className = 'hub-eyebrow';
+        eyebrow.textContent = 'Card Offer Hub';
+        header.insertBefore(heading, title);
+        heading.append(eyebrow, title);
+        const release = document.createElement('span');
+        release.className = 'hub-version';
+        release.textContent = `v${version}`;
+        heading.append(release);
+    }
 
     // Source: shared/persistence/workspace-records.js
     function serializeWorkspaceRecord(record, fields) {
@@ -174,7 +207,7 @@
 
     // Source: core/state.js
     const SETTINGS = {
-        id: "bofa-offer-lite", name: "BankAmeriDeals Lite", version: "1.1.0",
+        id: "bofa-offer-lite", name: "BankAmeriDeals Lite", version: "1.2.0",
         gapMilliseconds: 500, timeoutMilliseconds: 45000, pageSize: 24,
         defaultCooldownMilliseconds: 300000
     };
@@ -448,22 +481,15 @@
         const host = document.createElement('div');
         host.id = SETTINGS.id;
         const root = host.attachShadow({ mode: 'open' });
-        root.innerHTML = `<style>
-            :host{all:initial;font:13px/1.45 system-ui;color:#172b45;position:fixed;right:18px;bottom:18px;z-index:2147483647}
-            section{width:min(380px,calc(100vw - 36px));background:#fff;border:1px solid #c9d5e3;border-radius:12px;box-shadow:0 8px 32px #10254030;overflow:hidden}
-            header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#f0f5fb;font-weight:700}
-            main{padding:14px}p{margin:0 0 12px}button{font:inherit;padding:8px 12px;border:1px solid #aabbd0;border-radius:6px;background:#f6f9ff;cursor:pointer}
-            button:disabled{opacity:.45;cursor:default}.actions{display:flex;gap:8px;margin:12px 0;flex-wrap:wrap}label{display:flex;gap:8px;align-items:flex-start}
-            [role=status]{white-space:pre-wrap;overflow-wrap:anywhere;background:#f2f6fb;padding:10px;border-radius:6px}.offers{max-height:210px;overflow:auto;margin-top:12px}
-            .offer{border-top:1px solid #e1e7ef;padding:8px 0;overflow-wrap:anywhere}.muted{color:#53657a;font-size:12px}[hidden]{display:none!important}
-        </style><section aria-label="BankAmeriDeals controls"><header><span></span><button aria-label="Minimize Deals panel">−</button></header><main>
+        root.innerHTML = `<style>${HUB_DESIGN_STYLES}</style><div class="panel" aria-label="BankAmeriDeals controls"><header><h2></h2><button aria-label="Minimize Deals panel">−</button></header><main>
             <p>Current signed-in Deals profile only. Shopping-link and Upside offers are excluded. Activation may start an expiry window; review terms first.</p>
-            <label><input type="checkbox" aria-label="Confirm activation for current Deals profile">Activate all eligible offers in this profile</label>
-            <div class="actions"><button aria-label="Scan Deals offers">Scan</button><button aria-label="Activate eligible Deals offers">Activate all</button><button aria-label="Stop Deals activation">Stop</button></div>
+            <label class="card"><input type="checkbox" aria-label="Confirm activation for current Deals profile">Activate all eligible offers in this profile</label>
+            <div class="actions"><button aria-label="Scan Deals offers">Scan</button><button class="primary" aria-label="Activate eligible Deals offers">Activate all</button><button aria-label="Stop Deals activation">Stop</button></div>
             <p class="workspace-cache muted"></p><p role="status" aria-live="polite"></p><div class="muted">0.5s between completed requests · no automatic retries</div><div class="offers"></div>
-        </main></section>`;
+        </main></div>`;
         state.panel = root;
-        root.querySelector('header span').textContent = `${SETTINGS.name} · ${SETTINGS.version}`;
+        root.querySelector('h2').textContent = SETTINGS.name;
+        decorateHubPanel(root, SETTINGS.version);
         root.querySelector('header button').onclick = () => { state.collapsed = !state.collapsed; saveWorkspace(); renderPanel(); };
         root.querySelector('input').onchange = event => { state.consent = event.target.checked; saveWorkspace(); renderPanel(); };
         root.querySelector('[aria-label="Scan Deals offers"]').onclick = scanOffers;

@@ -12,6 +12,7 @@ function dispatchIssuer(configuration, startIssuer) {
             (key, fallback) => GM_getValue(storagePrefix + key, fallback),
             (key, value) => GM_setValue(storagePrefix + key, value)
         );
+        installHubSearchLauncher(configuration);
     };
     // Chase must observe native requests before the page scripts run. The other
     // adapters need a parsed document for their panels, with no timer or request.

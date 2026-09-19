@@ -59,6 +59,10 @@ async function run() {
             await page.clock.runFor(5000);
             const hostId = script.id + (script.issuer === 'amex' ? '-ui' : '');
             await page.locator(`[id="${hostId}"]`).waitFor();
+            assert.equal(await page.locator('.hub-eyebrow').innerText(), 'CARD OFFER HUB');
+            assert.equal(await page.getByRole('button', { name: 'Search all banks', exact: true }).count(), 1);
+            const accent = await page.locator(`[id="${hostId}"]`).evaluate(element => getComputedStyle(element).getPropertyValue('--hub-accent').trim());
+            assert.equal(accent, '#176653', 'all banks share the same design tokens');
             const panelIds = await page.evaluate(() => [...document.querySelectorAll('body > div')]
                 .filter(node => node.shadowRoot).map(node => node.id));
             assert.deepEqual(panelIds, [hostId], 'only the matching issuer panel may mount');

@@ -106,6 +106,8 @@ function readScriptManifest(toolDirectory) {
         description: requireString(manifestPath, manifest, 'description'),
         author: requireString(manifestPath, manifest, 'author'),
         issuer: requireString(manifestPath, manifest, 'issuer'),
+        bankLabel: manifest.bankLabel || manifest.name,
+        offersUrl: manifest.offersUrl || null,
         matches: requireStringArray(manifestPath, manifest, 'matches'),
         grants: requireStringArray(manifestPath, manifest, 'grants', { allowEmpty: true }),
         connects: requireStringArray(manifestPath, manifest, 'connects', { allowEmpty: true }),
@@ -137,5 +139,6 @@ module.exports = {
     manifestFileName,
     loadScriptRegistry,
     readScriptManifest,
+    validateSourceCoverage,
     listJavaScriptFilesRecursively
 };

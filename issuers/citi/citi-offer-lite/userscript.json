@@ -1,7 +1,7 @@
 {
     "id": "citi-offer-lite",
     "name": "Citi Offer Lite",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "description": "Manually select Citi cards, scan Merchant Offers, and enroll all available offers serially",
     "author": "Zichao Yang",
     "issuer": "citi",
@@ -16,6 +16,8 @@
     "runAt": "document-idle",
     "noFrames": true,
     "sharedModules": [
+        "ui/design-system.js",
+        "ui/panel-branding.js",
         "persistence/workspace-records.js",
         "persistence/workspace-storage.js",
         "persistence/workspace-scope.js",
@@ -34,5 +36,7 @@
         "ui/panel.js",
         "ui/render.js",
         "initialize.js"
-    ]
+    ],
+    "bankLabel": "Citi",
+    "offersUrl": "https://online.citi.com/US/nga/products-offers/merchantoffers"
 }

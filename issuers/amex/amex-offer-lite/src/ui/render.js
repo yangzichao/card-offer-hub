@@ -17,6 +17,10 @@ function renderControls() {
     uiElement('btn-stop').disabled = !state.busy || state.cancelRequested;
     uiElement('content').hidden = state.minimized;
     uiElement('btn-toggle').textContent = state.minimized ? 'Open' : 'Minimize';
+    for (const identifier of ['btn-detect', 'btn-scan', 'btn-enroll-all', 'btn-toggle']) {
+        const control = uiElement(identifier);
+        control.setAttribute('aria-label', control.textContent);
+    }
     const remainingSeconds = Math.max(0, Math.ceil((state.cooldownUntil - Date.now()) / 1000));
     uiElement('cooldown').textContent = remainingSeconds ? `Cooling down: ${remainingSeconds}s. Restart manually afterward.` : '';
 }

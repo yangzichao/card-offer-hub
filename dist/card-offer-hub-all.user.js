@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Card Offer Hub — All Banks
 // @namespace    https://github.com/yangzichao/card-offer-hub
-// @version      1.0.0
+// @version      1.1.0
 // @description  All six Card Offer Hub tools in one install; manual scanning and activation on the matching bank website
 // @author       Zichao Yang
 // @match        https://global.americanexpress.com/*
@@ -26,6 +26,268 @@
 
 (function () {
 'use strict';
+const HUB_BANKS = [{"id":"amex-offer-lite","issuer":"amex","label":"Amex","url":"https://global.americanexpress.com/offers"},{"id":"bofa-offer-lite","issuer":"bank-of-america","label":"BankAmeriDeals","url":"https://deals.merchant-rewards.com/"},{"id":"chase-offer-lite","issuer":"chase","label":"Chase","url":"https://secure.chase.com/web/auth/dashboard"},{"id":"citi-offer-lite","issuer":"citi","label":"Citi","url":"https://online.citi.com/US/nga/products-offers/merchantoffers"},{"id":"usbank-offer-lite","issuer":"usbank","label":"US Bank","url":"https://onlinebanking.usbank.com/digital/servicing/dominjection/cashback-deals"},{"id":"wellsfargo-offer-lite","issuer":"wellsfargo","label":"Wells Fargo","url":"https://web.secure.wellsfargo.com/auth/deals-portal"}];
+const HUB_DESIGN_STYLES = `
+:host{all:initial;--hub-ink:#20322f;--hub-muted:#64746e;--hub-accent:#176653;--hub-tint:#edf6f1;--hub-line:#dce5df;--hub-canvas:#f5f7f4;--hub-radius:16px;position:fixed;right:16px;bottom:16px;z-index:2147483646;color:var(--hub-ink);font:13px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:light}
+*,*::before,*::after{box-sizing:border-box}[hidden]{display:none!important}
+.panel{width:min(464px,calc(100vw - 24px));max-height:88vh;max-height:88dvh;overflow:auto;background:#fff;border:1px solid var(--hub-line);border-radius:var(--hub-radius);box-shadow:0 16px 60px #21392d20}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;border-bottom:1px solid var(--hub-line);background:#fff}
+.hub-heading{min-width:0;flex:1}.hub-eyebrow{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--hub-accent);font-weight:750;margin-bottom:3px}.hub-version{font-size:10px;color:var(--hub-muted);font-variant-numeric:tabular-nums}
+h2{font-size:18px;line-height:1.3;letter-spacing:-.035em;margin:0;font-weight:650}h3{font-size:12px;margin:0 0 8px;font-weight:650}p{margin:6px 0}
+section,main{padding:16px 20px;border-bottom:1px solid var(--hub-line)}footer,.status{padding:14px 20px;background:var(--hub-canvas);overflow-wrap:anywhere}.muted,.card-report,.logs{color:var(--hub-muted);font-size:12px}.error,.storage-error{color:#a33232}.notice{border-left:3px solid #a2b9ac;background:var(--hub-canvas);padding:10px 12px}
+button,input,select{font:inherit}button,select{border:1px solid var(--hub-line);border-radius:9px;color:var(--hub-ink);background:#fff;padding:8px 12px;min-height:36px}button{cursor:pointer;font-weight:550}button:not(:disabled):hover{background:var(--hub-tint);border-color:#a8c6b9}button.primary{background:var(--hub-accent);color:#fff;border-color:var(--hub-accent)}button.primary:not(:disabled):hover{background:#10523f}button:disabled{opacity:.45;cursor:not-allowed}button.stop{color:#a33232}button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #79ad99;outline-offset:3px}
+input[type=search]{width:100%;padding:11px 13px;border:1px solid var(--hub-line);border-radius:10px;background:var(--hub-canvas);color:var(--hub-ink)}input[type=checkbox]{accent-color:var(--hub-accent);flex:none;width:15px;height:15px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}.cards{max-height:180px;overflow:auto}.card{display:flex;align-items:flex-start;gap:9px;padding:9px 0;overflow-wrap:anywhere}.card input{margin-top:3px}.card-info{min-width:0;flex:1}
+.offers{max-height:260px;overflow:auto;margin-top:10px}.offer{display:block;padding:13px 0;border-bottom:1px solid var(--hub-line);overflow-wrap:anywhere}.offer:last-child{border-bottom:0}.offer small{display:block;color:var(--hub-muted);margin-top:5px}.offer-title{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.offer-title button{flex-shrink:0}.badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.badge{border-radius:5px;background:var(--hub-canvas);padding:3px 7px;font-size:11px}.badge.enrolled{background:var(--hub-tint);color:var(--hub-accent)}.badge.unconfirmed,.badge.failed{background:#fff1da;color:#865711}.card-counts,.offer-counts,.offer-target{color:var(--hub-accent);font-size:12px}.logs{max-height:90px;overflow:auto}a{color:var(--hub-accent);text-underline-offset:3px}
+.hub-search-launcher{display:flex;align-items:center;justify-content:space-between;width:100%;border:0;border-bottom:1px solid var(--hub-line);border-radius:0;background:var(--hub-tint);padding:11px 20px;color:var(--hub-accent);text-align:left}.hub-search-launcher span:last-child{font-size:11px;font-weight:400}
+@media(max-width:500px){:host{right:12px;bottom:12px}header{padding:16px}section,main,footer,.status{padding:14px 16px}}
+`;
+function hubText(value) { return typeof value === 'string' ? value : ''; }
+function hubTimestamp(value) { return Number.isFinite(value) && value > 0 ? value : 0; }
+function hubStatus(value) {
+    if (['AVAILABLE', 'ELIGIBLE'].includes(value)) return 'available';
+    if (['ENROLLED', 'ACTIVATED'].includes(value)) return 'added';
+    if (['UNCONFIRMED', 'UNKNOWN', 'FAILED', 'CONFLICT'].includes(value)) return 'review';
+    return 'other';
+}
+function hubOfferRecord(bank, offer, context) {
+    if (!offer || typeof offer !== 'object' || Array.isArray(offer)) throw new Error('Invalid saved offer');
+    const merchant = hubText(offer.merchant || offer.name);
+    const description = hubText(offer.title || offer.description || offer.headline);
+    if (!merchant && !description) throw new Error('Missing saved offer text');
+    let status = hubStatus(offer.status);
+    if (bank.issuer === 'amex' && status === 'available' && offer.enrollable !== true) status = 'other';
+    if (bank.issuer === 'bank-of-america') {
+        status = offer.result === 'Unconfirmed' ? 'review' : offer.activated === true ? 'added' : offer.eligible === true ? 'available' : 'other';
+    }
+    return { bankId: bank.id, bankName: bank.label, merchant, description,
+        card: context.card || 'Account-wide', scannedAt: hubTimestamp(context.scannedAt),
+        incomplete: Boolean(context.incomplete), status, expires: hubText(offer.expires || offer.expiry),
+        category: hubText(offer.category), url: bank.url };
+}
+function hubNormalizeWorkspace(bank, snapshot) {
+    if (snapshot.schemaVersion !== 1 || !Array.isArray(snapshot.offers) || !Array.isArray(snapshot.accounts)) {
+        throw new Error('Unsupported saved results');
+    }
+    const accounts = new Map(snapshot.accounts.map(account => {
+        if (!account || typeof account.accountId !== 'string' || typeof account.name !== 'string') throw new Error('Invalid saved card');
+        return [account.accountId, account.name];
+    }));
+    return snapshot.offers.map(offer => hubOfferRecord(bank, offer, {
+        card: accounts.get(offer?.accountId) || (['chase', 'citi'].includes(bank.issuer) ? 'Saved card' : 'Account-wide'),
+        scannedAt: snapshot.lastScanAt
+    }));
+}
+function hubNormalizeAmex(bank, snapshot, savedCards) {
+    if (snapshot.schemaVersion !== 1 || !Array.isArray(snapshot.cards)) throw new Error('Unsupported saved results');
+    const accounts = new Map();
+    if (savedCards) {
+        if (![1, 2].includes(savedCards.schemaVersion) || !Array.isArray(savedCards.accounts)) throw new Error('Unsupported saved cards');
+        for (const account of savedCards.accounts) {
+            if (!account || typeof account.token !== 'string' || typeof account.cardName !== 'string') throw new Error('Invalid saved card');
+            accounts.set(account.token, account.cardName);
+        }
+    }
+    return snapshot.cards.flatMap(card => {
+        if (!card || typeof card.accountToken !== 'string' || !Array.isArray(card.offers) || typeof card.complete !== 'boolean') {
+            throw new Error('Invalid saved card results');
+        }
+        return card.offers.map(offer => hubOfferRecord(bank, offer, {
+            card: accounts.get(card.accountToken) || 'Saved card', scannedAt: card.scannedAt, incomplete: !card.complete
+        }));
+    });
+}
+
+// Read the existing snapshots directly; search never copies them into another store.
+function hubReadSavedResults() {
+    const records = [], coverage = [];
+    for (const bank of HUB_BANKS) {
+        const prefix = `issuer:${bank.id}:`;
+        try {
+            const snapshot = GM_getValue(prefix + (bank.issuer === 'amex' ? 'card_offer_hub_amex_saved_offers_v1' : `${bank.id}:workspace`), null);
+            if (snapshot === null) { coverage.push({ bank, state: 'missing', count: 0 }); continue; }
+            const offers = bank.issuer === 'amex'
+                ? hubNormalizeAmex(bank, snapshot, GM_getValue(prefix + 'card_offer_hub_amex_saved_cards_v1', null))
+                : hubNormalizeWorkspace(bank, snapshot);
+            records.push(...offers);
+            coverage.push({ bank, state: 'saved', count: offers.length });
+        } catch {
+            coverage.push({ bank, state: 'error', count: 0 });
+        }
+    }
+    return { records, coverage };
+}
+function hubSearchText(value) {
+    return value.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase();
+}
+function hubFilterResults(records, preferences) {
+    const terms = hubSearchText(preferences.query).trim().split(/\s+/).filter(Boolean);
+    return records.filter(record => (!preferences.bank || record.bankId === preferences.bank)
+        && (!preferences.status || record.status === preferences.status)
+        && terms.every(term => hubSearchText([record.bankName, record.card, record.merchant, record.description, record.category].join(' ')).includes(term)))
+        .sort((left, right) => left.merchant.localeCompare(right.merchant) || left.bankName.localeCompare(right.bankName) || left.card.localeCompare(right.card));
+}
+
+const HUB_SEARCH_SETTINGS_KEY = 'hub:search-preferences';
+function hubLoadSearchPreferences() {
+    const defaults = { query: '', bank: '', status: '' };
+    try {
+        const saved = GM_getValue(HUB_SEARCH_SETTINGS_KEY, null);
+        if (saved === null) return { preferences: defaults, error: '' };
+        if (saved.schemaVersion !== 1 || typeof saved.query !== 'string' || typeof saved.bank !== 'string'
+            || !['', 'available', 'added', 'review', 'other'].includes(saved.status)) throw new Error('Invalid preferences');
+        return { preferences: { query: saved.query, bank: HUB_BANKS.some(bank => bank.id === saved.bank) ? saved.bank : '', status: saved.status }, error: '' };
+    } catch {
+        return { preferences: defaults, error: 'Search settings could not be read. Saved data is preserved; changes apply to this visit only.' };
+    }
+}
+function hubSaveSearchPreferences(preferences) {
+    try {
+        GM_setValue(HUB_SEARCH_SETTINGS_KEY, { schemaVersion: 1, ...preferences });
+        return '';
+    } catch {
+        return 'Search settings could not be saved. Changes apply to this visit only.';
+    }
+}
+
+const HUB_SEARCH_STYLES = HUB_DESIGN_STYLES + `
+dialog{position:fixed;inset:0;margin:auto;width:min(880px,calc(100vw - 32px));max-width:none;max-height:90vh;max-height:90dvh;padding:0;border:1px solid var(--hub-line);border-radius:20px;background:var(--hub-canvas);color:var(--hub-ink);box-shadow:0 28px 100px #18312640;font:inherit;overflow:auto}
+dialog::backdrop{background:#20352d66;backdrop-filter:blur(3px)}dialog header{padding:24px 28px}dialog h2{font-size:27px}.hub-search-content{padding:22px 28px}.hub-search-intro{color:var(--hub-muted);max-width:620px;margin:0 0 18px}.hub-query{font-size:16px!important;background:#fff!important;padding:14px 16px!important}.hub-filters{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin:14px 0 20px}.hub-filters label{display:grid;gap:5px;font-size:11px;color:var(--hub-muted)}.hub-filters select{min-width:160px;background:#fff}.hub-filters button{margin-left:auto}.hub-search-summary{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}.hub-search-summary strong{font-size:14px}.hub-result{background:#fff;border:1px solid var(--hub-line);border-radius:12px;padding:18px;margin-bottom:10px}.hub-result-top{display:flex;gap:10px;justify-content:space-between;align-items:center;margin-bottom:9px}.hub-bank{font-size:11px;font-weight:650;letter-spacing:.02em;color:var(--hub-accent)}.hub-result h3{font-size:16px;margin:0 0 5px;overflow-wrap:anywhere}.hub-result p{overflow-wrap:anywhere;margin:4px 0}.hub-result-meta{font-size:11px;color:var(--hub-muted);display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.hub-result a{font-size:12px}.hub-state{font-size:10px;padding:3px 8px;border-radius:20px;background:var(--hub-canvas);white-space:nowrap}.hub-state.available,.hub-state.added{color:var(--hub-accent);background:var(--hub-tint)}.hub-state.review{color:#865711;background:#fff1da}.hub-empty{padding:36px 18px;text-align:center;color:var(--hub-muted);background:#fff;border:1px dashed var(--hub-line);border-radius:12px}.hub-coverage{margin-top:20px;color:var(--hub-muted);font-size:12px}.hub-coverage summary{cursor:pointer}.hub-coverage ul{list-style:none;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:8px}.hub-coverage li{display:flex;justify-content:space-between;gap:12px;padding:8px;background:#fff;border-radius:7px}.hub-more{width:100%;margin-top:5px}.hub-search-error{color:#a33232;font-size:12px}.hub-close{font-size:18px;padding:6px 12px}
+@media(max-width:600px){dialog{width:calc(100vw - 16px);max-height:94dvh;border-radius:14px}dialog header{padding:18px}.hub-search-content{padding:16px}.hub-filters{gap:8px}.hub-filters label{flex:1;min-width:120px}.hub-filters select{width:100%;min-width:0}.hub-filters button{margin-left:0}.hub-coverage ul{grid-template-columns:1fr}.hub-result{padding:14px}.hub-search-summary{align-items:flex-start}.hub-search-summary span{max-width:140px;text-align:right}}
+`;
+
+const HUB_STATUS_LABELS = { available: 'Available when scanned', added: 'Added', review: 'Needs review', other: 'Other / skipped' };
+function hubNode(tag, text = '', className = '') {
+    const node = document.createElement(tag);
+    node.textContent = text;
+    if (className) node.className = className;
+    return node;
+}
+function hubRenderSearchResults(root, saved, preferences, limit) {
+    const filtered = hubFilterResults(saved.records, preferences);
+    const list = root.getElementById('hub-results');
+    list.replaceChildren();
+    root.getElementById('hub-result-count').textContent = `${filtered.length} ${filtered.length === 1 ? 'result' : 'results'}`;
+    root.getElementById('hub-result-coverage').textContent = `${new Set(filtered.map(record => record.bankId)).size} banks · saved snapshots`;
+    for (const record of filtered.slice(0, limit)) {
+        const row = hubNode('article', '', 'hub-result');
+        const top = hubNode('div', '', 'hub-result-top');
+        top.append(hubNode('span', record.bankName, 'hub-bank'), hubNode('span', HUB_STATUS_LABELS[record.status], `hub-state ${record.status}`));
+        const metadata = hubNode('div', '', 'hub-result-meta');
+        metadata.append(hubNode('span', record.card), hubNode('span', record.scannedAt ? `Scanned ${new Date(record.scannedAt).toLocaleString()}` : 'Scan time unavailable'));
+        if (record.expires) metadata.append(hubNode('span', `Expires ${record.expires}`));
+        if (record.incomplete) metadata.append(hubNode('span', 'Incomplete scan'));
+        const link = hubNode('a', `Open ${record.bankName} →`);
+        link.href = record.url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.setAttribute('aria-label', `Open ${record.bankName} offers in a new tab`);
+        row.append(top, hubNode('h3', record.merchant || 'Saved offer'));
+        if (record.description && record.description !== record.merchant) row.append(hubNode('p', record.description));
+        row.append(metadata, link);
+        list.append(row);
+    }
+    if (!filtered.length) list.append(hubNode('div', saved.records.length
+        ? 'No matching offers. Try another merchant, bank or status.'
+        : 'No saved offers yet. Open a bank website and scan with the All Banks script, then reload saved results here.', 'hub-empty'));
+    const more = root.getElementById('hub-load-more');
+    more.hidden = filtered.length <= limit;
+    more.textContent = `Show more (${Math.min(limit, filtered.length)} of ${filtered.length})`;
+    const coverage = root.getElementById('hub-coverage-list');
+    coverage.replaceChildren();
+    for (const entry of saved.coverage) {
+        const row = hubNode('li');
+        row.append(hubNode('span', entry.bank.label), hubNode('span', entry.state === 'error' ? 'Cannot read saved data' : entry.state === 'missing' ? 'Not scanned in All Banks' : `${entry.count} saved offers`));
+        coverage.append(row);
+    }
+    root.getElementById('hub-data-warning').textContent = saved.coverage.some(entry => entry.state === 'error')
+        ? 'Some saved results could not be read and are excluded. Original data has been preserved; see bank coverage below.' : '';
+}
+
+function openHubSearch(launcher) {
+    if (document.getElementById('card-offer-hub-search')) return;
+    const host = hubNode('div');
+    host.id = 'card-offer-hub-search';
+    const root = host.attachShadow({ mode: 'open' });
+    root.innerHTML = `<style>${HUB_SEARCH_STYLES}</style>
+      <dialog aria-labelledby="hub-search-title">
+        <header><div class="hub-heading"><div class="hub-eyebrow">Card Offer Hub · All Banks</div><h2 id="hub-search-title">Find your next offer.</h2></div>
+          <button class="hub-close" aria-label="Close cross-bank search">×</button></header>
+        <div class="hub-search-content">
+          <p class="hub-search-intro">Search offers you have saved across banks. Results reflect your last scans; open the bank to check current terms and availability.</p>
+          <input id="hub-query" class="hub-query" type="search" aria-label="Search offers across all banks" placeholder="Merchant, offer or card name" autocomplete="off">
+          <div class="hub-filters">
+            <label>Bank<select id="hub-bank" aria-label="Filter by bank"><option value="">All banks</option></select></label>
+            <label>Status<select id="hub-status" aria-label="Filter by offer status"><option value="">All statuses</option><option value="available">Available when scanned</option><option value="added">Added</option><option value="review">Needs review</option><option value="other">Other / skipped</option></select></label>
+            <button id="hub-reload" aria-label="Reload saved results">Reload saved results</button>
+            <button id="hub-reset" aria-label="Clear cross-bank filters">Clear filters</button>
+          </div>
+          <p id="hub-preferences-error" class="hub-search-error" role="alert"></p>
+          <p id="hub-data-warning" class="hub-search-error" role="alert"></p>
+          <div class="hub-search-summary" role="status" aria-live="polite"><strong id="hub-result-count"></strong><span id="hub-result-coverage" class="muted"></span></div>
+          <div id="hub-results"></div><button id="hub-load-more" class="hub-more" aria-label="Show more cross-bank results"></button>
+          <details class="hub-coverage"><summary aria-label="Show saved bank coverage">Saved bank coverage</summary><ul id="hub-coverage-list"></ul><p>Data from standalone scripts is separate. Scan each bank using All Banks to include it here.</p></details>
+        </div>
+      </dialog>`;
+    const loaded = hubLoadSearchPreferences();
+    const preferences = loaded.preferences;
+    let saved = hubReadSavedResults(), limit = 60;
+    const query = root.getElementById('hub-query'), bank = root.getElementById('hub-bank'), status = root.getElementById('hub-status');
+    for (const entry of HUB_BANKS) {
+        const option = hubNode('option', entry.label);
+        option.value = entry.id;
+        bank.append(option);
+    }
+    query.value = preferences.query; bank.value = preferences.bank; status.value = preferences.status;
+    const error = root.getElementById('hub-preferences-error');
+    error.textContent = loaded.error;
+    const render = () => hubRenderSearchResults(root, saved, preferences, limit);
+    const changed = () => {
+        Object.assign(preferences, { query: query.value, bank: bank.value, status: status.value });
+        if (!loaded.error) error.textContent = hubSaveSearchPreferences(preferences);
+        limit = 60;
+        render();
+    };
+    query.addEventListener('input', changed);
+    bank.addEventListener('change', changed);
+    status.addEventListener('change', changed);
+    root.getElementById('hub-reset').onclick = () => { query.value = bank.value = status.value = ''; changed(); query.focus(); };
+    root.getElementById('hub-reload').onclick = () => { saved = hubReadSavedResults(); limit = 60; render(); };
+    root.getElementById('hub-load-more').onclick = () => { limit += 60; render(); };
+    const dialog = root.querySelector('dialog');
+    const close = () => { dialog.close(); host.remove(); if (launcher?.isConnected) launcher.focus(); };
+    root.querySelector('.hub-close').onclick = close;
+    dialog.addEventListener('cancel', event => { event.preventDefault(); close(); });
+    dialog.addEventListener('keydown', event => {
+        if (event.key === 'Escape') { event.preventDefault(); close(); }
+    });
+    document.body.append(host);
+    render();
+    dialog.showModal();
+    query.focus();
+}
+
+function installHubSearchLauncher(configuration) {
+    const mount = () => {
+        const root = (document.getElementById(configuration.id) || document.getElementById(`${configuration.id}-ui`))?.shadowRoot;
+        if (!root || root.querySelector('.hub-search-launcher')) return;
+        const header = root.querySelector('header');
+        if (!header) return;
+        const launcher = hubNode('button', '', 'hub-search-launcher');
+        launcher.type = 'button';
+        launcher.setAttribute('aria-label', 'Search all banks');
+        launcher.append(hubNode('span', 'Search all banks'), hubNode('span', 'Your saved offers ↗'));
+        launcher.onclick = () => openHubSearch(launcher);
+        header.after(launcher);
+    };
+    const ready = () => {
+        mount();
+        // UI repair only, matching the Amex panel's existing SPA remount behavior.
+        new MutationObserver(mount).observe(document.body, { childList: true });
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ready, { once: true });
+    else ready();
+}
+
 // All routing is local. Each adapter retains its original IIFE, constants and workflows.
 function dispatchIssuer(configuration, startIssuer) {
     const pageUrl = location.origin + location.pathname + location.search;
@@ -40,6 +302,7 @@ function dispatchIssuer(configuration, startIssuer) {
             (key, fallback) => GM_getValue(storagePrefix + key, fallback),
             (key, value) => GM_setValue(storagePrefix + key, value)
         );
+        installHubSearchLauncher(configuration);
     };
     // Chase must observe native requests before the page scripts run. The other
     // adapters need a parsed document for their panels, with no timer or request.
@@ -47,13 +310,47 @@ function dispatchIssuer(configuration, startIssuer) {
     else document.addEventListener('DOMContentLoaded', start, { once: true });
 }
 
+// --- Issuer dispatches ---
 dispatchIssuer({"id":"amex-offer-lite","patterns":["^https://global\\.americanexpress\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 (function () {
     'use strict';
 
+    // Source: shared/ui/design-system.js
+    const HUB_DESIGN_STYLES = `
+    :host{all:initial;--hub-ink:#20322f;--hub-muted:#64746e;--hub-accent:#176653;--hub-tint:#edf6f1;--hub-line:#dce5df;--hub-canvas:#f5f7f4;--hub-radius:16px;position:fixed;right:16px;bottom:16px;z-index:2147483646;color:var(--hub-ink);font:13px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:light}
+    *,*::before,*::after{box-sizing:border-box}[hidden]{display:none!important}
+    .panel{width:min(464px,calc(100vw - 24px));max-height:88vh;max-height:88dvh;overflow:auto;background:#fff;border:1px solid var(--hub-line);border-radius:var(--hub-radius);box-shadow:0 16px 60px #21392d20}
+    header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;border-bottom:1px solid var(--hub-line);background:#fff}
+    .hub-heading{min-width:0;flex:1}.hub-eyebrow{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--hub-accent);font-weight:750;margin-bottom:3px}.hub-version{font-size:10px;color:var(--hub-muted);font-variant-numeric:tabular-nums}
+    h2{font-size:18px;line-height:1.3;letter-spacing:-.035em;margin:0;font-weight:650}h3{font-size:12px;margin:0 0 8px;font-weight:650}p{margin:6px 0}
+    section,main{padding:16px 20px;border-bottom:1px solid var(--hub-line)}footer,.status{padding:14px 20px;background:var(--hub-canvas);overflow-wrap:anywhere}.muted,.card-report,.logs{color:var(--hub-muted);font-size:12px}.error,.storage-error{color:#a33232}.notice{border-left:3px solid #a2b9ac;background:var(--hub-canvas);padding:10px 12px}
+    button,input,select{font:inherit}button,select{border:1px solid var(--hub-line);border-radius:9px;color:var(--hub-ink);background:#fff;padding:8px 12px;min-height:36px}button{cursor:pointer;font-weight:550}button:not(:disabled):hover{background:var(--hub-tint);border-color:#a8c6b9}button.primary{background:var(--hub-accent);color:#fff;border-color:var(--hub-accent)}button.primary:not(:disabled):hover{background:#10523f}button:disabled{opacity:.45;cursor:not-allowed}button.stop{color:#a33232}button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #79ad99;outline-offset:3px}
+    input[type=search]{width:100%;padding:11px 13px;border:1px solid var(--hub-line);border-radius:10px;background:var(--hub-canvas);color:var(--hub-ink)}input[type=checkbox]{accent-color:var(--hub-accent);flex:none;width:15px;height:15px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}.cards{max-height:180px;overflow:auto}.card{display:flex;align-items:flex-start;gap:9px;padding:9px 0;overflow-wrap:anywhere}.card input{margin-top:3px}.card-info{min-width:0;flex:1}
+    .offers{max-height:260px;overflow:auto;margin-top:10px}.offer{display:block;padding:13px 0;border-bottom:1px solid var(--hub-line);overflow-wrap:anywhere}.offer:last-child{border-bottom:0}.offer small{display:block;color:var(--hub-muted);margin-top:5px}.offer-title{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.offer-title button{flex-shrink:0}.badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.badge{border-radius:5px;background:var(--hub-canvas);padding:3px 7px;font-size:11px}.badge.enrolled{background:var(--hub-tint);color:var(--hub-accent)}.badge.unconfirmed,.badge.failed{background:#fff1da;color:#865711}.card-counts,.offer-counts,.offer-target{color:var(--hub-accent);font-size:12px}.logs{max-height:90px;overflow:auto}a{color:var(--hub-accent);text-underline-offset:3px}
+    .hub-search-launcher{display:flex;align-items:center;justify-content:space-between;width:100%;border:0;border-bottom:1px solid var(--hub-line);border-radius:0;background:var(--hub-tint);padding:11px 20px;color:var(--hub-accent);text-align:left}.hub-search-launcher span:last-child{font-size:11px;font-weight:400}
+    @media(max-width:500px){:host{right:12px;bottom:12px}header{padding:16px}section,main,footer,.status{padding:14px 16px}}
+    `;
+
+    // Source: shared/ui/panel-branding.js
+    function decorateHubPanel(shadowRoot, version) {
+        const header = shadowRoot.querySelector('header');
+        const title = header.querySelector('h2');
+        const heading = document.createElement('div');
+        heading.className = 'hub-heading';
+        const eyebrow = document.createElement('div');
+        eyebrow.className = 'hub-eyebrow';
+        eyebrow.textContent = 'Card Offer Hub';
+        header.insertBefore(heading, title);
+        heading.append(eyebrow, title);
+        const release = document.createElement('span');
+        release.className = 'hub-version';
+        release.textContent = `v${version}`;
+        heading.append(release);
+    }
+
     // Source: core/state.js
     const SETTINGS = Object.freeze({
-        version: "5.1.0",
+        version: "5.2.0",
         requestGapMs: 500,
         rateLimitCooldownMs: 120000,
         requestTimeoutMs: 30000,
@@ -989,42 +1286,12 @@ dispatchIssuer({"id":"amex-offer-lite","patterns":["^https://global\\.americanex
     }
 
     // Source: ui/styles.js
-    const PANEL_STYLES = `
-    :host { all: initial; position: fixed; right: 18px; bottom: 18px; z-index: 2147483646; color: #253247; font: 13px/1.45 -apple-system, BlinkMacSystemFont, sans-serif; }
-    * { box-sizing: border-box; }
-    .panel { width: min(480px, calc(100vw - 24px)); max-height: 90vh; overflow: auto; background: #fff; border: 1px solid #d7dfe8; border-radius: 12px; box-shadow: 0 10px 36px #19304926; }
-    header { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-bottom: 1px solid #e5eaf0; }
-    h2 { font-size: 16px; margin: 0; } h3 { font-size: 13px; margin: 0 0 8px; }
-    section { padding: 12px 16px; border-bottom: 1px solid #e5eaf0; }
-    p { margin: 6px 0; } .muted { color: #637185; font-size: 12px; }
-    .storage-error { color: #a13030; font-size: 12px; }
-    button { font: inherit; padding: 7px 10px; border: 1px solid #c7d2df; border-radius: 6px; background: #f7f9fc; color: #253247; cursor: pointer; }
-    button.primary { background: #1763a6; color: white; border-color: #1763a6; }
-    button:disabled { opacity: .45; cursor: not-allowed; }
-    button.stop { border-color: #b24545; color: #a13030; }
-    .actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
-    input[type=search] { width: 100%; padding: 8px; border: 1px solid #c7d2df; border-radius: 6px; font: inherit; }
-    .cards { max-height: 180px; overflow-y: auto; }
-    .card { display: flex; gap: 9px; padding: 8px 0; border-bottom: 1px solid #eef1f5; align-items: flex-start; overflow-wrap: anywhere; }
-    .card input { margin-top: 3px; } .card-info { flex: 1; min-width: 0; } .card-report { color: #637185; font-size: 11px; }
-    .card.drop-target { background: #eef5fc; outline: 2px dashed #1763a6; outline-offset: -2px; }
-    .drag-handle { cursor: grab; color: #8b97a8; line-height: 1; margin-top: 2px; user-select: none; }
-    .card-rank { color: #637185; font-size: 11px; min-width: 13px; margin-top: 2px; text-align: right; }
-    .card-move { display: flex; flex-direction: column; gap: 3px; }
-    .card-move button.move { padding: 0 6px; font-size: 11px; line-height: 1.6; }
-    .offer-target { color: #24643c; font-size: 12px; font-weight: 500; margin: 4px 0 0; }
-    .card-counts, .offer-counts { color: #2e5c88; font-size: 12px; font-weight: 500; }
-    .offers { max-height: 290px; overflow-y: auto; }
-    .offer { padding: 12px 0; border-bottom: 1px solid #e5eaf0; }
-    .offer-title { display: flex; gap: 10px; justify-content: space-between; align-items: flex-start; }
-    .offer-title strong { overflow-wrap: anywhere; } .offer-title button { flex-shrink: 0; }
-    .badges { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 7px; }
-    .badge { background: #eff2f6; padding: 3px 6px; border-radius: 4px; font-size: 11px; }
-    .badge.enrolled { background: #e3f2e8; color: #24643c; }
-    .badge.unconfirmed, .badge.failed { background: #fff0df; color: #88530d; }
-    .status { padding: 12px 16px; background: #f6f8fb; overflow-wrap: anywhere; }
-    .logs { max-height: 90px; overflow-y: auto; color: #637185; font-size: 11px; }
-    [hidden] { display: none !important; }
+    const PANEL_STYLES = HUB_DESIGN_STYLES + `
+    .card.drop-target{background:var(--hub-tint);outline:2px dashed var(--hub-accent);outline-offset:-2px}
+    .drag-handle{cursor:grab;color:var(--hub-muted);line-height:1;margin-top:2px;user-select:none}
+    .card-rank{color:var(--hub-muted);font-size:11px;min-width:13px;margin-top:2px;text-align:right}
+    .card-move{display:flex;flex-direction:column;gap:3px}.card-move button.move{min-height:22px;padding:0 6px;font-size:11px;line-height:1.6}
+    .offer-target{font-weight:500;margin:4px 0 0}
     `;
 
     // Source: ui/panel.js
@@ -1045,6 +1312,7 @@ dispatchIssuer({"id":"amex-offer-lite","patterns":["^https://global\\.americanex
         const control = element('button', label, className);
         control.id = identifier;
         control.type = 'button';
+        control.setAttribute('aria-label', label);
         control.onclick = handler;
         return control;
     }
@@ -1057,7 +1325,7 @@ dispatchIssuer({"id":"amex-offer-lite","patterns":["^https://global\\.americanex
         shadow.append(element('style', PANEL_STYLES));
         const panel = element('div', '', 'panel');
         const header = element('header');
-        header.append(element('h2', `${"Amex Offer Lite"} ${SETTINGS.version}`));
+        header.append(element('h2', "Amex Offer Lite"));
         const toggle = button('btn-toggle', 'Minimize', () => {
             state.minimized = !state.minimized;
             persistViewSettings();
@@ -1145,6 +1413,7 @@ dispatchIssuer({"id":"amex-offer-lite","patterns":["^https://global\\.americanex
         content.append(footer);
         panel.append(content);
         shadow.append(panel);
+        decorateHubPanel(shadow, SETTINGS.version);
         document.body.append(panelRoot);
         render();
     }
@@ -1342,6 +1611,10 @@ dispatchIssuer({"id":"amex-offer-lite","patterns":["^https://global\\.americanex
         uiElement('btn-stop').disabled = !state.busy || state.cancelRequested;
         uiElement('content').hidden = state.minimized;
         uiElement('btn-toggle').textContent = state.minimized ? 'Open' : 'Minimize';
+        for (const identifier of ['btn-detect', 'btn-scan', 'btn-enroll-all', 'btn-toggle']) {
+            const control = uiElement(identifier);
+            control.setAttribute('aria-label', control.textContent);
+        }
         const remainingSeconds = Math.max(0, Math.ceil((state.cooldownUntil - Date.now()) / 1000));
         uiElement('cooldown').textContent = remainingSeconds ? `Cooling down: ${remainingSeconds}s. Restart manually afterward.` : '';
     }
@@ -1389,6 +1662,39 @@ dispatchIssuer({"id":"amex-offer-lite","patterns":["^https://global\\.americanex
 dispatchIssuer({"id":"bofa-offer-lite","patterns":["^https://deals\\.merchant-rewards\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 (function () {
     'use strict';
+
+    // Source: shared/ui/design-system.js
+    const HUB_DESIGN_STYLES = `
+    :host{all:initial;--hub-ink:#20322f;--hub-muted:#64746e;--hub-accent:#176653;--hub-tint:#edf6f1;--hub-line:#dce5df;--hub-canvas:#f5f7f4;--hub-radius:16px;position:fixed;right:16px;bottom:16px;z-index:2147483646;color:var(--hub-ink);font:13px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:light}
+    *,*::before,*::after{box-sizing:border-box}[hidden]{display:none!important}
+    .panel{width:min(464px,calc(100vw - 24px));max-height:88vh;max-height:88dvh;overflow:auto;background:#fff;border:1px solid var(--hub-line);border-radius:var(--hub-radius);box-shadow:0 16px 60px #21392d20}
+    header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;border-bottom:1px solid var(--hub-line);background:#fff}
+    .hub-heading{min-width:0;flex:1}.hub-eyebrow{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--hub-accent);font-weight:750;margin-bottom:3px}.hub-version{font-size:10px;color:var(--hub-muted);font-variant-numeric:tabular-nums}
+    h2{font-size:18px;line-height:1.3;letter-spacing:-.035em;margin:0;font-weight:650}h3{font-size:12px;margin:0 0 8px;font-weight:650}p{margin:6px 0}
+    section,main{padding:16px 20px;border-bottom:1px solid var(--hub-line)}footer,.status{padding:14px 20px;background:var(--hub-canvas);overflow-wrap:anywhere}.muted,.card-report,.logs{color:var(--hub-muted);font-size:12px}.error,.storage-error{color:#a33232}.notice{border-left:3px solid #a2b9ac;background:var(--hub-canvas);padding:10px 12px}
+    button,input,select{font:inherit}button,select{border:1px solid var(--hub-line);border-radius:9px;color:var(--hub-ink);background:#fff;padding:8px 12px;min-height:36px}button{cursor:pointer;font-weight:550}button:not(:disabled):hover{background:var(--hub-tint);border-color:#a8c6b9}button.primary{background:var(--hub-accent);color:#fff;border-color:var(--hub-accent)}button.primary:not(:disabled):hover{background:#10523f}button:disabled{opacity:.45;cursor:not-allowed}button.stop{color:#a33232}button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #79ad99;outline-offset:3px}
+    input[type=search]{width:100%;padding:11px 13px;border:1px solid var(--hub-line);border-radius:10px;background:var(--hub-canvas);color:var(--hub-ink)}input[type=checkbox]{accent-color:var(--hub-accent);flex:none;width:15px;height:15px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}.cards{max-height:180px;overflow:auto}.card{display:flex;align-items:flex-start;gap:9px;padding:9px 0;overflow-wrap:anywhere}.card input{margin-top:3px}.card-info{min-width:0;flex:1}
+    .offers{max-height:260px;overflow:auto;margin-top:10px}.offer{display:block;padding:13px 0;border-bottom:1px solid var(--hub-line);overflow-wrap:anywhere}.offer:last-child{border-bottom:0}.offer small{display:block;color:var(--hub-muted);margin-top:5px}.offer-title{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.offer-title button{flex-shrink:0}.badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.badge{border-radius:5px;background:var(--hub-canvas);padding:3px 7px;font-size:11px}.badge.enrolled{background:var(--hub-tint);color:var(--hub-accent)}.badge.unconfirmed,.badge.failed{background:#fff1da;color:#865711}.card-counts,.offer-counts,.offer-target{color:var(--hub-accent);font-size:12px}.logs{max-height:90px;overflow:auto}a{color:var(--hub-accent);text-underline-offset:3px}
+    .hub-search-launcher{display:flex;align-items:center;justify-content:space-between;width:100%;border:0;border-bottom:1px solid var(--hub-line);border-radius:0;background:var(--hub-tint);padding:11px 20px;color:var(--hub-accent);text-align:left}.hub-search-launcher span:last-child{font-size:11px;font-weight:400}
+    @media(max-width:500px){:host{right:12px;bottom:12px}header{padding:16px}section,main,footer,.status{padding:14px 16px}}
+    `;
+
+    // Source: shared/ui/panel-branding.js
+    function decorateHubPanel(shadowRoot, version) {
+        const header = shadowRoot.querySelector('header');
+        const title = header.querySelector('h2');
+        const heading = document.createElement('div');
+        heading.className = 'hub-heading';
+        const eyebrow = document.createElement('div');
+        eyebrow.className = 'hub-eyebrow';
+        eyebrow.textContent = 'Card Offer Hub';
+        header.insertBefore(heading, title);
+        heading.append(eyebrow, title);
+        const release = document.createElement('span');
+        release.className = 'hub-version';
+        release.textContent = `v${version}`;
+        heading.append(release);
+    }
 
     // Source: shared/persistence/workspace-records.js
     function serializeWorkspaceRecord(record, fields) {
@@ -1544,7 +1850,7 @@ dispatchIssuer({"id":"bofa-offer-lite","patterns":["^https://deals\\.merchant-re
 
     // Source: core/state.js
     const SETTINGS = {
-        id: "bofa-offer-lite", name: "BankAmeriDeals Lite", version: "1.1.0",
+        id: "bofa-offer-lite", name: "BankAmeriDeals Lite", version: "1.2.0",
         gapMilliseconds: 500, timeoutMilliseconds: 45000, pageSize: 24,
         defaultCooldownMilliseconds: 300000
     };
@@ -1818,22 +2124,15 @@ dispatchIssuer({"id":"bofa-offer-lite","patterns":["^https://deals\\.merchant-re
         const host = document.createElement('div');
         host.id = SETTINGS.id;
         const root = host.attachShadow({ mode: 'open' });
-        root.innerHTML = `<style>
-            :host{all:initial;font:13px/1.45 system-ui;color:#172b45;position:fixed;right:18px;bottom:18px;z-index:2147483647}
-            section{width:min(380px,calc(100vw - 36px));background:#fff;border:1px solid #c9d5e3;border-radius:12px;box-shadow:0 8px 32px #10254030;overflow:hidden}
-            header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#f0f5fb;font-weight:700}
-            main{padding:14px}p{margin:0 0 12px}button{font:inherit;padding:8px 12px;border:1px solid #aabbd0;border-radius:6px;background:#f6f9ff;cursor:pointer}
-            button:disabled{opacity:.45;cursor:default}.actions{display:flex;gap:8px;margin:12px 0;flex-wrap:wrap}label{display:flex;gap:8px;align-items:flex-start}
-            [role=status]{white-space:pre-wrap;overflow-wrap:anywhere;background:#f2f6fb;padding:10px;border-radius:6px}.offers{max-height:210px;overflow:auto;margin-top:12px}
-            .offer{border-top:1px solid #e1e7ef;padding:8px 0;overflow-wrap:anywhere}.muted{color:#53657a;font-size:12px}[hidden]{display:none!important}
-        </style><section aria-label="BankAmeriDeals controls"><header><span></span><button aria-label="Minimize Deals panel">−</button></header><main>
+        root.innerHTML = `<style>${HUB_DESIGN_STYLES}</style><div class="panel" aria-label="BankAmeriDeals controls"><header><h2></h2><button aria-label="Minimize Deals panel">−</button></header><main>
             <p>Current signed-in Deals profile only. Shopping-link and Upside offers are excluded. Activation may start an expiry window; review terms first.</p>
-            <label><input type="checkbox" aria-label="Confirm activation for current Deals profile">Activate all eligible offers in this profile</label>
-            <div class="actions"><button aria-label="Scan Deals offers">Scan</button><button aria-label="Activate eligible Deals offers">Activate all</button><button aria-label="Stop Deals activation">Stop</button></div>
+            <label class="card"><input type="checkbox" aria-label="Confirm activation for current Deals profile">Activate all eligible offers in this profile</label>
+            <div class="actions"><button aria-label="Scan Deals offers">Scan</button><button class="primary" aria-label="Activate eligible Deals offers">Activate all</button><button aria-label="Stop Deals activation">Stop</button></div>
             <p class="workspace-cache muted"></p><p role="status" aria-live="polite"></p><div class="muted">0.5s between completed requests · no automatic retries</div><div class="offers"></div>
-        </main></section>`;
+        </main></div>`;
         state.panel = root;
-        root.querySelector('header span').textContent = `${SETTINGS.name} · ${SETTINGS.version}`;
+        root.querySelector('h2').textContent = SETTINGS.name;
+        decorateHubPanel(root, SETTINGS.version);
         root.querySelector('header button').onclick = () => { state.collapsed = !state.collapsed; saveWorkspace(); renderPanel(); };
         root.querySelector('input').onchange = event => { state.consent = event.target.checked; saveWorkspace(); renderPanel(); };
         root.querySelector('[aria-label="Scan Deals offers"]').onclick = scanOffers;
@@ -1880,6 +2179,39 @@ dispatchIssuer({"id":"bofa-offer-lite","patterns":["^https://deals\\.merchant-re
 dispatchIssuer({"id":"chase-offer-lite","patterns":["^https://secure\\.chase\\.com/web/auth/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
 (function () {
     'use strict';
+
+    // Source: shared/ui/design-system.js
+    const HUB_DESIGN_STYLES = `
+    :host{all:initial;--hub-ink:#20322f;--hub-muted:#64746e;--hub-accent:#176653;--hub-tint:#edf6f1;--hub-line:#dce5df;--hub-canvas:#f5f7f4;--hub-radius:16px;position:fixed;right:16px;bottom:16px;z-index:2147483646;color:var(--hub-ink);font:13px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:light}
+    *,*::before,*::after{box-sizing:border-box}[hidden]{display:none!important}
+    .panel{width:min(464px,calc(100vw - 24px));max-height:88vh;max-height:88dvh;overflow:auto;background:#fff;border:1px solid var(--hub-line);border-radius:var(--hub-radius);box-shadow:0 16px 60px #21392d20}
+    header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;border-bottom:1px solid var(--hub-line);background:#fff}
+    .hub-heading{min-width:0;flex:1}.hub-eyebrow{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--hub-accent);font-weight:750;margin-bottom:3px}.hub-version{font-size:10px;color:var(--hub-muted);font-variant-numeric:tabular-nums}
+    h2{font-size:18px;line-height:1.3;letter-spacing:-.035em;margin:0;font-weight:650}h3{font-size:12px;margin:0 0 8px;font-weight:650}p{margin:6px 0}
+    section,main{padding:16px 20px;border-bottom:1px solid var(--hub-line)}footer,.status{padding:14px 20px;background:var(--hub-canvas);overflow-wrap:anywhere}.muted,.card-report,.logs{color:var(--hub-muted);font-size:12px}.error,.storage-error{color:#a33232}.notice{border-left:3px solid #a2b9ac;background:var(--hub-canvas);padding:10px 12px}
+    button,input,select{font:inherit}button,select{border:1px solid var(--hub-line);border-radius:9px;color:var(--hub-ink);background:#fff;padding:8px 12px;min-height:36px}button{cursor:pointer;font-weight:550}button:not(:disabled):hover{background:var(--hub-tint);border-color:#a8c6b9}button.primary{background:var(--hub-accent);color:#fff;border-color:var(--hub-accent)}button.primary:not(:disabled):hover{background:#10523f}button:disabled{opacity:.45;cursor:not-allowed}button.stop{color:#a33232}button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #79ad99;outline-offset:3px}
+    input[type=search]{width:100%;padding:11px 13px;border:1px solid var(--hub-line);border-radius:10px;background:var(--hub-canvas);color:var(--hub-ink)}input[type=checkbox]{accent-color:var(--hub-accent);flex:none;width:15px;height:15px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}.cards{max-height:180px;overflow:auto}.card{display:flex;align-items:flex-start;gap:9px;padding:9px 0;overflow-wrap:anywhere}.card input{margin-top:3px}.card-info{min-width:0;flex:1}
+    .offers{max-height:260px;overflow:auto;margin-top:10px}.offer{display:block;padding:13px 0;border-bottom:1px solid var(--hub-line);overflow-wrap:anywhere}.offer:last-child{border-bottom:0}.offer small{display:block;color:var(--hub-muted);margin-top:5px}.offer-title{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.offer-title button{flex-shrink:0}.badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.badge{border-radius:5px;background:var(--hub-canvas);padding:3px 7px;font-size:11px}.badge.enrolled{background:var(--hub-tint);color:var(--hub-accent)}.badge.unconfirmed,.badge.failed{background:#fff1da;color:#865711}.card-counts,.offer-counts,.offer-target{color:var(--hub-accent);font-size:12px}.logs{max-height:90px;overflow:auto}a{color:var(--hub-accent);text-underline-offset:3px}
+    .hub-search-launcher{display:flex;align-items:center;justify-content:space-between;width:100%;border:0;border-bottom:1px solid var(--hub-line);border-radius:0;background:var(--hub-tint);padding:11px 20px;color:var(--hub-accent);text-align:left}.hub-search-launcher span:last-child{font-size:11px;font-weight:400}
+    @media(max-width:500px){:host{right:12px;bottom:12px}header{padding:16px}section,main,footer,.status{padding:14px 16px}}
+    `;
+
+    // Source: shared/ui/panel-branding.js
+    function decorateHubPanel(shadowRoot, version) {
+        const header = shadowRoot.querySelector('header');
+        const title = header.querySelector('h2');
+        const heading = document.createElement('div');
+        heading.className = 'hub-heading';
+        const eyebrow = document.createElement('div');
+        eyebrow.className = 'hub-eyebrow';
+        eyebrow.textContent = 'Card Offer Hub';
+        header.insertBefore(heading, title);
+        heading.append(eyebrow, title);
+        const release = document.createElement('span');
+        release.className = 'hub-version';
+        release.textContent = `v${version}`;
+        heading.append(release);
+    }
 
     // Source: shared/persistence/workspace-records.js
     function serializeWorkspaceRecord(record, fields) {
@@ -2035,7 +2367,7 @@ dispatchIssuer({"id":"chase-offer-lite","patterns":["^https://secure\\.chase\\.c
 
     // Source: core/state.js
     const SETTINGS = {
-        id: "chase-offer-lite", name: "Chase Offer Lite", version: "1.1.0",
+        id: "chase-offer-lite", name: "Chase Offer Lite", version: "1.2.0",
         gapMilliseconds: 500, timeoutMilliseconds: 45000,
         defaultCooldownMilliseconds: 300000
     };
@@ -2484,15 +2816,7 @@ dispatchIssuer({"id":"chase-offer-lite","patterns":["^https://secure\\.chase\\.c
     }
 
     // Source: ui/styles.js
-    const PANEL_STYLES = `
-    :host{all:initial;position:fixed;bottom:18px;right:18px;z-index:2147483646;font:13px/1.5 system-ui,sans-serif;color:#253247}
-    *{box-sizing:border-box}.panel{width:min(440px,calc(100vw - 24px));max-height:85vh;overflow:auto;background:#fff;border:1px solid #d7dfe8;border-radius:12px;box-shadow:0 10px 36px #19304926}
-    header,section,footer{padding:12px 16px}header{display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid #e5eaf0}h2{font-size:16px;margin:0}p{margin:6px 0}
-    button,input{font:inherit}button{padding:7px 10px;border:1px solid #c7d2df;border-radius:6px;background:#f7f9fc;color:#253247;cursor:pointer}button.primary{background:#1763a6;color:#fff;border-color:#1763a6}button:disabled{opacity:.45;cursor:not-allowed}button:focus-visible,input:focus-visible{outline:2px solid #1763a6;outline-offset:2px}
-    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.muted{color:#637185;font-size:12px}.notice{background:#f1f5fa;border-left:3px solid #7891ad;padding:8px 10px;margin-top:10px}.cards{max-height:160px;overflow:auto}.card{display:flex;gap:8px;padding:6px 0;overflow-wrap:anywhere}.card input{flex:none}
-    input[type=search]{width:100%;padding:8px;border:1px solid #c7d2df;border-radius:6px}.offers{max-height:190px;overflow:auto}.offer{padding:8px 0;border-bottom:1px solid #e5eaf0;overflow-wrap:anywhere}.offer small{display:block;color:#637185}
-    footer{background:#f6f8fb;overflow-wrap:anywhere}.error{color:#a13030}[hidden]{display:none!important}
-    `;
+    const PANEL_STYLES = HUB_DESIGN_STYLES;
 
     // Source: ui/panel.js
     function mountPanel() {
@@ -2514,7 +2838,7 @@ dispatchIssuer({"id":"chase-offer-lite","patterns":["^https://secure\\.chase\\.c
           </section><section><p id="counts"></p><input id="search" type="search" aria-label="Search Chase offers" placeholder="Search merchants">
           <div id="offers" class="offers"></div></section>
           <footer><p id="workspace-cache" class="muted"></p><div id="status" role="status" aria-live="polite"></div><div id="storage-error" class="error" role="alert"></div></footer></div></div>`;
-        panel.querySelector('h2').textContent = `${SETTINGS.name} ${SETTINGS.version}`;
+        panel.querySelector('h2').textContent = SETTINGS.name;
         panel.getElementById('detect').addEventListener('click', detectCards);
         panel.getElementById('scan').addEventListener('click', scanOffers);
         panel.getElementById('add').addEventListener('click', addAllOffers);
@@ -2532,6 +2856,7 @@ dispatchIssuer({"id":"chase-offer-lite","patterns":["^https://secure\\.chase\\.c
             button.setAttribute('aria-label', state.collapsed ? 'Expand Chase panel' : 'Minimize Chase panel');
             button.setAttribute('aria-expanded', String(!state.collapsed));
         });
+        decorateHubPanel(panel, SETTINGS.version);
         document.body.appendChild(host);
         state.panel = panel;
         restoreWorkspacePanel(panel, 'Chase');
@@ -2620,6 +2945,39 @@ dispatchIssuer({"id":"chase-offer-lite","patterns":["^https://secure\\.chase\\.c
 dispatchIssuer({"id":"citi-offer-lite","patterns":["^https://online\\.citi\\.com/US/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 (function () {
     'use strict';
+
+    // Source: shared/ui/design-system.js
+    const HUB_DESIGN_STYLES = `
+    :host{all:initial;--hub-ink:#20322f;--hub-muted:#64746e;--hub-accent:#176653;--hub-tint:#edf6f1;--hub-line:#dce5df;--hub-canvas:#f5f7f4;--hub-radius:16px;position:fixed;right:16px;bottom:16px;z-index:2147483646;color:var(--hub-ink);font:13px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:light}
+    *,*::before,*::after{box-sizing:border-box}[hidden]{display:none!important}
+    .panel{width:min(464px,calc(100vw - 24px));max-height:88vh;max-height:88dvh;overflow:auto;background:#fff;border:1px solid var(--hub-line);border-radius:var(--hub-radius);box-shadow:0 16px 60px #21392d20}
+    header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;border-bottom:1px solid var(--hub-line);background:#fff}
+    .hub-heading{min-width:0;flex:1}.hub-eyebrow{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--hub-accent);font-weight:750;margin-bottom:3px}.hub-version{font-size:10px;color:var(--hub-muted);font-variant-numeric:tabular-nums}
+    h2{font-size:18px;line-height:1.3;letter-spacing:-.035em;margin:0;font-weight:650}h3{font-size:12px;margin:0 0 8px;font-weight:650}p{margin:6px 0}
+    section,main{padding:16px 20px;border-bottom:1px solid var(--hub-line)}footer,.status{padding:14px 20px;background:var(--hub-canvas);overflow-wrap:anywhere}.muted,.card-report,.logs{color:var(--hub-muted);font-size:12px}.error,.storage-error{color:#a33232}.notice{border-left:3px solid #a2b9ac;background:var(--hub-canvas);padding:10px 12px}
+    button,input,select{font:inherit}button,select{border:1px solid var(--hub-line);border-radius:9px;color:var(--hub-ink);background:#fff;padding:8px 12px;min-height:36px}button{cursor:pointer;font-weight:550}button:not(:disabled):hover{background:var(--hub-tint);border-color:#a8c6b9}button.primary{background:var(--hub-accent);color:#fff;border-color:var(--hub-accent)}button.primary:not(:disabled):hover{background:#10523f}button:disabled{opacity:.45;cursor:not-allowed}button.stop{color:#a33232}button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #79ad99;outline-offset:3px}
+    input[type=search]{width:100%;padding:11px 13px;border:1px solid var(--hub-line);border-radius:10px;background:var(--hub-canvas);color:var(--hub-ink)}input[type=checkbox]{accent-color:var(--hub-accent);flex:none;width:15px;height:15px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}.cards{max-height:180px;overflow:auto}.card{display:flex;align-items:flex-start;gap:9px;padding:9px 0;overflow-wrap:anywhere}.card input{margin-top:3px}.card-info{min-width:0;flex:1}
+    .offers{max-height:260px;overflow:auto;margin-top:10px}.offer{display:block;padding:13px 0;border-bottom:1px solid var(--hub-line);overflow-wrap:anywhere}.offer:last-child{border-bottom:0}.offer small{display:block;color:var(--hub-muted);margin-top:5px}.offer-title{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.offer-title button{flex-shrink:0}.badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.badge{border-radius:5px;background:var(--hub-canvas);padding:3px 7px;font-size:11px}.badge.enrolled{background:var(--hub-tint);color:var(--hub-accent)}.badge.unconfirmed,.badge.failed{background:#fff1da;color:#865711}.card-counts,.offer-counts,.offer-target{color:var(--hub-accent);font-size:12px}.logs{max-height:90px;overflow:auto}a{color:var(--hub-accent);text-underline-offset:3px}
+    .hub-search-launcher{display:flex;align-items:center;justify-content:space-between;width:100%;border:0;border-bottom:1px solid var(--hub-line);border-radius:0;background:var(--hub-tint);padding:11px 20px;color:var(--hub-accent);text-align:left}.hub-search-launcher span:last-child{font-size:11px;font-weight:400}
+    @media(max-width:500px){:host{right:12px;bottom:12px}header{padding:16px}section,main,footer,.status{padding:14px 16px}}
+    `;
+
+    // Source: shared/ui/panel-branding.js
+    function decorateHubPanel(shadowRoot, version) {
+        const header = shadowRoot.querySelector('header');
+        const title = header.querySelector('h2');
+        const heading = document.createElement('div');
+        heading.className = 'hub-heading';
+        const eyebrow = document.createElement('div');
+        eyebrow.className = 'hub-eyebrow';
+        eyebrow.textContent = 'Card Offer Hub';
+        header.insertBefore(heading, title);
+        heading.append(eyebrow, title);
+        const release = document.createElement('span');
+        release.className = 'hub-version';
+        release.textContent = `v${version}`;
+        heading.append(release);
+    }
 
     // Source: shared/persistence/workspace-records.js
     function serializeWorkspaceRecord(record, fields) {
@@ -2775,7 +3133,7 @@ dispatchIssuer({"id":"citi-offer-lite","patterns":["^https://online\\.citi\\.com
 
     // Source: core/state.js
     const SETTINGS = {
-        id: "citi-offer-lite", name: "Citi Offer Lite", version: "1.1.0",
+        id: "citi-offer-lite", name: "Citi Offer Lite", version: "1.2.0",
         apiBase: '/gcgapi/prod/public/v1',
         retrievePath: '/digital/customers/creditCards/merchantOffers/retrieve',
         enrollmentPath: '/digital/customers/creditCards/accounts/rewards/specialOffers/enrollMerchantOffer',
@@ -3105,15 +3463,7 @@ dispatchIssuer({"id":"citi-offer-lite","patterns":["^https://online\\.citi\\.com
     }
 
     // Source: ui/styles.js
-    const PANEL_STYLES = `
-    :host{all:initial;position:fixed;bottom:18px;right:18px;z-index:2147483646;font:13px/1.5 system-ui,sans-serif;color:#253247}
-    *{box-sizing:border-box} .panel{width:min(440px,calc(100vw - 24px));max-height:85vh;overflow:auto;background:white;border:1px solid #d7dfe8;border-radius:12px;box-shadow:0 10px 36px #19304926}
-    header,section,footer{padding:12px 16px} header{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e5eaf0} h2{font-size:16px;margin:0}p{margin:6px 0}
-    button,input{font:inherit}button{padding:7px 10px;border:1px solid #c7d2df;border-radius:6px;background:#f7f9fc;color:#253247;cursor:pointer}button.primary{background:#1763a6;color:white;border-color:#1763a6}button:disabled{opacity:.45;cursor:not-allowed}
-    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.muted{color:#637185;font-size:12px}.cards{max-height:160px;overflow:auto}.card{display:flex;gap:8px;padding:6px 0}.card input{flex:none}
-    input[type=search]{width:100%;padding:8px;border:1px solid #c7d2df;border-radius:6px}.offers{max-height:190px;overflow:auto}.offer{padding:8px 0;border-bottom:1px solid #e5eaf0;overflow-wrap:anywhere}.offer small{display:block;color:#637185}
-    footer{background:#f6f8fb;overflow-wrap:anywhere}.error{color:#a13030}[hidden]{display:none!important}
-    `;
+    const PANEL_STYLES = HUB_DESIGN_STYLES;
 
     // Source: ui/panel.js
     function mountPanel() {
@@ -3134,7 +3484,7 @@ dispatchIssuer({"id":"citi-offer-lite","patterns":["^https://online\\.citi\\.com
           </section><section><p id="counts"></p><input id="search" type="search" aria-label="Search Citi offers" placeholder="Search merchants">
           <div id="offers" class="offers"></div></section>
           <footer><p id="workspace-cache" class="muted"></p><div id="status" role="status" aria-live="polite"></div><div id="storage-error" class="error" role="alert"></div></footer></div></div>`;
-        panel.querySelector('h2').textContent = `${SETTINGS.name} ${SETTINGS.version}`;
+        panel.querySelector('h2').textContent = SETTINGS.name;
         panel.getElementById('detect').addEventListener('click', detectCards);
         panel.getElementById('scan').addEventListener('click', scanOffers);
         panel.getElementById('add').addEventListener('click', addAllOffers);
@@ -3147,6 +3497,7 @@ dispatchIssuer({"id":"citi-offer-lite","patterns":["^https://online\\.citi\\.com
             panel.getElementById('collapse').textContent = state.collapsed ? '+' : '−';
             panel.getElementById('collapse').setAttribute('aria-label', state.collapsed ? 'Expand Citi panel' : 'Minimize Citi panel');
         });
+        decorateHubPanel(panel, SETTINGS.version);
         document.body.appendChild(host);
         state.panel = panel;
         restoreWorkspacePanel(panel, 'Citi');
@@ -3217,6 +3568,39 @@ dispatchIssuer({"id":"citi-offer-lite","patterns":["^https://online\\.citi\\.com
 dispatchIssuer({"id":"usbank-offer-lite","patterns":["^https://onlinebanking\\.usbank\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 (function () {
     'use strict';
+
+    // Source: shared/ui/design-system.js
+    const HUB_DESIGN_STYLES = `
+    :host{all:initial;--hub-ink:#20322f;--hub-muted:#64746e;--hub-accent:#176653;--hub-tint:#edf6f1;--hub-line:#dce5df;--hub-canvas:#f5f7f4;--hub-radius:16px;position:fixed;right:16px;bottom:16px;z-index:2147483646;color:var(--hub-ink);font:13px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:light}
+    *,*::before,*::after{box-sizing:border-box}[hidden]{display:none!important}
+    .panel{width:min(464px,calc(100vw - 24px));max-height:88vh;max-height:88dvh;overflow:auto;background:#fff;border:1px solid var(--hub-line);border-radius:var(--hub-radius);box-shadow:0 16px 60px #21392d20}
+    header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;border-bottom:1px solid var(--hub-line);background:#fff}
+    .hub-heading{min-width:0;flex:1}.hub-eyebrow{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--hub-accent);font-weight:750;margin-bottom:3px}.hub-version{font-size:10px;color:var(--hub-muted);font-variant-numeric:tabular-nums}
+    h2{font-size:18px;line-height:1.3;letter-spacing:-.035em;margin:0;font-weight:650}h3{font-size:12px;margin:0 0 8px;font-weight:650}p{margin:6px 0}
+    section,main{padding:16px 20px;border-bottom:1px solid var(--hub-line)}footer,.status{padding:14px 20px;background:var(--hub-canvas);overflow-wrap:anywhere}.muted,.card-report,.logs{color:var(--hub-muted);font-size:12px}.error,.storage-error{color:#a33232}.notice{border-left:3px solid #a2b9ac;background:var(--hub-canvas);padding:10px 12px}
+    button,input,select{font:inherit}button,select{border:1px solid var(--hub-line);border-radius:9px;color:var(--hub-ink);background:#fff;padding:8px 12px;min-height:36px}button{cursor:pointer;font-weight:550}button:not(:disabled):hover{background:var(--hub-tint);border-color:#a8c6b9}button.primary{background:var(--hub-accent);color:#fff;border-color:var(--hub-accent)}button.primary:not(:disabled):hover{background:#10523f}button:disabled{opacity:.45;cursor:not-allowed}button.stop{color:#a33232}button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #79ad99;outline-offset:3px}
+    input[type=search]{width:100%;padding:11px 13px;border:1px solid var(--hub-line);border-radius:10px;background:var(--hub-canvas);color:var(--hub-ink)}input[type=checkbox]{accent-color:var(--hub-accent);flex:none;width:15px;height:15px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}.cards{max-height:180px;overflow:auto}.card{display:flex;align-items:flex-start;gap:9px;padding:9px 0;overflow-wrap:anywhere}.card input{margin-top:3px}.card-info{min-width:0;flex:1}
+    .offers{max-height:260px;overflow:auto;margin-top:10px}.offer{display:block;padding:13px 0;border-bottom:1px solid var(--hub-line);overflow-wrap:anywhere}.offer:last-child{border-bottom:0}.offer small{display:block;color:var(--hub-muted);margin-top:5px}.offer-title{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.offer-title button{flex-shrink:0}.badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.badge{border-radius:5px;background:var(--hub-canvas);padding:3px 7px;font-size:11px}.badge.enrolled{background:var(--hub-tint);color:var(--hub-accent)}.badge.unconfirmed,.badge.failed{background:#fff1da;color:#865711}.card-counts,.offer-counts,.offer-target{color:var(--hub-accent);font-size:12px}.logs{max-height:90px;overflow:auto}a{color:var(--hub-accent);text-underline-offset:3px}
+    .hub-search-launcher{display:flex;align-items:center;justify-content:space-between;width:100%;border:0;border-bottom:1px solid var(--hub-line);border-radius:0;background:var(--hub-tint);padding:11px 20px;color:var(--hub-accent);text-align:left}.hub-search-launcher span:last-child{font-size:11px;font-weight:400}
+    @media(max-width:500px){:host{right:12px;bottom:12px}header{padding:16px}section,main,footer,.status{padding:14px 16px}}
+    `;
+
+    // Source: shared/ui/panel-branding.js
+    function decorateHubPanel(shadowRoot, version) {
+        const header = shadowRoot.querySelector('header');
+        const title = header.querySelector('h2');
+        const heading = document.createElement('div');
+        heading.className = 'hub-heading';
+        const eyebrow = document.createElement('div');
+        eyebrow.className = 'hub-eyebrow';
+        eyebrow.textContent = 'Card Offer Hub';
+        header.insertBefore(heading, title);
+        heading.append(eyebrow, title);
+        const release = document.createElement('span');
+        release.className = 'hub-version';
+        release.textContent = `v${version}`;
+        heading.append(release);
+    }
 
     // Source: shared/persistence/workspace-records.js
     function serializeWorkspaceRecord(record, fields) {
@@ -3372,7 +3756,7 @@ dispatchIssuer({"id":"usbank-offer-lite","patterns":["^https://onlinebanking\\.u
 
     // Source: core/state.js
     const SETTINGS = {
-        id: "usbank-offer-lite", name: "US Bank Offer Lite", version: "1.1.0",
+        id: "usbank-offer-lite", name: "US Bank Offer Lite", version: "1.2.0",
         endpoint: '/digital/api/customer-management/graphql/v2',
         gapMilliseconds: 500, timeoutMilliseconds: 45000,
         defaultCooldownMilliseconds: 300000
@@ -3737,15 +4121,7 @@ dispatchIssuer({"id":"usbank-offer-lite","patterns":["^https://onlinebanking\\.u
     }
 
     // Source: ui/styles.js
-    const PANEL_STYLES = `
-    :host{all:initial;position:fixed;bottom:18px;right:18px;z-index:2147483646;font:13px/1.5 system-ui,sans-serif;color:#253247}
-    *{box-sizing:border-box} .panel{width:min(440px,calc(100vw - 24px));max-height:85vh;overflow:auto;background:white;border:1px solid #d7dfe8;border-radius:12px;box-shadow:0 10px 36px #19304926}
-    header,section,footer{padding:12px 16px} header{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e5eaf0} h2{font-size:16px;margin:0}p{margin:6px 0}
-    button,input{font:inherit}button{padding:7px 10px;border:1px solid #c7d2df;border-radius:6px;background:#f7f9fc;color:#253247;cursor:pointer}button.primary{background:#1763a6;color:white;border-color:#1763a6}button:disabled{opacity:.45;cursor:not-allowed}
-    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.muted{color:#637185;font-size:12px}.cards{max-height:160px;overflow:auto}.card{display:flex;gap:8px;padding:6px 0}.card input{flex:none}
-    input[type=search]{width:100%;padding:8px;border:1px solid #c7d2df;border-radius:6px}.offers{max-height:190px;overflow:auto}.offer{display:block;padding:8px 0;border-bottom:1px solid #e5eaf0;overflow-wrap:anywhere}.offer small{display:block;color:#637185}
-    footer{background:#f6f8fb;overflow-wrap:anywhere}.error{color:#a13030}[hidden]{display:none!important}
-    `;
+    const PANEL_STYLES = HUB_DESIGN_STYLES;
 
     // Source: ui/panel.js
     function mountPanel() {
@@ -3766,7 +4142,7 @@ dispatchIssuer({"id":"usbank-offer-lite","patterns":["^https://onlinebanking\\.u
           </section><section><p id="counts"></p><input id="search" type="search" aria-label="Search US Bank offers" placeholder="Search merchants">
           <div id="offers" class="offers"></div></section>
           <footer><p id="workspace-cache" class="muted"></p><div id="status" role="status" aria-live="polite"></div><div id="storage-error" class="error" role="alert"></div></footer></div></div>`;
-        panel.querySelector('h2').textContent = `${SETTINGS.name} ${SETTINGS.version}`;
+        panel.querySelector('h2').textContent = SETTINGS.name;
         panel.getElementById('scan').addEventListener('click', scanOffers);
         panel.getElementById('select-all').addEventListener('click', selectAllOffers);
         panel.getElementById('clear').addEventListener('click', () => {
@@ -3782,6 +4158,7 @@ dispatchIssuer({"id":"usbank-offer-lite","patterns":["^https://onlinebanking\\.u
             panel.getElementById('collapse').textContent = state.collapsed ? '+' : '−';
             panel.getElementById('collapse').setAttribute('aria-label', state.collapsed ? 'Expand US Bank panel' : 'Minimize US Bank panel');
         });
+        decorateHubPanel(panel, SETTINGS.version);
         document.body.appendChild(host);
         state.panel = panel;
         restoreWorkspacePanel(panel, 'US Bank');
@@ -3841,6 +4218,39 @@ dispatchIssuer({"id":"usbank-offer-lite","patterns":["^https://onlinebanking\\.u
 dispatchIssuer({"id":"wellsfargo-offer-lite","patterns":["^https://web\\.secure\\.wellsfargo\\.com/auth/deals-portal.*$","^https://web\\.secure\\.wellsfargo\\.com/deals-portal/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 (function () {
     'use strict';
+
+    // Source: shared/ui/design-system.js
+    const HUB_DESIGN_STYLES = `
+    :host{all:initial;--hub-ink:#20322f;--hub-muted:#64746e;--hub-accent:#176653;--hub-tint:#edf6f1;--hub-line:#dce5df;--hub-canvas:#f5f7f4;--hub-radius:16px;position:fixed;right:16px;bottom:16px;z-index:2147483646;color:var(--hub-ink);font:13px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:light}
+    *,*::before,*::after{box-sizing:border-box}[hidden]{display:none!important}
+    .panel{width:min(464px,calc(100vw - 24px));max-height:88vh;max-height:88dvh;overflow:auto;background:#fff;border:1px solid var(--hub-line);border-radius:var(--hub-radius);box-shadow:0 16px 60px #21392d20}
+    header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;border-bottom:1px solid var(--hub-line);background:#fff}
+    .hub-heading{min-width:0;flex:1}.hub-eyebrow{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--hub-accent);font-weight:750;margin-bottom:3px}.hub-version{font-size:10px;color:var(--hub-muted);font-variant-numeric:tabular-nums}
+    h2{font-size:18px;line-height:1.3;letter-spacing:-.035em;margin:0;font-weight:650}h3{font-size:12px;margin:0 0 8px;font-weight:650}p{margin:6px 0}
+    section,main{padding:16px 20px;border-bottom:1px solid var(--hub-line)}footer,.status{padding:14px 20px;background:var(--hub-canvas);overflow-wrap:anywhere}.muted,.card-report,.logs{color:var(--hub-muted);font-size:12px}.error,.storage-error{color:#a33232}.notice{border-left:3px solid #a2b9ac;background:var(--hub-canvas);padding:10px 12px}
+    button,input,select{font:inherit}button,select{border:1px solid var(--hub-line);border-radius:9px;color:var(--hub-ink);background:#fff;padding:8px 12px;min-height:36px}button{cursor:pointer;font-weight:550}button:not(:disabled):hover{background:var(--hub-tint);border-color:#a8c6b9}button.primary{background:var(--hub-accent);color:#fff;border-color:var(--hub-accent)}button.primary:not(:disabled):hover{background:#10523f}button:disabled{opacity:.45;cursor:not-allowed}button.stop{color:#a33232}button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #79ad99;outline-offset:3px}
+    input[type=search]{width:100%;padding:11px 13px;border:1px solid var(--hub-line);border-radius:10px;background:var(--hub-canvas);color:var(--hub-ink)}input[type=checkbox]{accent-color:var(--hub-accent);flex:none;width:15px;height:15px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}.cards{max-height:180px;overflow:auto}.card{display:flex;align-items:flex-start;gap:9px;padding:9px 0;overflow-wrap:anywhere}.card input{margin-top:3px}.card-info{min-width:0;flex:1}
+    .offers{max-height:260px;overflow:auto;margin-top:10px}.offer{display:block;padding:13px 0;border-bottom:1px solid var(--hub-line);overflow-wrap:anywhere}.offer:last-child{border-bottom:0}.offer small{display:block;color:var(--hub-muted);margin-top:5px}.offer-title{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.offer-title button{flex-shrink:0}.badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.badge{border-radius:5px;background:var(--hub-canvas);padding:3px 7px;font-size:11px}.badge.enrolled{background:var(--hub-tint);color:var(--hub-accent)}.badge.unconfirmed,.badge.failed{background:#fff1da;color:#865711}.card-counts,.offer-counts,.offer-target{color:var(--hub-accent);font-size:12px}.logs{max-height:90px;overflow:auto}a{color:var(--hub-accent);text-underline-offset:3px}
+    .hub-search-launcher{display:flex;align-items:center;justify-content:space-between;width:100%;border:0;border-bottom:1px solid var(--hub-line);border-radius:0;background:var(--hub-tint);padding:11px 20px;color:var(--hub-accent);text-align:left}.hub-search-launcher span:last-child{font-size:11px;font-weight:400}
+    @media(max-width:500px){:host{right:12px;bottom:12px}header{padding:16px}section,main,footer,.status{padding:14px 16px}}
+    `;
+
+    // Source: shared/ui/panel-branding.js
+    function decorateHubPanel(shadowRoot, version) {
+        const header = shadowRoot.querySelector('header');
+        const title = header.querySelector('h2');
+        const heading = document.createElement('div');
+        heading.className = 'hub-heading';
+        const eyebrow = document.createElement('div');
+        eyebrow.className = 'hub-eyebrow';
+        eyebrow.textContent = 'Card Offer Hub';
+        header.insertBefore(heading, title);
+        heading.append(eyebrow, title);
+        const release = document.createElement('span');
+        release.className = 'hub-version';
+        release.textContent = `v${version}`;
+        heading.append(release);
+    }
 
     // Source: shared/persistence/workspace-records.js
     function serializeWorkspaceRecord(record, fields) {
@@ -3996,7 +4406,7 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","patterns":["^https://web\\.secure\
 
     // Source: core/state.js
     const SETTINGS = {
-        id: "wellsfargo-offer-lite", name: "Wells Fargo Offer Lite", version: "1.1.0",
+        id: "wellsfargo-offer-lite", name: "Wells Fargo Offer Lite", version: "1.2.0",
         retrievePath: '/deals-portal/as/getDeals', enrollmentPath: '/deals-portal/as/activateCLDeal',
         gapMilliseconds: 500, timeoutMilliseconds: 45000, defaultCooldownMilliseconds: 300000
     };
@@ -4286,15 +4696,7 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","patterns":["^https://web\\.secure\
     }
 
     // Source: ui/styles.js
-    const PANEL_STYLES = `
-    :host{all:initial;position:fixed;bottom:18px;right:18px;z-index:2147483646;font:13px/1.5 system-ui,sans-serif;color:#253247}
-    *{box-sizing:border-box} .panel{width:min(440px,calc(100vw - 24px));max-height:85vh;overflow:auto;background:white;border:1px solid #d7dfe8;border-radius:12px;box-shadow:0 10px 36px #19304926}
-    header,section,footer{padding:12px 16px} header{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e5eaf0} h2{font-size:16px;margin:0}p{margin:6px 0}
-    button,input{font:inherit}button{padding:7px 10px;border:1px solid #c7d2df;border-radius:6px;background:#f7f9fc;color:#253247;cursor:pointer}button.primary{background:#1763a6;color:white;border-color:#1763a6}button:disabled{opacity:.45;cursor:not-allowed}
-    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.muted{color:#637185;font-size:12px}.cards{max-height:160px;overflow:auto}.card{display:flex;gap:8px;padding:6px 0}.card input{flex:none}
-    input[type=search]{width:100%;padding:8px;border:1px solid #c7d2df;border-radius:6px}.offers{max-height:190px;overflow:auto}.offer{padding:8px 0;border-bottom:1px solid #e5eaf0;overflow-wrap:anywhere}.offer small{display:block;color:#637185}
-    footer{background:#f6f8fb;overflow-wrap:anywhere}.error{color:#a13030}[hidden]{display:none!important}
-    `;
+    const PANEL_STYLES = HUB_DESIGN_STYLES;
 
     // Source: ui/panel.js
     function mountPanel() {
@@ -4315,7 +4717,7 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","patterns":["^https://web\\.secure\
           </section><section><p id="counts"></p><input id="search" type="search" aria-label="Search Wells Fargo offers" placeholder="Search merchants">
           <div id="offers" class="offers"></div></section>
           <footer><p id="workspace-cache" class="muted"></p><div id="status" role="status" aria-live="polite"></div><div id="storage-error" class="error" role="alert"></div></footer></div></div>`;
-        panel.querySelector('h2').textContent = `${SETTINGS.name} ${SETTINGS.version}`;
+        panel.querySelector('h2').textContent = SETTINGS.name;
         panel.getElementById('scan').addEventListener('click', scanOffers);
         panel.getElementById('add').addEventListener('click', addAllOffers);
         panel.getElementById('stop').addEventListener('click', stopRun);
@@ -4333,6 +4735,7 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","patterns":["^https://web\\.secure\
             panel.getElementById('collapse').textContent = state.collapsed ? '+' : '−';
             panel.getElementById('collapse').setAttribute('aria-label', state.collapsed ? 'Expand Wells Fargo panel' : 'Minimize Wells Fargo panel');
         });
+        decorateHubPanel(panel, SETTINGS.version);
         document.body.appendChild(host);
         state.panel = panel;
         restoreWorkspacePanel(panel, 'Wells Fargo');

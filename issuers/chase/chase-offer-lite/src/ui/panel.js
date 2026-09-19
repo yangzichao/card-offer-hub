@@ -17,7 +17,7 @@ function mountPanel() {
       </section><section><p id="counts"></p><input id="search" type="search" aria-label="Search Chase offers" placeholder="Search merchants">
       <div id="offers" class="offers"></div></section>
       <footer><p id="workspace-cache" class="muted"></p><div id="status" role="status" aria-live="polite"></div><div id="storage-error" class="error" role="alert"></div></footer></div></div>`;
-    panel.querySelector('h2').textContent = `${SETTINGS.name} ${SETTINGS.version}`;
+    panel.querySelector('h2').textContent = SETTINGS.name;
     panel.getElementById('detect').addEventListener('click', detectCards);
     panel.getElementById('scan').addEventListener('click', scanOffers);
     panel.getElementById('add').addEventListener('click', addAllOffers);
@@ -35,6 +35,7 @@ function mountPanel() {
         button.setAttribute('aria-label', state.collapsed ? 'Expand Chase panel' : 'Minimize Chase panel');
         button.setAttribute('aria-expanded', String(!state.collapsed));
     });
+    decorateHubPanel(panel, SETTINGS.version);
     document.body.appendChild(host);
     state.panel = panel;
     restoreWorkspacePanel(panel, 'Chase');

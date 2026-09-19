@@ -1,7 +1,7 @@
 {
     "id": "usbank-offer-lite",
     "name": "US Bank Offer Lite",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "description": "Manually scan and select US Bank Cash Back Deals, activate serially, and verify server state",
     "author": "Zichao Yang",
     "issuer": "usbank",
@@ -16,6 +16,8 @@
     "runAt": "document-idle",
     "noFrames": true,
     "sharedModules": [
+        "ui/design-system.js",
+        "ui/panel-branding.js",
         "persistence/workspace-records.js",
         "persistence/workspace-storage.js",
         "persistence/workspace-scope.js",
@@ -35,5 +37,7 @@
         "ui/panel.js",
         "ui/render.js",
         "initialize.js"
-    ]
+    ],
+    "bankLabel": "US Bank",
+    "offersUrl": "https://onlinebanking.usbank.com/digital/servicing/dominjection/cashback-deals"
 }

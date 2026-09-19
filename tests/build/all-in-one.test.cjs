@@ -37,6 +37,7 @@ test('all-in-one embeds every exact issuer body with a single install and update
 // timing, frame boundaries and storage collisions without mocking issuer APIs.
 function probe(url, readyState = 'loading', inFrame = false) {
     let source = published;
+    source = source.replace('installHubSearchLauncher(configuration);', '');
     for (const script of scripts) {
         const standalone = bundleUserscript(script);
         source = source.replace(standalone.slice(standalone.indexOf('(function () {')),
