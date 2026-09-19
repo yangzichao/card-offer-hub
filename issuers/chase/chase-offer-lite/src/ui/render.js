@@ -6,8 +6,9 @@ function renderOffers() {
     if (!state.panel) return;
     const container = state.panel.getElementById('offers');
     container.replaceChildren();
-    const search = state.search.trim().toLowerCase();
-    const visible = state.offers.filter(offer => `${offer.merchant} ${offer.title}`.toLowerCase().includes(search));
+    const search = state.search;
+    const visible = state.offers.filter(offer => state.selected.has(offer.accountId)).filter(offer => hubMatchesSearch(offer, search));
+    if (!visible.length) hubShowEmptyOffers(container, search);
     for (const offer of visible.slice(0, 200)) {
         const row = document.createElement('div');
         row.className = 'offer';
@@ -15,15 +16,9 @@ function renderOffers() {
         title.textContent = [offer.merchant, offer.title].filter(Boolean).join(' · ');
         const detail = document.createElement('small');
         const card = state.accounts.find(account => account.accountId === offer.accountId);
-        detail.textContent = [card ? chaseCardDisplayName(card) : 'Card', offer.status, offer.expires].filter(Boolean).join(' · ');
+        detail.textContent = [card ? chaseCardDisplayName(card) : 'Card', hubOfferStatusLabel(offer.status), offer.expires].filter(Boolean).join(' · ');
         row.append(title, detail);
         container.appendChild(row);
-    }
-    if (!visible.length) {
-        const note = document.createElement('p');
-        note.className = 'muted';
-        note.textContent = search ? 'No offers match your search.' : 'No offers to display. Select cards and scan to load offers.';
-        container.appendChild(note);
     }
     if (visible.length > 200) {
         const note = document.createElement('p');
@@ -45,9 +40,10 @@ function renderPanel() {
     panel.getElementById('enrollment-notice').hidden = Boolean(state.enrollmentSupported);
     panel.getElementById('status').textContent = state.status;
     panel.getElementById('storage-error').textContent = state.storageError;
-    const newCount = state.offers.filter(offer => offer.status === 'NEW').length;
-    const activatedCount = state.offers.filter(offer => offer.status === 'ACTIVATED').length;
-    panel.getElementById('counts').textContent = `${state.offers.length} offers · ${newCount} new · ${activatedCount} activated`;
+    const scopeOffers = state.offers.filter(offer => state.selected.has(offer.accountId));
+    const newCount = scopeOffers.filter(offer => offer.status === 'NEW').length;
+    const activatedCount = scopeOffers.filter(offer => offer.status === 'ACTIVATED').length;
+    panel.getElementById('counts').textContent = `${scopeOffers.length} offers · ${newCount} available · ${activatedCount} added`;
     const cards = panel.getElementById('cards');
     cards.replaceChildren();
     for (const card of state.accounts) {
@@ -63,5 +59,9 @@ function renderPanel() {
         label.append(checkbox, document.createTextNode(`${cardName}${card.eligible === false ? ' · Not eligible for Offers' : ''}`));
         cards.appendChild(label);
     }
+    renderHubWorkflow(panel, { count: state.offers.filter(offer => state.selected.has(offer.accountId) && offer.status === 'NEW').length, hasScope: state.selected.size > 0,
+        needsScan: state.needsScan, busy: state.busy, storageError: state.storageError,
+        coolingDown: Date.now() < state.cooldownUntil, readOnly: !state.enrollmentSupported,
+        progress: state.total ? { completed: state.confirmed, total: state.total } : null });
     renderOffers();
 }

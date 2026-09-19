@@ -4,8 +4,8 @@
 
 1. 用 Tampermonkey 安装构建产物 `dist/bofa-offer-lite.user.js`。
 2. 从 Bank of America 登录并进入 `deals.merchant-rewards.com`。
-3. 点 **Scan**，查看 eligible / skipped 列表；阅读网站优惠条款。
-4. 勾选当前 profile 确认框，点 **Activate all**。
+3. 在 **Choose scope** 确认当前 profile，点 **Scan offers** 查看优惠，并阅读网站条款。
+4. 在 **Review & add** 点 **Add all offers**。搜索只改变显示列表，不缩小批量添加范围。
 
 每次请求完成后等待至少 0.5 秒。每项优惠会先读取详情、空 body PUT 激活，再读取详情确认 `is_activated === true`。每项通常需要三个请求，间隔等待约 1.5 秒，另加服务器响应时间。停止按钮会等待当前请求结束，不中断正在提交的激活。
 

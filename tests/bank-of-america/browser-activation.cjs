@@ -55,28 +55,28 @@ async function main() {
             const { page } = item;
             await page.clock.runFor(60000);
             assert.equal(item.requests.length, 0);
-            assert.equal(await page.getByRole('button', { name: 'Activate eligible Deals offers' }).isEnabled(), false);
-            await page.getByRole('button', { name: 'Scan Deals offers', exact: true }).click();
+            assert.equal(await page.getByRole('button', { name: 'Add all offers' }).isEnabled(), false);
+            await page.getByRole('button', { name: 'Scan offers', exact: true }).click();
             await item.until(/Scan complete: 1 eligible, 1 skipped/);
             await page.getByRole('checkbox').check();
-            await page.getByRole('button', { name: 'Activate eligible Deals offers' }).click();
-            if (mode === 'stop') await page.getByRole('button', { name: 'Stop Deals activation' }).click();
+            await page.getByRole('button', { name: 'Add all offers' }).click();
+            if (mode === 'stop') await page.getByRole('button', { name: 'Stop' }).click();
             await item.until(mode === 'success' ? /Finished: 1\/1/ : mode === '429' ? /HTTP 429/ : mode === 'stop' ? /Stopped/ : /unconfirmed|not explicitly confirmed/);
             assert.equal(item.requests.filter(request => request.method === 'PUT').length, mode === 'stop' ? 0 : 1);
-            assert.equal(await page.getByRole('button', { name: 'Activate eligible Deals offers' }).isEnabled(), false);
+            assert.equal(await page.getByRole('button', { name: 'Add all offers' }).isEnabled(), false);
             for (let index = 1; index < item.requests.length; index++) assert.ok(item.requests[index].time - item.requests[index - 1].time >= 500);
             const count = item.requests.length;
             await page.clock.runFor(60000);
             assert.equal(item.requests.length, count);
             if (mode === '429') {
-                await page.getByRole('button', { name: 'Scan Deals offers', exact: true }).click();
+                await page.getByRole('button', { name: 'Scan offers', exact: true }).click();
                 await item.until(/Rate limited/);
                 assert.equal(item.requests.length, count);
             }
             if (mode === 'success') {
                 mkdirSync(resolve(__dirname, '../../work/browser'), { recursive: true });
                 await page.screenshot({ path: resolve(__dirname, '../../work/browser/bofa-activation.png') });
-                await verifyWorkspaceReload({ page, script: source(), id: 'bofa-offer-lite', bank: 'Deals', requests: item.requests, activationName: 'Activate eligible Deals offers' });
+                await verifyWorkspaceReload({ page, script: source(), id: 'bofa-offer-lite', bank: 'Deals', requests: item.requests, activationName: 'Add all offers' });
                 await page.getByRole('button', { name: 'Minimize Deals panel' }).click();
                 assert.equal(await page.getByRole('status').isVisible(), false);
                 await page.getByRole('button', { name: 'Expand Deals panel' }).click();

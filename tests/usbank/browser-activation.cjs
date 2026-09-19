@@ -58,10 +58,10 @@ async function fixture(browser, mode = 'success') {
         throw new Error(`Did not reach ${pattern}: ${await page.getByRole('status').innerText()}`);
     }
     async function scanAndSelect() {
-        await page.getByRole('button', { name: 'Scan US Bank offers', exact: true }).click();
+        await page.getByRole('button', { name: 'Scan offers', exact: true }).click();
         await advanceUntil(/Scan complete/);
         assert.equal(await page.getByRole('checkbox', { checked: true }).count(), 0);
-        await page.getByRole('button', { name: 'Select all available US Bank offers' }).click();
+        await page.getByRole('button', { name: 'Select all available offers' }).click();
         assert.equal(await page.getByRole('checkbox', { checked: true }).count(), 2);
     }
     return { context, page, requests, errors, advanceUntil, scanAndSelect };
@@ -74,25 +74,25 @@ async function main() {
         const { page } = successful;
         await page.clock.runFor(60000);
         assert.equal(successful.requests.length, 0, 'installation does not send requests');
-        assert.equal(await page.getByRole('button', { name: 'Activate selected US Bank offers' }).isEnabled(), false);
+        assert.equal(await page.getByRole('button', { name: 'Add selected offers' }).isEnabled(), false);
         await successful.scanAndSelect();
-        await verifyWorkspaceReload({ page, script, id: 'usbank-offer-lite', bank: 'US Bank', requests: successful.requests, activationName: 'Activate selected US Bank offers' });
-        await page.getByRole('button', { name: 'Scan US Bank offers', exact: true }).click();
+        await verifyWorkspaceReload({ page, script, id: 'usbank-offer-lite', bank: 'US Bank', requests: successful.requests, activationName: 'Add selected offers' });
+        await page.getByRole('button', { name: 'Scan offers', exact: true }).click();
         await successful.advanceUntil(/Scan complete/);
         assert.equal(await page.getByRole('checkbox', { checked: true }).count(), 2, 'a fresh scan preserves saved selections');
-        await page.getByRole('button', { name: 'Clear US Bank offer selection' }).click();
+        await page.getByRole('button', { name: 'Clear offer selection' }).click();
         assert.equal(await page.getByRole('checkbox', { checked: true }).count(), 0);
-        await page.getByRole('searchbox', { name: 'Search US Bank offers' }).fill('Example a');
-        await page.getByRole('button', { name: 'Select all available US Bank offers' }).click();
-        await page.getByRole('button', { name: 'Activate selected US Bank offers' }).click();
+        await page.getByRole('searchbox', { name: 'Search saved offers' }).fill('Example a');
+        await page.getByRole('button', { name: 'Select all available offers' }).click();
+        await page.getByRole('button', { name: 'Add selected offers' }).click();
         await successful.advanceUntil(/Finished: 2\/2/);
         assert.equal(successful.requests.length, 7);
         assert.deepEqual(successful.requests.map(request => request.activation), [false, false, false, true, false, true, false]);
         assert.deepEqual(successful.requests.filter(request => request.activation).map(request => request.body.variables.request.clientEvents[0].clientOfferId), ['a', 'b']);
-        await page.getByRole('searchbox', { name: 'Search US Bank offers' }).fill('');
+        await page.getByRole('searchbox', { name: 'Search saved offers' }).fill('');
         await page.screenshot({ path: resolve(outputDirectory, 'usbank-activation-complete.png') });
         await page.getByRole('button', { name: 'Minimize US Bank panel' }).click();
-        assert.equal(await page.getByRole('button', { name: 'Scan US Bank offers', exact: true }).isVisible(), false);
+        assert.equal(await page.getByRole('button', { name: 'Scan offers', exact: true }).isVisible(), false);
         await page.getByRole('button', { name: 'Expand US Bank panel' }).click();
         await page.setViewportSize({ width: 390, height: 844 });
         const bounds = await page.locator('.panel').boundingBox();
@@ -104,15 +104,15 @@ async function main() {
         for (const mode of ['unconfirmed', '429']) {
             const failed = await fixture(browser, mode);
             await failed.scanAndSelect();
-            await failed.page.getByRole('button', { name: 'Activate selected US Bank offers' }).click();
+            await failed.page.getByRole('button', { name: 'Add selected offers' }).click();
             await failed.advanceUntil(mode === '429' ? /HTTP 429/ : /not explicitly confirmed/);
             const requestCount = failed.requests.length;
             assert.equal(failed.requests.filter(request => request.activation).length, 1);
-            assert.equal(await failed.page.getByRole('button', { name: 'Activate selected US Bank offers' }).isEnabled(), false);
+            assert.equal(await failed.page.getByRole('button', { name: 'Add selected offers' }).isEnabled(), false);
             await failed.page.clock.runFor(60000);
             assert.equal(failed.requests.length, requestCount);
             if (mode === '429') {
-                await failed.page.getByRole('button', { name: 'Scan US Bank offers', exact: true }).click();
+                await failed.page.getByRole('button', { name: 'Scan offers', exact: true }).click();
                 await failed.advanceUntil(/Rate limited/);
                 assert.equal(failed.requests.length, requestCount);
             }
@@ -122,8 +122,8 @@ async function main() {
 
         const stopped = await fixture(browser);
         await stopped.scanAndSelect();
-        await stopped.page.getByRole('button', { name: 'Activate selected US Bank offers' }).click();
-        await stopped.page.getByRole('button', { name: 'Stop US Bank activation' }).click();
+        await stopped.page.getByRole('button', { name: 'Add selected offers' }).click();
+        await stopped.page.getByRole('button', { name: 'Stop' }).click();
         await stopped.advanceUntil(/Stopped/);
         assert.equal(stopped.requests.filter(request => request.activation).length, 0);
         assert.deepEqual(stopped.errors, []);

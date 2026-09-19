@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         US Bank Offer Lite
 // @namespace    https://github.com/yangzichao/card-offer-hub
-// @version      1.2.0
+// @version      1.3.0
 // @description  Manually scan and select US Bank Cash Back Deals, activate serially, and verify server state
 // @author       Zichao Yang
 // @match        https://onlinebanking.usbank.com/*
@@ -33,6 +33,7 @@
     input[type=search]{width:100%;padding:11px 13px;border:1px solid var(--hub-line);border-radius:10px;background:var(--hub-canvas);color:var(--hub-ink)}input[type=checkbox]{accent-color:var(--hub-accent);flex:none;width:15px;height:15px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}.cards{max-height:180px;overflow:auto}.card{display:flex;align-items:flex-start;gap:9px;padding:9px 0;overflow-wrap:anywhere}.card input{margin-top:3px}.card-info{min-width:0;flex:1}
     .offers{max-height:260px;overflow:auto;margin-top:10px}.offer{display:block;padding:13px 0;border-bottom:1px solid var(--hub-line);overflow-wrap:anywhere}.offer:last-child{border-bottom:0}.offer small{display:block;color:var(--hub-muted);margin-top:5px}.offer-title{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.offer-title button{flex-shrink:0}.badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.badge{border-radius:5px;background:var(--hub-canvas);padding:3px 7px;font-size:11px}.badge.enrolled{background:var(--hub-tint);color:var(--hub-accent)}.badge.unconfirmed,.badge.failed{background:#fff1da;color:#865711}.card-counts,.offer-counts,.offer-target{color:var(--hub-accent);font-size:12px}.logs{max-height:90px;overflow:auto}a{color:var(--hub-accent);text-underline-offset:3px}
     .hub-search-launcher{display:flex;align-items:center;justify-content:space-between;width:100%;border:0;border-bottom:1px solid var(--hub-line);border-radius:0;background:var(--hub-tint);padding:11px 20px;color:var(--hub-accent);text-align:left}.hub-search-launcher span:last-child{font-size:11px;font-weight:400}
+    .hub-step h3{font-size:12px;letter-spacing:.03em;margin-bottom:10px;color:var(--hub-accent)}.hub-action-reason{font-size:12px;color:var(--hub-muted);margin-top:10px}.hub-clear-search{font-size:11px;min-height:28px;padding:4px 8px;margin-top:6px}.hub-search-rule{font-size:11px}.hub-step .actions{margin-bottom:8px}
     @media(max-width:500px){:host{right:12px;bottom:12px}header{padding:16px}section,main,footer,.status{padding:14px 16px}}
     `;
 
@@ -51,6 +52,65 @@
         release.className = 'hub-version';
         release.textContent = `v${version}`;
         heading.append(release);
+    }
+
+    // Source: shared/ui/workflow-layout.js
+    function hubWorkflowMarkup(scopeMarkup, { bank, extraReviewMarkup = '', readOnly = false } = {}) {
+        return `<div class="panel">
+          <header><h2></h2><button id="collapse" aria-label="Minimize ${bank} panel" aria-expanded="true">−</button></header>
+          <div id="body">
+            <section class="hub-step" data-step="scope"><h3>1. Choose scope</h3>${scopeMarkup}</section>
+            <section class="hub-step" data-step="scan"><h3>2. Scan offers</h3>
+              <p class="muted">Scan to refresh saved offers. Nothing runs until you click.</p>
+              <div class="actions"><button id="scan" aria-label="Scan offers">Scan offers</button><button id="stop" class="stop" aria-label="Stop">Stop</button></div>
+            </section>
+            <section class="hub-step" data-step="review"><h3>3. Review & add</h3>
+              <input id="search" type="search" aria-label="Search saved offers" placeholder="Search saved offers">
+              <button id="hub-clear-search" class="hub-clear-search" aria-label="Clear search">Clear search</button>
+              <p class="muted hub-search-rule">Search changes the list only. Add all includes offers hidden by search within your chosen scope.</p>
+              <p id="counts" class="muted"></p><div class="actions"><button id="add" class="primary" aria-label="Add all offers" aria-describedby="hub-action-reason">Add all offers</button>${extraReviewMarkup}</div>
+              <p id="hub-action-reason" class="hub-action-reason" role="note"></p>
+              ${readOnly ? '<p id="enrollment-notice" class="notice">Chase is read-only here. Add offers on the Chase website.</p>' : ''}
+              <div id="offers" class="offers"></div>
+            </section>
+            <footer><p id="workspace-cache" class="muted"></p><div id="status" role="status" aria-live="polite"></div><div id="storage-error" class="error" role="alert"></div></footer>
+          </div></div>`;
+    }
+    function hubMatchesSearch(offer, query) {
+        return [offer.merchant, offer.name, offer.title, offer.description, offer.headline, offer.category]
+            .filter(value => typeof value === 'string').join(' ').toLocaleLowerCase().includes(query.trim().toLocaleLowerCase());
+    }
+    function hubOfferStatusLabel(status) {
+        if (['AVAILABLE', 'ELIGIBLE', 'NEW'].includes(status)) return 'Available';
+        if (['ENROLLED', 'ACTIVATED'].includes(status)) return 'Added';
+        if (['UNCONFIRMED', 'UNKNOWN', 'FAILED', 'CONFLICT'].includes(status)) return 'Needs review';
+        return 'Skipped';
+    }
+    function hubShowEmptyOffers(container, query) {
+        const note = document.createElement('p');
+        note.className = 'muted';
+        note.textContent = query.trim() ? 'No offers match your search. Clear search to view all saved offers in this scope.' : 'No offers in this scope yet. Choose your scope and scan to refresh.';
+        container.append(note);
+    }
+    function hubSetActionLabel(control, label, count = null) {
+        if (!control) return;
+        control.textContent = count === null ? label : `${label} (${count})`;
+        control.setAttribute('aria-label', label);
+    }
+    function renderHubWorkflow(root, { count, hasScope = true, needsScan = false, busy = false,
+        storageError = '', readOnly = false, coolingDown = false, progress = null } = {}) {
+        const add = root.getElementById('add') || root.getElementById('btn-enroll-all');
+        hubSetActionLabel(add, 'Add all offers', busy ? null : count);
+        add.disabled = Boolean(busy || storageError || readOnly || coolingDown || !hasScope || needsScan || !count);
+        const reason = root.getElementById('hub-action-reason');
+        reason.textContent = storageError ? 'Resolve the storage error before continuing.'
+            : busy ? progress ? `Adding ${progress.completed} of ${progress.total}. The task keeps its original scope while you search or switch tabs.` : 'Working. Use Stop to end the current task.'
+            : readOnly ? 'Adding is unavailable for this bank. You can still scan and search.'
+            : coolingDown ? 'Waiting for the bank cooldown. Start again manually when it ends.'
+            : !hasScope ? 'Choose or confirm your scope in step 1.'
+            : needsScan ? 'Scan offers in step 2 before adding.'
+            : !count ? 'No available offers in this scope. Scan again to refresh.'
+            : `Ready to add ${count} available ${count === 1 ? 'offer' : 'offers'} in your chosen scope. Search does not change this total.`;
     }
 
     // Source: shared/persistence/workspace-records.js
@@ -207,14 +267,14 @@
 
     // Source: core/state.js
     const SETTINGS = {
-        id: "usbank-offer-lite", name: "US Bank Offer Lite", version: "1.2.0",
+        id: "usbank-offer-lite", name: "US Bank Offer Lite", version: "1.3.0",
         endpoint: '/digital/api/customer-management/graphql/v2',
         gapMilliseconds: 500, timeoutMilliseconds: 45000,
         defaultCooldownMilliseconds: 300000
     };
     const state = {
         lastScanAt: 0, workspaceScope: '', restoredWorkspace: false,
-        offers: [], selected: new Set(), session: null, busy: false, stopRequested: false,
+        offers: [], selected: new Set(), session: null, activeAction: null, busy: false, stopRequested: false,
         needsScan: true, nextRequestAt: 0, cooldownUntil: 0, storageError: '',
         status: 'Open Cash Back Deals, then scan. Nothing runs automatically.',
         confirmed: 0, total: 0, panel: null, collapsed: false, search: ''
@@ -466,10 +526,12 @@
     }
 
     // Source: workflows/runner.js
-    async function runExclusive(action) {
+    async function runExclusive(action, actionKind = 'scan') {
         if (state.busy) return;
         let workspaceActionStarted = false;
         state.busy = true;
+        state.activeAction = actionKind;
+        if (actionKind === 'add') state.total = 0;
         state.stopRequested = false;
         renderPanel();
         try {
@@ -487,6 +549,7 @@
             updateStatus(error.message);
         } finally {
             state.busy = false;
+            state.activeAction = null;
             if (workspaceActionStarted) saveWorkspace();
             renderPanel();
         }
@@ -528,7 +591,14 @@
     }
     function activateSelectedOffers() {
         if (state.needsScan || !state.selected.size) return;
-        const selectedIds = [...state.selected];
+        return activateOfferIds([...state.selected]);
+    }
+    function addAllOffers() {
+        if (state.needsScan) return;
+        return activateOfferIds(state.offers.filter(offer => offer.status === 'AVAILABLE').map(offer => offer.offerId));
+    }
+    function activateOfferIds(selectedIds) {
+        if (!selectedIds.length) return;
         return runExclusive(async () => {
             ensureSameSession(state.session);
             state.needsScan = true;
@@ -568,7 +638,7 @@
             ensureRunning();
             // Every new run requires a fresh manual scan; existing eligible selections survive.
             updateStatus(`Finished: ${state.confirmed}/${state.total} newly confirmed. Already activated offers were skipped. Scan again for a new selection.`);
-        });
+        }, 'add');
     }
 
     // Source: ui/styles.js
@@ -580,39 +650,36 @@
         const host = document.createElement('div');
         host.id = SETTINGS.id;
         const panel = host.attachShadow({ mode: 'open' });
-        panel.innerHTML = `<style>${PANEL_STYLES}</style><div class="panel">
-          <header><h2></h2><button id="collapse" aria-label="Minimize US Bank panel">−</button></header>
-          <div id="body"><section>
-            <p class="muted">Cash Back Deals for this signed-in customer. Scan, select, then activate. Each activation is verified with the bank.</p>
-            <div class="actions"><button id="scan" aria-label="Scan US Bank offers">Scan offers</button>
-            <button id="select-all" aria-label="Select all available US Bank offers">Select all available</button>
-            <button id="clear" aria-label="Clear US Bank offer selection">Clear selection</button>
-            <button id="activate" class="primary" aria-label="Activate selected US Bank offers">Activate selected</button>
-            <button id="stop" aria-label="Stop US Bank activation">Stop</button></div>
-            <p class="muted">${SETTINGS.gapMilliseconds / 1000} seconds between requests; each activation needs a verification request. No automatic retries. Search only filters the display; select all includes hidden offers.</p>
-          </section><section><p id="counts"></p><input id="search" type="search" aria-label="Search US Bank offers" placeholder="Search merchants">
-          <div id="offers" class="offers"></div></section>
-          <footer><p id="workspace-cache" class="muted"></p><div id="status" role="status" aria-live="polite"></div><div id="storage-error" class="error" role="alert"></div></footer></div></div>`;
+        panel.innerHTML = `<style>${PANEL_STYLES}</style>` + hubWorkflowMarkup(
+            "<p class=\"muted\">Current signed-in US Bank customer. Add all covers every available offer. You can also select individual offers below.</p>",
+            { bank: "US Bank", extraReviewMarkup: "<button id=\"activate\" aria-label=\"Add selected offers\">Add selected offers</button><button id=\"select-all\" aria-label=\"Select all available offers\">Select all</button><button id=\"clear\" aria-label=\"Clear offer selection\">Clear selection</button>", readOnly: false });
         panel.querySelector('h2').textContent = SETTINGS.name;
-        panel.getElementById('scan').addEventListener('click', scanOffers);
+        panel.getElementById('activate').addEventListener('click', activateSelectedOffers);
         panel.getElementById('select-all').addEventListener('click', selectAllOffers);
         panel.getElementById('clear').addEventListener('click', () => {
             if (!state.busy) { state.selected.clear(); saveWorkspace(); renderPanel(); }
         });
-        panel.getElementById('activate').addEventListener('click', activateSelectedOffers);
+        panel.getElementById('scan').addEventListener('click', scanOffers);
+        panel.getElementById('add').addEventListener('click', addAllOffers);
         panel.getElementById('stop').addEventListener('click', stopRun);
-        panel.getElementById('search').addEventListener('input', event => { state.search = event.target.value; saveWorkspace(); renderOffers(); });
+        const search = panel.getElementById('search');
+        search.addEventListener('input', event => { state.search = event.target.value; saveWorkspace(); renderOffers(); });
+        panel.getElementById('hub-clear-search').onclick = () => {
+            state.search = ''; search.value = ''; saveWorkspace(); renderOffers(); search.focus();
+        };
         panel.getElementById('collapse').addEventListener('click', () => {
             state.collapsed = !state.collapsed;
             saveWorkspace();
             panel.getElementById('body').hidden = state.collapsed;
-            panel.getElementById('collapse').textContent = state.collapsed ? '+' : '−';
-            panel.getElementById('collapse').setAttribute('aria-label', state.collapsed ? 'Expand US Bank panel' : 'Minimize US Bank panel');
+            const button = panel.getElementById('collapse');
+            button.textContent = state.collapsed ? '+' : '−';
+            button.setAttribute('aria-label', state.collapsed ? 'Expand US Bank panel' : 'Minimize US Bank panel');
+            button.setAttribute('aria-expanded', String(!state.collapsed));
         });
         decorateHubPanel(panel, SETTINGS.version);
         document.body.appendChild(host);
         state.panel = panel;
-        restoreWorkspacePanel(panel, 'US Bank');
+        restoreWorkspacePanel(panel, "US Bank");
         renderPanel();
     }
 
@@ -621,8 +688,9 @@
         if (!state.panel) return;
         const container = state.panel.getElementById('offers');
         container.replaceChildren();
-        const search = state.search.trim().toLowerCase();
-        const visible = state.offers.filter(offer => `${offer.merchant} ${offer.title} ${offer.category}`.toLowerCase().includes(search));
+        const search = state.search;
+        const visible = state.offers.filter(offer => hubMatchesSearch(offer, search));
+        if (!visible.length) hubShowEmptyOffers(container, search);
         for (const offer of visible) {
             const row = document.createElement('label');
             row.className = 'offer';
@@ -636,7 +704,7 @@
             title.textContent = ` ${offer.merchant} · ${offer.title}`;
             const detail = document.createElement('small');
             const date = typeof offer.expires === 'string' ? offer.expires.slice(0, 10) : 'Unknown expiry';
-            detail.textContent = `${offer.status} · ${date}`;
+            detail.textContent = `${hubOfferStatusLabel(offer.status)} · ${date}`;
             row.append(checkbox, title, detail);
             container.appendChild(row);
         }
@@ -655,6 +723,10 @@
         panel.getElementById('status').textContent = state.status;
         panel.getElementById('storage-error').textContent = state.storageError;
         panel.getElementById('counts').textContent = `${state.offers.length} offers · ${available} available · ${state.selected.size} selected · ${state.confirmed}/${state.total} newly confirmed`;
+        renderHubWorkflow(panel, { count: available, needsScan: state.needsScan, busy: state.busy,
+            storageError: state.storageError, coolingDown: Date.now() < state.cooldownUntil,
+            progress: state.activeAction === 'add' && state.total ? { completed: state.confirmed, total: state.total } : null });
+        hubSetActionLabel(panel.getElementById('activate'), 'Add selected offers', state.selected.size);
         renderOffers();
     }
 

@@ -7,9 +7,9 @@
 构建产物：[`dist/wellsfargo-offer-lite.user.js`](../../../dist/wellsfargo-offer-lite.user.js)。尚未发布时，在 Tampermonkey Dashboard → Utilities → Import from file 中导入本地文件。发布到 main 后才可使用 [安装 / 更新链接](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/wellsfargo-offer-lite.user.js)。
 
 1. 登录 Wells Fargo，从银行导航打开 **My Wells Fargo Deals**。脚本在 `web.secure.wellsfargo.com/auth/deals-portal` 或 `/deals-portal/` 显示浮动面板。
-2. 点击 **Scan offers**，查看当前账户的优惠。
-3. 勾选 **Activate eligible offers for this signed-in account**，明确选择当前账户范围。刷新后保留勾选；会话变化后需要重新确认。
-4. 点击 **Scan & add all**，脚本重新扫描，然后串行激活符合条件的优惠。
+2. 在 **Choose scope** 勾选 **Allow adding offers to this account**，确认当前账户范围。刷新后保留勾选；会话变化后需要重新确认。
+3. 点击 **Scan offers**，查看当前账户的优惠。
+4. 在 **Review & add** 点击 **Add all offers**，脚本重新核验，然后串行激活符合条件的优惠。
 5. 点击 **Stop** 可停止后续请求。已发出的请求会等待返回，并按实际响应记录。
 
 这套抓包中的激活 API 不带卡号，不能提供逐卡白名单。脚本仅处理 `CL`、`multiCardFlag === false`、无选卡列表、明确未激活且状态为 `AVAILABLE` 的优惠。需要额外选卡、其他供应商、未知状态或冲突数据会跳过；这些请在网站手动处理。

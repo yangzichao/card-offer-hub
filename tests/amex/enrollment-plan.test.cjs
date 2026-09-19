@@ -79,11 +79,12 @@ test('informational offers and cards outside the whitelist are never planned', (
     assert.deepEqual(planOf(harness), ['Shared@card-c']);
 });
 
-test('the search filter narrows the plan, and a single offer can be planned on its own', () => {
+test('display search never narrows Add all, while an explicit single offer remains single', () => {
     const harness = preparedHarness({ 'card-a': ['Shared', 'Only on A'], 'card-b': ['Shared'] });
     assert.deepEqual(planOf(harness), ['Only on A@card-a', 'Shared@card-a']);
     harness.state.filter = 'only on a';
-    assert.deepEqual(planOf(harness), ['Only on A@card-a']);
+    assert.deepEqual(planOf(harness), ['Only on A@card-a', 'Shared@card-a']);
+    assert.equal(harness.groupedOffers().length, 1, 'search narrows only the display');
     harness.state.filter = '';
     assert.deepEqual(planOf(harness, offerOn(harness, 'card-b', 'Shared').groupKey), ['Shared@card-a']);
 });

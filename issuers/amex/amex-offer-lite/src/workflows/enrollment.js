@@ -5,6 +5,7 @@ async function startEnrollment(groupKey = null) {
     const plan = enrollmentPlan(groupKey);
     if (!plan.length) return;
     state.busy = 'enroll';
+    state.enrollmentProgress = { total: plan.length, completed: 0 };
     state.cancelRequested = false;
     render();
     let addedCount = 0;
@@ -14,6 +15,8 @@ async function startEnrollment(groupKey = null) {
         for (const plannedOffer of plan) {
             await enrollPlannedOffer(plannedOffer);
             addedCount++;
+            state.enrollmentProgress.completed = addedCount;
+            renderControls();
         }
         setStatus(`Enrollment complete. ${addedCount} offers added.`);
     } catch (error) {

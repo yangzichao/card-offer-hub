@@ -3,6 +3,7 @@ async function scanOffers() {
         state.needsScan = true;
 
         state.confirmed = 0;
+        state.total = 0;
         state.sessionToken = currentSessionToken();
         bindWorkspaceScope(await workspaceScopeFingerprint(state.sessionToken));
         updateStatus('Reading current Deals location…');
@@ -43,6 +44,7 @@ async function activateOffers() {
     return runExclusive(async () => {
         ensureRunning();
         const queue = state.offers.filter(offer => offer.eligible && !offer.activated);
+        state.total = queue.length;
         state.needsScan = true;
         state.confirmed = 0;
         for (const offer of queue) {
@@ -67,5 +69,5 @@ async function activateOffers() {
             finishWorkspaceOffer(offer);
         }
         updateStatus(`Finished: ${state.confirmed}/${queue.length} activations confirmed by readback. Scan again to refresh.`);
-    });
+    }, 'add');
 }

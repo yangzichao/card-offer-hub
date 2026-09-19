@@ -1,7 +1,9 @@
-async function runExclusive(action) {
+async function runExclusive(action, actionKind = 'scan') {
     if (state.busy) return;
     let workspaceActionStarted = false;
     state.busy = true;
+    state.activeAction = actionKind;
+    if (actionKind === 'add') state.total = 0;
     state.stopRequested = false;
     renderPanel();
     const execute = async () => {
@@ -23,6 +25,7 @@ async function runExclusive(action) {
         updateStatus(error.message);
     } finally {
         state.busy = false;
+        state.activeAction = null;
         if (workspaceActionStarted) saveWorkspace();
         renderPanel();
     }

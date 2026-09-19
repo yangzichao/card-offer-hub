@@ -7,12 +7,12 @@
 1. 发布到 main 后，从 [安装 / 更新](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/usbank-offer-lite.user.js) 安装；本地开发产物为仓库 `dist/usbank-offer-lite.user.js`，可在 Tampermonkey Utilities 中从文件导入。不要手贴覆盖已安装脚本。
 2. 登录 US Bank，在网站内进入 **Cash Back Deals**，等待原页面加载完毕。脚本显示浮动面板，但不会自动请求。
 3. 点击 **Scan offers**。扫描不会自动勾选优惠。
-4. 单独勾选优惠，或点击 **Select all available**，然后点击 **Activate selected**。
+4. 点击 **Add all offers** 添加扫描结果中全部可添加优惠；如只需要部分优惠，逐项勾选后点击次要操作 **Add selected**。
 5. 本次运行先刷新列表，再逐个激活和回查。**Stop** 会停止后续请求；进行中的激活若尚未回查，仍标为 `UNCONFIRMED`。继续前重新扫描。
 
-抓包里的 Cash Back Deals 使用客户级会话，没有逐卡选择字段，因此本脚本不提供卡片白名单，也不声称把优惠添加到某张卡。仅操作当前登录客户的已选优惠。
+抓包里的 Cash Back Deals 使用客户级会话，没有逐卡选择字段，因此本脚本不提供卡片白名单，也不声称把优惠添加到某张卡。仅操作当前登录客户的优惠；Add all offers 和 Add selected 分别对应全部可添加项和手动选中项。
 
-搜索只筛选显示。**Select all available** 包含搜索结果之外的可激活优惠；计数显示实际选中数量。清空选择使用 **Clear selection**。
+搜索只筛选显示。**Add all offers** 与 **Select all available** 都包含搜索结果之外的可激活优惠；前者直接启动批量添加，后者只更新选择。计数显示实际选中数量。清空选择使用 **Clear selection**。
 
 ## 边界
 

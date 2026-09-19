@@ -55,10 +55,10 @@ async function fixture(browser, mode = 'success') {
         throw new Error(`Did not reach ${pattern}: ${await status()}`);
     }
     async function consentAndScan() {
-        await page.getByRole('button', { name: 'Scan Wells Fargo offers', exact: true }).click();
+        await page.getByRole('button', { name: 'Scan offers', exact: true }).click();
         await page.getByRole('status').filter({ hasText: /Scan complete/ }).waitFor();
         assert.equal(await page.getByRole('checkbox').isChecked(), false);
-        assert.equal(await page.getByRole('button', { name: 'Scan and add all Wells Fargo offers' }).isEnabled(), false);
+        assert.equal(await page.getByRole('button', { name: 'Add all offers' }).isEnabled(), false);
         await page.getByRole('checkbox', { name: 'Allow account-wide Wells Fargo activation' }).check();
     }
     return { context, page, requests, errors, status, advanceUntil, consentAndScan };
@@ -71,9 +71,9 @@ async function main() {
         await page.clock.runFor(60000);
         assert.equal(successful.requests.length, 0, 'installation must not initiate requests');
         await successful.consentAndScan();
-        await page.getByRole('button', { name: 'Scan and add all Wells Fargo offers', exact: true }).click();
+        await page.getByRole('button', { name: 'Add all offers', exact: true }).click();
         assert.equal(await page.getByRole('checkbox').isEnabled(), false);
-        await page.getByRole('searchbox', { name: 'Search Wells Fargo offers' }).fill('does-not-match');
+        await page.getByRole('searchbox', { name: 'Search saved offers' }).fill('does-not-match');
         await successful.advanceUntil(/Finished: 2\/2/);
         assert.deepEqual(successful.requests.map(request => request.method), ['GET', 'GET', 'POST', 'POST']);
         assert.ok(successful.requests.slice(1).every((request, index) => request.time - successful.requests[index].time >= 500));
@@ -82,13 +82,13 @@ async function main() {
             assert.equal(request.body.activityCode, 'ENROLL');
             assert.deepEqual(Object.values(request.body.offerIdCheckSumMap), ['']);
         }
-        await page.getByRole('searchbox', { name: 'Search Wells Fargo offers' }).fill('');
+        await page.getByRole('searchbox', { name: 'Search saved offers' }).fill('');
         assert.equal(await page.locator('.offer').count(), 4);
         assert.deepEqual(successful.errors, []);
         await page.screenshot({ path: resolve(outputDirectory, 'wellsfargo-enrollment-complete.png') });
-        await verifyWorkspaceReload({ page: page, script, id: 'wellsfargo-offer-lite', bank: 'Wells Fargo', requests: successful.requests, activationName: 'Scan and add all Wells Fargo offers' });
+        await verifyWorkspaceReload({ page: page, script, id: 'wellsfargo-offer-lite', bank: 'Wells Fargo', requests: successful.requests, activationName: 'Add all offers' });
         await page.getByRole('button', { name: 'Minimize Wells Fargo panel' }).click();
-        assert.equal(await page.getByRole('button', { name: 'Scan Wells Fargo offers', exact: true }).isVisible(), false);
+        assert.equal(await page.getByRole('button', { name: 'Scan offers', exact: true }).isVisible(), false);
         await page.getByRole('button', { name: 'Expand Wells Fargo panel' }).click();
         await page.setViewportSize({ width: 390, height: 844 });
         const box = await page.locator('.panel').boundingBox();
@@ -98,14 +98,14 @@ async function main() {
         for (const mode of ['unconfirmed', '429']) {
             const failed = await fixture(browser, mode);
             await failed.consentAndScan();
-            await failed.page.getByRole('button', { name: 'Scan and add all Wells Fargo offers' }).click();
+            await failed.page.getByRole('button', { name: 'Add all offers' }).click();
             await failed.advanceUntil(mode === '429' ? /HTTP 429/ : /not explicitly confirmed/);
             assert.equal(failed.requests.length, 3);
-            assert.equal(await failed.page.getByRole('button', { name: 'Scan and add all Wells Fargo offers' }).isEnabled(), false);
+            assert.equal(await failed.page.getByRole('button', { name: 'Add all offers' }).isEnabled(), false);
             await failed.page.clock.runFor(60000);
             assert.equal(failed.requests.length, 3, 'errors never automatically retry');
             if (mode === '429') {
-                await failed.page.getByRole('button', { name: 'Scan Wells Fargo offers', exact: true }).click();
+                await failed.page.getByRole('button', { name: 'Scan offers', exact: true }).click();
                 await failed.advanceUntil(/Rate limited/);
                 assert.equal(failed.requests.length, 3);
             }
@@ -114,8 +114,8 @@ async function main() {
         }
         const cancelled = await fixture(browser);
         await cancelled.consentAndScan();
-        await cancelled.page.getByRole('button', { name: 'Scan and add all Wells Fargo offers' }).click();
-        await cancelled.page.getByRole('button', { name: 'Stop Wells Fargo activation' }).click();
+        await cancelled.page.getByRole('button', { name: 'Add all offers' }).click();
+        await cancelled.page.getByRole('button', { name: 'Stop' }).click();
         await cancelled.advanceUntil(/Stopped/);
         assert.equal(cancelled.requests.length, 1);
         assert.deepEqual(cancelled.errors, []);

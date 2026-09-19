@@ -5,7 +5,7 @@ const SETTINGS = {
 };
 const state = {
     lastScanAt: 0, workspaceScope: '', restoredWorkspace: false,
-    offers: [], accountConsent: false, busy: false, stopRequested: false, needsScan: true,
+    offers: [], accountConsent: false, activeAction: null, busy: false, stopRequested: false, needsScan: true,
     nextRequestAt: 0, cooldownUntil: 0, storageError: '',
     status: 'Open My Wells Fargo Deals and click Scan offers. Nothing runs automatically.',
     confirmed: 0, completed: 0, total: 0, panel: null, collapsed: false, search: ''

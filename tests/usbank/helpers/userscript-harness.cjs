@@ -51,7 +51,7 @@ function createHarness(respond, options = {}) {
         recordWorkspaceScan, workspaceScopeFingerprint, normalizeListing, isActivatable,
         activationBody, activationAcknowledged, activationConfirmed, readSession, sessionHeaders,
         retryAfterMilliseconds, restorePacing, requestGraphql, scanOffers, activateSelectedOffers,
-        setOfferSelected, selectAllOffers, stopRun };})();`;
+        addAllOffers, setOfferSelected, selectAllOffers, stopRun };})();`;
     if (!source.includes(marker)) throw new Error('Missing test initialization boundary');
     runInNewContext(source.slice(0, source.indexOf(marker)) + probe, context);
     return { ...context.usbankTestAccess, requests, storage, context, maximumActive: () => maximumActive,

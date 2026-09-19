@@ -23,6 +23,7 @@ const state = {
     pendingEnrollments: new Set(),
     savedOffersError: '',
     busy: null,
+    enrollmentProgress: { total: 0, completed: 0 },
     cancelRequested: false,
     requestInFlight: false,
     nextRequestAt: 0,

@@ -46,5 +46,5 @@ function addAllOffers() {
         }
         ensureRunning();
         updateStatus(`Finished: ${state.confirmed}/${state.total} confirmed. Refresh the Wells Fargo page to update its deal badges.`);
-    });
+    }, 'add');
 }

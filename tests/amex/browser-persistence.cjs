@@ -45,13 +45,13 @@ async function run() {
             await mountUserscript();
         };
         const checkbox = (token) => page.getByRole('checkbox', { name: `Whitelist Test ${token}`, exact: true });
-        const scanButton = (count) => page.getByRole('button', { name: `Scan whitelist (${count})`, exact: true });
+        const scanButton = (count) => page.getByRole('button', { name: 'Scan offers', exact: true });
         const waitForStatus = (text) => page.waitForFunction((expected) => document.getElementById('amex-offer-lite-ui').shadowRoot.getElementById('status').textContent.includes(expected), text);
 
         await page.goto('https://global.americanexpress.com/offers');
         await page.evaluate((accounts) => { window.__INITIAL_STATE__ = { accounts }; }, ['card-a', 'card-b'].map(rawAccount));
         await mountUserscript();
-        await page.getByRole('button', { name: 'Detect card list', exact: true }).click();
+        await page.getByRole('button', { name: 'Detect cards', exact: true }).click();
         await checkbox('card-a').check();
         await storageFixture.flush();
         assert.equal(requests.length, 0);
@@ -96,14 +96,14 @@ async function run() {
         assert.ok(requests.every((request) => request.payload.accountNumberProxy === 'card-a'));
 
         // Explicit refresh makes one account request and preserves approvals.
-        await page.getByRole('button', { name: 'Force refresh card list', exact: true }).click();
+        await page.getByRole('button', { name: 'Refresh cards', exact: true }).click();
         await page.clock.runFor(16000);
         await waitForStatus('Refreshed 3 cards');
         assert.equal(requests.length, 3);
         assert.equal(await checkbox('card-a').isChecked(), true);
         assert.equal(await checkbox('new-card').isChecked(), false);
         refreshFails = true;
-        await page.getByRole('button', { name: 'Force refresh card list', exact: true }).click();
+        await page.getByRole('button', { name: 'Refresh cards', exact: true }).click();
         await page.clock.runFor(16000);
         await waitForStatus('previous cards and whitelist kept');
         assert.equal(requests.length, 4);

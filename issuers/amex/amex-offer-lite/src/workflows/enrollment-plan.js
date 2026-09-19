@@ -1,8 +1,8 @@
-function groupedOffers() {
+function groupedOffers({ applyDisplayFilter = true } = {}) {
     const groups = new Map();
     for (const account of selectedAccounts()) {
         for (const offer of state.offersByAccount.get(account.token) || []) {
-            if (state.filter && !`${offer.name} ${offer.description}`.toLowerCase().includes(state.filter)) continue;
+            if (applyDisplayFilter && state.filter && !`${offer.name} ${offer.description}`.toLowerCase().includes(state.filter)) continue;
             if (!groups.has(offer.groupKey)) groups.set(offer.groupKey, { offer, accounts: [] });
             groups.get(offer.groupKey).accounts.push({ account, offer });
         }
@@ -13,7 +13,7 @@ function groupedOffers() {
 // Every card-offer pair that could be enrolled, before the priority order picks one.
 function enrollmentCandidates(groupKey = null) {
     const seenCardOffers = new Set();
-    return groupedOffers().filter((group) => !groupKey || group.offer.groupKey === groupKey)
+    return groupedOffers({ applyDisplayFilter: false }).filter((group) => !groupKey || group.offer.groupKey === groupKey)
         .flatMap((group) => group.accounts)
         .filter(({ account, offer }) => offer.status === 'ELIGIBLE' && offer.enrollable
             && state.scanReports.get(account.token)?.startsWith('Complete'))
@@ -29,7 +29,7 @@ function enrollmentCandidates(groupKey = null) {
 // finished with: adding it again on a lower card would break the one-card rule.
 // A card that definitively refused it (FAILED) does not block the next card.
 function settledOfferGroups() {
-    return new Set(groupedOffers()
+    return new Set(groupedOffers({ applyDisplayFilter: false })
         .filter((group) => group.accounts.some(({ offer }) => ['ENROLLED', 'UNCONFIRMED'].includes(offer.status)))
         .map((group) => group.offer.groupKey));
 }
@@ -53,4 +53,3 @@ function enrollmentPlan(groupKey = null) {
     return [...chosenByOffer.values()].sort((left, right) =>
         ranks.get(left.account.token) - ranks.get(right.account.token) || left.offer.name.localeCompare(right.offer.name));
 }
-

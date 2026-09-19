@@ -65,11 +65,11 @@ async function run() {
         const storageFixture = await createBrowserStorageFixture(page);
         await storageFixture.restore();
         await page.addScriptTag({ content: userscript });
-        await page.getByRole('button', { name: 'Detect card list', exact: true }).click();
+        await page.getByRole('button', { name: 'Detect cards', exact: true }).click();
         for (let index = 0; index < 7; index++) await page.getByRole('checkbox', { name: `Whitelist Test card ${index} · (1000${index})`, exact: true }).check();
         assert.deepEqual(await page.locator('.card-rank').allTextContents(), ['1', '2', '3', '4', '5', '6', '7']);
 
-        await page.getByRole('button', { name: 'Scan whitelist (7)', exact: true }).click();
+        await page.getByRole('button', { name: 'Scan offers', exact: true }).click();
         await page.waitForFunction(() => document.getElementById('amex-offer-lite-ui').shadowRoot.getElementById('status').textContent.includes('Waiting'));
         for (let index = 0; index < 14; index++) await page.clock.runFor(16000);
         await waitForStatus(page, 'Scan complete: 7/7');
@@ -111,7 +111,7 @@ async function run() {
 
         // One unattended run: two offers, one request each, 0.5s apart, nothing overlapping.
         await page.clock.runFor(16000); // Clear the gap left over from the last scan response.
-        await page.getByRole('button', { name: 'Add all offers (2)', exact: true }).click();
+        await page.getByRole('button', { name: 'Add all offers', exact: true }).click();
         await page.waitForFunction(() => window.__testEnrollmentRequests === 1);
         assert.equal(enrollmentRequests.length, 1);
         assert.equal(enrollmentRequests[0].payload.accountNumberProxy, 'card-3');
@@ -129,7 +129,7 @@ async function run() {
         assert.match(await openOffer.locator('.offer-target').textContent(), /^Already on Test card 3 · \(10003\) · no other card will be used/);
 
         // Nothing is left to add, so the button is disabled and a rerun sends nothing.
-        assert.equal(await page.getByRole('button', { name: 'Add all offers (0)', exact: true }).isDisabled(), true);
+        assert.equal(await page.getByRole('button', { name: 'Add all offers', exact: true }).isDisabled(), true);
         await page.clock.runFor(60000);
         assert.equal(enrollmentRequests.length, 2);
         assert.deepEqual(errors, []);

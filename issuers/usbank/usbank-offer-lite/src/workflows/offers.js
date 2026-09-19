@@ -21,7 +21,14 @@ function scanOffers() {
 }
 function activateSelectedOffers() {
     if (state.needsScan || !state.selected.size) return;
-    const selectedIds = [...state.selected];
+    return activateOfferIds([...state.selected]);
+}
+function addAllOffers() {
+    if (state.needsScan) return;
+    return activateOfferIds(state.offers.filter(offer => offer.status === 'AVAILABLE').map(offer => offer.offerId));
+}
+function activateOfferIds(selectedIds) {
+    if (!selectedIds.length) return;
     return runExclusive(async () => {
         ensureSameSession(state.session);
         state.needsScan = true;
@@ -61,5 +68,5 @@ function activateSelectedOffers() {
         ensureRunning();
         // Every new run requires a fresh manual scan; existing eligible selections survive.
         updateStatus(`Finished: ${state.confirmed}/${state.total} newly confirmed. Already activated offers were skipped. Scan again for a new selection.`);
-    });
+    }, 'add');
 }

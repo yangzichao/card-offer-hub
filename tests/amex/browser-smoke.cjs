@@ -58,13 +58,13 @@ async function run() {
         await page.addScriptTag({ content: userscript });
         await page.clock.runFor(5000);
         assert.equal(requests.length, 0, 'page load and UI timers must not call APIs');
-        await page.getByRole('button', { name: 'Detect card list', exact: true }).click();
+        await page.getByRole('button', { name: 'Detect cards', exact: true }).click();
         assert.equal(await page.getByRole('checkbox').count(), 2);
-        assert.equal(await page.getByRole('button', { name: 'Detected 2 cards', exact: true }).isDisabled(), true);
-        assert.equal(await page.getByRole('button', { name: 'Scan whitelist (0)', exact: true }).isDisabled(), true);
+        assert.equal(await page.getByRole('button', { name: 'Detect cards', exact: true }).isDisabled(), true);
+        assert.equal(await page.getByRole('button', { name: 'Scan offers', exact: true }).isDisabled(), true);
         await page.getByRole('checkbox', { name: /Whitelist Gold/ }).check();
         assert.equal(requests.length, 0, 'whitelist editing must not call APIs');
-        await page.getByRole('button', { name: 'Scan whitelist (1)', exact: true }).click();
+        await page.getByRole('button', { name: 'Scan offers', exact: true }).click();
         await page.waitForFunction(() => document.getElementById('amex-offer-lite-ui').shadowRoot.getElementById('status').textContent.includes('Waiting'));
         assert.equal(requests.length, 1);
         assert.equal(await page.getByRole('checkbox').first().isDisabled(), true);
@@ -78,7 +78,7 @@ async function run() {
 
         // A queue result must survive filtering while the request is waiting.
         await page.getByRole('searchbox').fill('Example Café');
-        await page.getByRole('button', { name: 'Add filtered offers (1)', exact: true }).click();
+        await page.getByRole('button', { name: 'Add', exact: true }).click();
         await page.getByRole('searchbox').fill('Bookstore');
         await page.clock.runFor(16000);
         await page.waitForFunction(() => document.getElementById('amex-offer-lite-ui').shadowRoot.getElementById('status').textContent.startsWith('Enrollment complete'));
@@ -89,12 +89,12 @@ async function run() {
         // Removing the panel simulates a SPA replacing the page body.
         const requestCountBeforeRemount = requests.length;
         await page.evaluate(() => document.getElementById('amex-offer-lite-ui').remove());
-        await page.getByRole('button', { name: 'Detected 2 cards', exact: true }).waitFor();
+        await page.getByRole('button', { name: 'Detect cards', exact: true }).waitFor();
         assert.equal(await page.getByRole('checkbox', { name: /Whitelist Gold/ }).isChecked(), true);
         assert.equal(requests.length, requestCountBeforeRemount);
 
         // Cancel while rate spacing is active: no read or enrollment may start later.
-        await page.getByRole('button', { name: 'Scan whitelist (1)', exact: true }).click();
+        await page.getByRole('button', { name: 'Scan offers', exact: true }).click();
         await page.waitForFunction(() => document.getElementById('amex-offer-lite-ui').shadowRoot.getElementById('status').textContent.includes('Waiting'));
         const requestCountBeforeStop = requests.length;
         await page.getByRole('button', { name: 'Stop', exact: true }).click();
@@ -103,13 +103,13 @@ async function run() {
 
         // 429 stops once, keeps the whitelist and requires a manual restart after cooldown.
         rateLimitMode = true;
-        await page.getByRole('button', { name: 'Scan whitelist (1)', exact: true }).click();
+        await page.getByRole('button', { name: 'Scan offers', exact: true }).click();
         await page.clock.runFor(16000);
         await page.waitForFunction(() => document.getElementById('amex-offer-lite-ui').shadowRoot.getElementById('status').textContent.includes('HTTP 429'));
         const countAfter429 = requests.length;
         await page.clock.runFor(301000);
         assert.equal(requests.length, countAfter429, 'cooldown must never auto-resume');
-        assert.equal(await page.getByRole('button', { name: 'Scan whitelist (1)', exact: true }).isDisabled(), false);
+        assert.equal(await page.getByRole('button', { name: 'Scan offers', exact: true }).isDisabled(), false);
         assert.equal(await page.getByRole('checkbox', { name: /Whitelist Gold/ }).isChecked(), true);
 
         await page.setViewportSize({ width: 390, height: 844 });

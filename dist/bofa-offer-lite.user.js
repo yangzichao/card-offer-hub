@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         BankAmeriDeals Lite
 // @namespace    https://github.com/yangzichao/card-offer-hub
-// @version      1.2.0
+// @version      1.3.0
 // @description  Manually scan and activate ordinary card-linked BankAmeriDeals with verified results
 // @author       Zichao Yang
 // @match        https://deals.merchant-rewards.com/*
@@ -33,6 +33,7 @@
     input[type=search]{width:100%;padding:11px 13px;border:1px solid var(--hub-line);border-radius:10px;background:var(--hub-canvas);color:var(--hub-ink)}input[type=checkbox]{accent-color:var(--hub-accent);flex:none;width:15px;height:15px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}.cards{max-height:180px;overflow:auto}.card{display:flex;align-items:flex-start;gap:9px;padding:9px 0;overflow-wrap:anywhere}.card input{margin-top:3px}.card-info{min-width:0;flex:1}
     .offers{max-height:260px;overflow:auto;margin-top:10px}.offer{display:block;padding:13px 0;border-bottom:1px solid var(--hub-line);overflow-wrap:anywhere}.offer:last-child{border-bottom:0}.offer small{display:block;color:var(--hub-muted);margin-top:5px}.offer-title{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.offer-title button{flex-shrink:0}.badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.badge{border-radius:5px;background:var(--hub-canvas);padding:3px 7px;font-size:11px}.badge.enrolled{background:var(--hub-tint);color:var(--hub-accent)}.badge.unconfirmed,.badge.failed{background:#fff1da;color:#865711}.card-counts,.offer-counts,.offer-target{color:var(--hub-accent);font-size:12px}.logs{max-height:90px;overflow:auto}a{color:var(--hub-accent);text-underline-offset:3px}
     .hub-search-launcher{display:flex;align-items:center;justify-content:space-between;width:100%;border:0;border-bottom:1px solid var(--hub-line);border-radius:0;background:var(--hub-tint);padding:11px 20px;color:var(--hub-accent);text-align:left}.hub-search-launcher span:last-child{font-size:11px;font-weight:400}
+    .hub-step h3{font-size:12px;letter-spacing:.03em;margin-bottom:10px;color:var(--hub-accent)}.hub-action-reason{font-size:12px;color:var(--hub-muted);margin-top:10px}.hub-clear-search{font-size:11px;min-height:28px;padding:4px 8px;margin-top:6px}.hub-search-rule{font-size:11px}.hub-step .actions{margin-bottom:8px}
     @media(max-width:500px){:host{right:12px;bottom:12px}header{padding:16px}section,main,footer,.status{padding:14px 16px}}
     `;
 
@@ -51,6 +52,65 @@
         release.className = 'hub-version';
         release.textContent = `v${version}`;
         heading.append(release);
+    }
+
+    // Source: shared/ui/workflow-layout.js
+    function hubWorkflowMarkup(scopeMarkup, { bank, extraReviewMarkup = '', readOnly = false } = {}) {
+        return `<div class="panel">
+          <header><h2></h2><button id="collapse" aria-label="Minimize ${bank} panel" aria-expanded="true">−</button></header>
+          <div id="body">
+            <section class="hub-step" data-step="scope"><h3>1. Choose scope</h3>${scopeMarkup}</section>
+            <section class="hub-step" data-step="scan"><h3>2. Scan offers</h3>
+              <p class="muted">Scan to refresh saved offers. Nothing runs until you click.</p>
+              <div class="actions"><button id="scan" aria-label="Scan offers">Scan offers</button><button id="stop" class="stop" aria-label="Stop">Stop</button></div>
+            </section>
+            <section class="hub-step" data-step="review"><h3>3. Review & add</h3>
+              <input id="search" type="search" aria-label="Search saved offers" placeholder="Search saved offers">
+              <button id="hub-clear-search" class="hub-clear-search" aria-label="Clear search">Clear search</button>
+              <p class="muted hub-search-rule">Search changes the list only. Add all includes offers hidden by search within your chosen scope.</p>
+              <p id="counts" class="muted"></p><div class="actions"><button id="add" class="primary" aria-label="Add all offers" aria-describedby="hub-action-reason">Add all offers</button>${extraReviewMarkup}</div>
+              <p id="hub-action-reason" class="hub-action-reason" role="note"></p>
+              ${readOnly ? '<p id="enrollment-notice" class="notice">Chase is read-only here. Add offers on the Chase website.</p>' : ''}
+              <div id="offers" class="offers"></div>
+            </section>
+            <footer><p id="workspace-cache" class="muted"></p><div id="status" role="status" aria-live="polite"></div><div id="storage-error" class="error" role="alert"></div></footer>
+          </div></div>`;
+    }
+    function hubMatchesSearch(offer, query) {
+        return [offer.merchant, offer.name, offer.title, offer.description, offer.headline, offer.category]
+            .filter(value => typeof value === 'string').join(' ').toLocaleLowerCase().includes(query.trim().toLocaleLowerCase());
+    }
+    function hubOfferStatusLabel(status) {
+        if (['AVAILABLE', 'ELIGIBLE', 'NEW'].includes(status)) return 'Available';
+        if (['ENROLLED', 'ACTIVATED'].includes(status)) return 'Added';
+        if (['UNCONFIRMED', 'UNKNOWN', 'FAILED', 'CONFLICT'].includes(status)) return 'Needs review';
+        return 'Skipped';
+    }
+    function hubShowEmptyOffers(container, query) {
+        const note = document.createElement('p');
+        note.className = 'muted';
+        note.textContent = query.trim() ? 'No offers match your search. Clear search to view all saved offers in this scope.' : 'No offers in this scope yet. Choose your scope and scan to refresh.';
+        container.append(note);
+    }
+    function hubSetActionLabel(control, label, count = null) {
+        if (!control) return;
+        control.textContent = count === null ? label : `${label} (${count})`;
+        control.setAttribute('aria-label', label);
+    }
+    function renderHubWorkflow(root, { count, hasScope = true, needsScan = false, busy = false,
+        storageError = '', readOnly = false, coolingDown = false, progress = null } = {}) {
+        const add = root.getElementById('add') || root.getElementById('btn-enroll-all');
+        hubSetActionLabel(add, 'Add all offers', busy ? null : count);
+        add.disabled = Boolean(busy || storageError || readOnly || coolingDown || !hasScope || needsScan || !count);
+        const reason = root.getElementById('hub-action-reason');
+        reason.textContent = storageError ? 'Resolve the storage error before continuing.'
+            : busy ? progress ? `Adding ${progress.completed} of ${progress.total}. The task keeps its original scope while you search or switch tabs.` : 'Working. Use Stop to end the current task.'
+            : readOnly ? 'Adding is unavailable for this bank. You can still scan and search.'
+            : coolingDown ? 'Waiting for the bank cooldown. Start again manually when it ends.'
+            : !hasScope ? 'Choose or confirm your scope in step 1.'
+            : needsScan ? 'Scan offers in step 2 before adding.'
+            : !count ? 'No available offers in this scope. Scan again to refresh.'
+            : `Ready to add ${count} available ${count === 1 ? 'offer' : 'offers'} in your chosen scope. Search does not change this total.`;
     }
 
     // Source: shared/persistence/workspace-records.js
@@ -207,14 +267,14 @@
 
     // Source: core/state.js
     const SETTINGS = {
-        id: "bofa-offer-lite", name: "BankAmeriDeals Lite", version: "1.2.0",
+        id: "bofa-offer-lite", name: "BankAmeriDeals Lite", version: "1.3.0",
         gapMilliseconds: 500, timeoutMilliseconds: 45000, pageSize: 24,
         defaultCooldownMilliseconds: 300000
     };
     const state = {
         lastScanAt: 0, workspaceScope: '', restoredWorkspace: false,
-        busy: false, stopRequested: false, needsScan: true, consent: false,
-        sessionToken: '', proximity: null, offers: [], confirmed: 0,
+        activeAction: null, busy: false, stopRequested: false, needsScan: true, consent: false,
+        sessionToken: '', proximity: null, offers: [], confirmed: 0, total: 0, search: '',
         nextRequestAt: 0, cooldownUntil: 0, storageError: '',
         status: 'Nothing runs automatically. Scan the current signed-in Deals profile first.',
         panel: null, collapsed: false
@@ -377,10 +437,12 @@
     }
 
     // Source: workflows/runner.js
-    async function runExclusive(action) {
+    async function runExclusive(action, actionKind = 'scan') {
         if (state.busy) return;
         let workspaceActionStarted = false;
         state.busy = true;
+        state.activeAction = actionKind;
+        if (actionKind === 'add') state.total = 0;
         state.stopRequested = false;
         renderPanel();
         try {
@@ -397,6 +459,7 @@
             updateStatus(error.message);
         } finally {
             state.busy = false;
+            state.activeAction = null;
             if (workspaceActionStarted) saveWorkspace();
             renderPanel();
         }
@@ -408,6 +471,7 @@
             state.needsScan = true;
 
             state.confirmed = 0;
+            state.total = 0;
             state.sessionToken = currentSessionToken();
             bindWorkspaceScope(await workspaceScopeFingerprint(state.sessionToken));
             updateStatus('Reading current Deals location…');
@@ -448,6 +512,7 @@
         return runExclusive(async () => {
             ensureRunning();
             const queue = state.offers.filter(offer => offer.eligible && !offer.activated);
+            state.total = queue.length;
             state.needsScan = true;
             state.confirmed = 0;
             for (const offer of queue) {
@@ -472,7 +537,7 @@
                 finishWorkspaceOffer(offer);
             }
             updateStatus(`Finished: ${state.confirmed}/${queue.length} activations confirmed by readback. Scan again to refresh.`);
-        });
+        }, 'add');
     }
 
     // Source: ui/panel.js
@@ -480,49 +545,74 @@
         if (document.getElementById(SETTINGS.id)) return;
         const host = document.createElement('div');
         host.id = SETTINGS.id;
-        const root = host.attachShadow({ mode: 'open' });
-        root.innerHTML = `<style>${HUB_DESIGN_STYLES}</style><div class="panel" aria-label="BankAmeriDeals controls"><header><h2></h2><button aria-label="Minimize Deals panel">−</button></header><main>
-            <p>Current signed-in Deals profile only. Shopping-link and Upside offers are excluded. Activation may start an expiry window; review terms first.</p>
-            <label class="card"><input type="checkbox" aria-label="Confirm activation for current Deals profile">Activate all eligible offers in this profile</label>
-            <div class="actions"><button aria-label="Scan Deals offers">Scan</button><button class="primary" aria-label="Activate eligible Deals offers">Activate all</button><button aria-label="Stop Deals activation">Stop</button></div>
-            <p class="workspace-cache muted"></p><p role="status" aria-live="polite"></p><div class="muted">0.5s between completed requests · no automatic retries</div><div class="offers"></div>
-        </main></div>`;
-        state.panel = root;
-        root.querySelector('h2').textContent = SETTINGS.name;
-        decorateHubPanel(root, SETTINGS.version);
-        root.querySelector('header button').onclick = () => { state.collapsed = !state.collapsed; saveWorkspace(); renderPanel(); };
-        root.querySelector('input').onchange = event => { state.consent = event.target.checked; saveWorkspace(); renderPanel(); };
-        root.querySelector('[aria-label="Scan Deals offers"]').onclick = scanOffers;
-        root.querySelector('[aria-label="Activate eligible Deals offers"]').onclick = activateOffers;
-        root.querySelector('[aria-label="Stop Deals activation"]').onclick = stopRun;
+        const panel = host.attachShadow({ mode: 'open' });
+        panel.innerHTML = `<style>${HUB_DESIGN_STYLES}</style>` + hubWorkflowMarkup(
+            "<p class=\"muted\">Current signed-in Deals profile. Activation can start an expiry window; review terms first.</p><label class=\"card\"><input id=\"consent\" type=\"checkbox\" aria-label=\"Confirm activation for current Deals profile\">Allow adding offers to this profile</label>",
+            { bank: "Deals", extraReviewMarkup: "", readOnly: false });
+        panel.querySelector('h2').textContent = SETTINGS.name;
+        panel.getElementById('consent').addEventListener('change', event => {
+            if (state.busy) return;
+            state.consent = event.target.checked; saveWorkspace(); renderPanel();
+        });
+        panel.getElementById('scan').addEventListener('click', scanOffers);
+        panel.getElementById('add').addEventListener('click', activateOffers);
+        panel.getElementById('stop').addEventListener('click', stopRun);
+        const search = panel.getElementById('search');
+        search.addEventListener('input', event => { state.search = event.target.value; saveWorkspace(); renderOffers(); });
+        panel.getElementById('hub-clear-search').onclick = () => {
+            state.search = ''; search.value = ''; saveWorkspace(); renderOffers(); search.focus();
+        };
+        panel.getElementById('collapse').addEventListener('click', () => {
+            state.collapsed = !state.collapsed;
+            saveWorkspace();
+            panel.getElementById('body').hidden = state.collapsed;
+            const button = panel.getElementById('collapse');
+            button.textContent = state.collapsed ? '+' : '−';
+            button.setAttribute('aria-label', state.collapsed ? 'Expand Deals panel' : 'Minimize Deals panel');
+            button.setAttribute('aria-expanded', String(!state.collapsed));
+        });
+        decorateHubPanel(panel, SETTINGS.version);
         document.body.appendChild(host);
+        state.panel = panel;
+        restoreWorkspacePanel(panel, "Deals");
         renderPanel();
     }
 
     // Source: ui/render.js
-    function renderPanel() {
-        const root = state.panel;
-        if (!root) return;
-        root.querySelector('.workspace-cache').textContent = workspaceCacheNotice();
-        root.querySelector('main').hidden = state.collapsed;
-        const toggle = root.querySelector('header button');
-        toggle.textContent = state.collapsed ? '+' : '−';
-        toggle.setAttribute('aria-label', state.collapsed ? 'Expand Deals panel' : 'Minimize Deals panel');
-        root.querySelector('[role=status]').textContent = state.storageError || state.status;
-        root.querySelector('input').checked = state.consent;
-        root.querySelector('input').disabled = state.busy || Boolean(state.storageError);
-        root.querySelector('[aria-label="Scan Deals offers"]').disabled = state.busy || !!state.storageError;
-        root.querySelector('[aria-label="Activate eligible Deals offers"]').disabled = state.busy || state.needsScan
-            || !state.consent || !!state.storageError || !state.offers.some(offer => offer.eligible && !offer.activated);
-        root.querySelector('[aria-label="Stop Deals activation"]').disabled = !state.busy;
-        const list = root.querySelector('.offers');
+    function renderOffers() {
+        if (!state.panel) return;
+        const list = state.panel.getElementById('offers');
         list.replaceChildren();
-        for (const offer of state.offers) {
+        const visible = state.offers.filter(offer => hubMatchesSearch(offer, state.search));
+        if (!visible.length) hubShowEmptyOffers(list, state.search);
+        for (const offer of visible) {
             const row = document.createElement('div');
             row.className = 'offer';
-            row.textContent = `${offer.name} — ${offer.headline}\n${offer.result || offer.reason || 'Eligible'}`;
-            list.appendChild(row);
+            const title = document.createElement('strong');
+            title.textContent = `${offer.name} · ${offer.headline}`;
+            const detail = document.createElement('small');
+            detail.textContent = offer.result === 'Unconfirmed' ? 'Needs review' : offer.activated ? 'Added' : offer.eligible ? 'Available' : `Skipped · ${offer.reason || 'Not eligible'}`;
+            row.append(title, detail);
+            list.append(row);
         }
+    }
+    function renderPanel() {
+        const panel = state.panel;
+        if (!panel) return;
+        panel.getElementById('workspace-cache').textContent = workspaceCacheNotice();
+        panel.getElementById('status').textContent = state.status;
+        panel.getElementById('storage-error').textContent = state.storageError;
+        const blocked = state.busy || Boolean(state.storageError);
+        panel.getElementById('consent').checked = state.consent;
+        panel.getElementById('consent').disabled = blocked;
+        panel.getElementById('scan').disabled = blocked;
+        panel.getElementById('stop').disabled = !state.busy || state.stopRequested;
+        const available = state.offers.filter(offer => offer.eligible && !offer.activated).length;
+        panel.getElementById('counts').textContent = `${state.offers.length} offers · ${available} available · ${state.confirmed}/${state.total} added this run`;
+        renderHubWorkflow(panel, { count: available, hasScope: state.consent, needsScan: state.needsScan,
+            busy: state.busy, storageError: state.storageError, coolingDown: Date.now() < state.cooldownUntil,
+            progress: state.activeAction === 'add' && state.total ? { completed: state.confirmed, total: state.total } : null });
+        renderOffers();
     }
 
     // Source: initialize.js

@@ -6,18 +6,18 @@
 
 <!-- published-scripts:start -->
 
-**[一键安装全部银行（合并版 1.1.0）](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/card-offer-hub-all.user.js)** — 确认一次安装，包含下列 6 家银行。
+**[一键安装全部银行（合并版 1.2.0）](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/card-offer-hub-all.user.js)** — 确认一次安装，包含下列 6 家银行。
 
 合并版与单独版二选一。切换前停用已安装的单独版，保留它们即可保留原有数据；原有扫描结果和选择不会自动转入合并版。[安装说明](bundles/all/README.md)
 
 | 脚本 | 发卡行 | 版本 | 生效站点 | 安装 |
 | --- | --- | --- | --- | --- |
-| [Amex Offer Lite](issuers/amex/amex-offer-lite/README.md) | amex | 5.2.0 | https://global.americanexpress.com/* | [安装 / 更新](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/amex-offer-lite.user.js) |
-| [BankAmeriDeals Lite](issuers/bank-of-america/bofa-offer-lite/README.md) | bank-of-america | 1.2.0 | https://deals.merchant-rewards.com/* | [安装 / 更新](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/bofa-offer-lite.user.js) |
-| [Chase Offer Lite](issuers/chase/chase-offer-lite/README.md) | chase | 1.2.0 | https://secure.chase.com/web/auth/* | [安装 / 更新](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/chase-offer-lite.user.js) |
-| [Citi Offer Lite](issuers/citi/citi-offer-lite/README.md) | citi | 1.2.0 | https://online.citi.com/US/* | [安装 / 更新](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/citi-offer-lite.user.js) |
-| [US Bank Offer Lite](issuers/usbank/usbank-offer-lite/README.md) | usbank | 1.2.0 | https://onlinebanking.usbank.com/* | [安装 / 更新](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/usbank-offer-lite.user.js) |
-| [Wells Fargo Offer Lite](issuers/wellsfargo/wellsfargo-offer-lite/README.md) | wellsfargo | 1.2.0 | https://web.secure.wellsfargo.com/auth/deals-portal*<br>https://web.secure.wellsfargo.com/deals-portal/* | [安装 / 更新](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/wellsfargo-offer-lite.user.js) |
+| [Amex Offer Lite](issuers/amex/amex-offer-lite/README.md) | amex | 5.3.0 | https://global.americanexpress.com/* | [安装 / 更新](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/amex-offer-lite.user.js) |
+| [BankAmeriDeals Lite](issuers/bank-of-america/bofa-offer-lite/README.md) | bank-of-america | 1.3.0 | https://deals.merchant-rewards.com/* | [安装 / 更新](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/bofa-offer-lite.user.js) |
+| [Chase Offer Lite](issuers/chase/chase-offer-lite/README.md) | chase | 1.3.0 | https://secure.chase.com/web/auth/* | [安装 / 更新](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/chase-offer-lite.user.js) |
+| [Citi Offer Lite](issuers/citi/citi-offer-lite/README.md) | citi | 1.3.0 | https://online.citi.com/US/* | [安装 / 更新](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/citi-offer-lite.user.js) |
+| [US Bank Offer Lite](issuers/usbank/usbank-offer-lite/README.md) | usbank | 1.3.0 | https://onlinebanking.usbank.com/* | [安装 / 更新](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/usbank-offer-lite.user.js) |
+| [Wells Fargo Offer Lite](issuers/wellsfargo/wellsfargo-offer-lite/README.md) | wellsfargo | 1.3.0 | https://web.secure.wellsfargo.com/auth/deals-portal*<br>https://web.secure.wellsfargo.com/deals-portal/* | [安装 / 更新](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/wellsfargo-offer-lite.user.js) |
 
 <!-- published-scripts:end -->
 
@@ -27,7 +27,7 @@
 
 合并版面板中的 **Search all banks** 可同时搜索六家银行已保存的 Offer，按银行或状态筛选，查看卡片、扫描时间和有效期，再打开对应银行页面。搜索条件会保留；**Reload saved results** 只读取本地缓存。各家银行需要先手动扫描一次，单独版保存的数据不会自动并入搜索。详见[使用说明](bundles/all/README.md#跨银行搜索)。
 
-六个单独版与合并版共用统一的浅色界面、按钮、卡片及状态样式。
+六个单独版与合并版共用统一的浅色界面和三步流程：**Choose scope → Scan offers → Review & add**。搜索只改变列表，**Add all offers** 始终覆盖所选范围中的全部可添加优惠。按钮会说明尚未选范围、需要扫描、冷却或只读等禁用原因。详见[统一操作流程](docs/unified-workflow.md)。
 
 ## 安装与更新
 

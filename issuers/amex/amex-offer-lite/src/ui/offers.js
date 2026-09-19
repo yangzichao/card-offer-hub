@@ -22,6 +22,7 @@ function offerEnrollButton(group, plannedOffer) {
     else if (accounts.some(({ offer: accountOffer }) => accountOffer.status === 'ENROLLED')) control.textContent = 'Added';
     else if (accounts.some(({ offer: accountOffer }) => ['UNCONFIRMED', 'FAILED'].includes(accountOffer.status))) control.textContent = 'Rescan to verify';
     else if (offer.enrollable && accounts.some(({ offer: accountOffer }) => accountOffer.status === 'ELIGIBLE')) control.textContent = 'Finish scan first';
+    control.setAttribute('aria-label', control.textContent);
     control.onclick = () => startEnrollment(offer.groupKey);
     return control;
 }
@@ -34,7 +35,7 @@ function renderOffers() {
     // Allocate once for the whole list; every tile reads its own card from the plan.
     const plannedByOffer = new Map(enrollmentPlan().map((plannedOffer) => [plannedOffer.offer.groupKey, plannedOffer]));
     const summary = uiElement('offer-summary');
-    if (summary) summary.textContent = filteredOfferSummary(groups, plannedByOffer.size);
+    if (summary) summary.textContent = filteredOfferSummary(groups, groups.filter(group => plannedByOffer.has(group.offer.groupKey)).length);
     const savedStatus = uiElement('saved-offers-status');
     const scanTimes = selectedAccounts().map((account) => state.offerScanTimes.get(account.token)).filter((time) => time > 0);
     savedStatus.textContent = state.savedOffersError || (scanTimes.length
@@ -60,7 +61,7 @@ function renderOffers() {
         if (!offer.enrollable) item.append(element('p', 'Informational offer · open Amex to view its terms.', 'muted'));
         const badges = element('div', '', 'badges');
         for (const { account, offer: accountOffer } of accounts) {
-            badges.append(element('span', `${account.cardName} · ${accountOffer.status}`, `badge ${accountOffer.status.toLowerCase()}`));
+            badges.append(element('span', `${account.cardName} · ${accountOffer.enrollable ? hubOfferStatusLabel(accountOffer.status) : "Skipped"}`, `badge ${accountOffer.status.toLowerCase()}`));
         }
         item.append(badges);
         list.append(item);

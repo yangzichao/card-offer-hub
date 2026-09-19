@@ -8,7 +8,7 @@ const SETTINGS = {
 };
 const state = {
     lastScanAt: 0, workspaceScope: '', restoredWorkspace: false,
-    accounts: [], selected: new Set(), offers: [], busy: false, stopRequested: false,
+    accounts: [], selected: new Set(), offers: [], activeAction: null, busy: false, stopRequested: false,
     needsScan: false, nextRequestAt: 0, cooldownUntil: 0, storageError: '',
     status: 'Open Merchant Offers, then detect cards. Nothing runs automatically.',
     confirmed: 0, completed: 0, total: 0, panel: null, collapsed: false, search: ''

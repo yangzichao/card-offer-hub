@@ -4,34 +4,34 @@
     "allInOne": {
         "id": "card-offer-hub-all",
         "name": "Card Offer Hub — All Banks",
-        "version": "1.1.0",
+        "version": "1.2.0",
         "publishedFile": "dist/card-offer-hub-all.user.js",
         "installUrl": "https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/card-offer-hub-all.user.js",
         "updateUrl": "https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/card-offer-hub-all.user.js",
         "includes": [
             {
                 "id": "amex-offer-lite",
-                "version": "5.2.0"
+                "version": "5.3.0"
             },
             {
                 "id": "bofa-offer-lite",
-                "version": "1.2.0"
+                "version": "1.3.0"
             },
             {
                 "id": "chase-offer-lite",
-                "version": "1.2.0"
+                "version": "1.3.0"
             },
             {
                 "id": "citi-offer-lite",
-                "version": "1.2.0"
+                "version": "1.3.0"
             },
             {
                 "id": "usbank-offer-lite",
-                "version": "1.2.0"
+                "version": "1.3.0"
             },
             {
                 "id": "wellsfargo-offer-lite",
-                "version": "1.2.0"
+                "version": "1.3.0"
             }
         ]
     },
@@ -39,7 +39,7 @@
         {
             "id": "amex-offer-lite",
             "name": "Amex Offer Lite",
-            "version": "5.2.0",
+            "version": "5.3.0",
             "description": "Detect cards, rank them by drag, scan Offers Hub slowly, and add every offer to one card at a time",
             "issuer": "amex",
             "matches": [
@@ -53,7 +53,7 @@
         {
             "id": "bofa-offer-lite",
             "name": "BankAmeriDeals Lite",
-            "version": "1.2.0",
+            "version": "1.3.0",
             "description": "Manually scan and activate ordinary card-linked BankAmeriDeals with verified results",
             "issuer": "bank-of-america",
             "matches": [
@@ -67,7 +67,7 @@
         {
             "id": "chase-offer-lite",
             "name": "Chase Offer Lite",
-            "version": "1.2.0",
+            "version": "1.3.0",
             "description": "Manually select Chase cards and scan Chase Offers serially; read-only until activation is verified",
             "issuer": "chase",
             "matches": [
@@ -81,7 +81,7 @@
         {
             "id": "citi-offer-lite",
             "name": "Citi Offer Lite",
-            "version": "1.2.0",
+            "version": "1.3.0",
             "description": "Manually select Citi cards, scan Merchant Offers, and enroll all available offers serially",
             "issuer": "citi",
             "matches": [
@@ -95,7 +95,7 @@
         {
             "id": "usbank-offer-lite",
             "name": "US Bank Offer Lite",
-            "version": "1.2.0",
+            "version": "1.3.0",
             "description": "Manually scan and select US Bank Cash Back Deals, activate serially, and verify server state",
             "issuer": "usbank",
             "matches": [
@@ -109,7 +109,7 @@
         {
             "id": "wellsfargo-offer-lite",
             "name": "Wells Fargo Offer Lite",
-            "version": "1.2.0",
+            "version": "1.3.0",
             "description": "Manually scan and activate eligible account-wide Wells Fargo Deals with conservative serial pacing",
             "issuer": "wellsfargo",
             "matches": [

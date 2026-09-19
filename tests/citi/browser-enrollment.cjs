@@ -61,18 +61,22 @@ async function fixture(browser, mode = 'success') {
     await page.goto('https://online.citi.com/US/nga/products-offers/merchantoffers');
     await page.addScriptTag({ content: script });
     const status = () => page.getByRole('status').innerText();
-    async function advanceUntil(pattern) {
+    async function advanceUntil(pattern, stepMilliseconds = 1000) {
         for (let turn = 0; turn < 150; turn++) {
             if (pattern.test(await status())) return;
-            await page.clock.runFor(1000);
+            await page.clock.runFor(stepMilliseconds);
         }
         throw new Error(`Did not reach ${pattern}: ${await status()}`);
     }
     async function selectCard() {
-        await page.getByRole('button', { name: 'Detect Citi cards', exact: true }).click();
+        await page.getByRole('button', { name: 'Detect cards', exact: true }).click();
         await page.getByRole('status').filter({ hasText: /Detected 2/ }).waitFor();
         assert.equal(await page.getByRole('checkbox', { checked: true }).count(), 0);
         await page.getByRole('checkbox', { name: 'Select Synthetic Card A', exact: true }).check();
+        await page.getByRole('button', { name: 'Scan offers', exact: true }).click();
+        // Keep the virtual clock inside the next 500 ms request gap so the
+        // cancellation scenario can deterministically stop during pacing.
+        await advanceUntil(/Scan complete/, 100);
     }
     return { context, page, requests, errors, status, advanceUntil, selectCard, maximumActive: () => maximumActive };
 }
@@ -85,37 +89,37 @@ async function main() {
         await page.clock.runFor(60000);
         assert.equal(successful.requests.length, 0, 'installation must not initiate requests');
         await successful.selectCard();
-        await page.getByRole('button', { name: 'Scan and add all Citi offers', exact: true }).click();
+        await page.getByRole('button', { name: 'Add all offers', exact: true }).click();
         assert.equal(await page.getByRole('checkbox').first().isEnabled(), false);
-        await page.getByRole('searchbox', { name: 'Search Citi offers' }).fill('does-not-match');
+        await page.getByRole('searchbox', { name: 'Search saved offers' }).fill('does-not-match');
         await successful.advanceUntil(/Finished: 2\/2/);
-        assert.equal(successful.requests.length, 4, 'detect, scan selected card, two unique available offers');
+        assert.equal(successful.requests.length, 5, 'detect, manual scan, validation scan, two unique available offers');
         assert.equal(successful.maximumActive(), 1);
         assert.ok(successful.requests.slice(1).every(request => request.body.accountId === 'card-a'));
         assert.ok(successful.requests.slice(1).every((request, index) => request.time - successful.requests[index].time >= 500));
-        await page.getByRole('searchbox', { name: 'Search Citi offers' }).fill('');
+        await page.getByRole('searchbox', { name: 'Search saved offers' }).fill('');
         assert.equal(await page.locator('.offer').count(), 3);
         assert.deepEqual(successful.errors, []);
         await page.screenshot({ path: resolve(outputDirectory, 'citi-enrollment-complete.png') });
-        await verifyWorkspaceReload({ page: page, script, id: 'citi-offer-lite', bank: 'Citi', requests: successful.requests, activationName: 'Scan and add all Citi offers' });
+        await verifyWorkspaceReload({ page: page, script, id: 'citi-offer-lite', bank: 'Citi', requests: successful.requests, activationName: 'Add all offers' });
         await page.getByRole('button', { name: 'Minimize Citi panel' }).click();
-        assert.equal(await page.getByRole('button', { name: 'Detect Citi cards' }).isVisible(), false);
+        assert.equal(await page.getByRole('button', { name: 'Detect cards' }).isVisible(), false);
         await page.getByRole('button', { name: 'Expand Citi panel' }).click();
         await successful.context.close();
 
         for (const mode of ['unconfirmed', '429']) {
             const failed = await fixture(browser, mode);
             await failed.selectCard();
-            await failed.page.getByRole('button', { name: 'Scan and add all Citi offers', exact: true }).click();
+            await failed.page.getByRole('button', { name: 'Add all offers', exact: true }).click();
             await failed.advanceUntil(mode === '429' ? /HTTP 429/ : /not explicitly confirmed/);
-            assert.equal(failed.requests.length, 3);
-            assert.equal(await failed.page.getByRole('button', { name: 'Scan and add all Citi offers' }).isEnabled(), false);
+            assert.equal(failed.requests.length, 4);
+            assert.equal(await failed.page.getByRole('button', { name: 'Add all offers' }).isEnabled(), false);
             await failed.page.clock.runFor(60000);
-            assert.equal(failed.requests.length, 3, 'errors never trigger an automatic retry');
+            assert.equal(failed.requests.length, 4, 'errors never trigger an automatic retry');
             if (mode === '429') {
-                await failed.page.getByRole('button', { name: 'Scan selected Citi cards' }).click();
+                await failed.page.getByRole('button', { name: 'Scan offers' }).click();
                 await failed.advanceUntil(/Rate limited/);
-                assert.equal(failed.requests.length, 3, 'cooldown blocks manual scans too');
+                assert.equal(failed.requests.length, 4, 'cooldown blocks manual scans too');
             }
             assert.deepEqual(failed.errors, []);
             await failed.context.close();
@@ -123,10 +127,10 @@ async function main() {
 
         const cancelled = await fixture(browser);
         await cancelled.selectCard();
-        await cancelled.page.getByRole('button', { name: 'Scan and add all Citi offers' }).click();
-        await cancelled.page.getByRole('button', { name: 'Stop Citi enrollment' }).click();
+        await cancelled.page.getByRole('button', { name: 'Add all offers' }).click();
+        await cancelled.page.getByRole('button', { name: 'Stop' }).click();
         await cancelled.advanceUntil(/Stopped/);
-        assert.equal(cancelled.requests.length, 1, 'stop during initial pacing must prevent the scan');
+        assert.equal(cancelled.requests.length, 2, 'stop during pacing must prevent the validation scan');
         assert.deepEqual(cancelled.errors, []);
         await cancelled.context.close();
         console.log('Citi browser regression passed: manual start, selected cards, serial pacing, success, unknown response, 429, cancellation, search, panel controls.');

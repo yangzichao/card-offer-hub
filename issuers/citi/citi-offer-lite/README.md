@@ -8,7 +8,7 @@ Citi Merchant Offers 的 Tampermonkey 脚本。沿用 Amex Offer Lite 的独立�
 
 1. 登录 Citi，打开 [Merchant Offers](https://online.citi.com/US/nga/products-offers/merchantoffers)。
 2. 点击 **Detect cards**，然后手动勾选要处理的卡片；没有默认勾选。
-3. 点击 **Scan & add all**：重新扫描所有勾选卡片，然后逐个添加状态为 `AVAILABLE` 的 Offer。也可先点 **Scan selected** 只查看清单。
+3. 点击 **Scan offers** 查看所选卡片的优惠，再点击 **Add all offers**。添加前会重新核验所选卡片，然后逐个添加状态为 `AVAILABLE` 的 Offer。
 4. 可以随时点击 **Stop**。已发出的请求会等到结果返回并记录，然后停止后续请求。
 
 每次响应完成后至少等待 0.5 秒，另加服务器响应时间；300 个 Offer 的间隔等待约 2.5 分钟，实际完成时间还取决于请求耗时。Citi 会话过期后流程会停止，重新登录、检测和扫描即可。脚本不会自动续期登录。

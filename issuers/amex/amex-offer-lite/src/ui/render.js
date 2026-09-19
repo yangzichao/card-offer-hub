@@ -3,24 +3,24 @@ function renderControls() {
     const coolingDown = Date.now() < state.cooldownUntil;
     const detect = uiElement('btn-detect');
     detect.disabled = Boolean(state.busy) || state.detected || coolingDown || Date.now() < state.discoveryRetryAt;
-    detect.textContent = state.detected ? `Detected ${state.accounts.length} cards` : 'Detect card list';
+    hubSetActionLabel(detect, 'Detect cards', state.detected ? state.accounts.length : null);
     const refresh = uiElement('btn-refresh-cards');
     refresh.hidden = !state.detected;
     refresh.disabled = Boolean(state.busy) || coolingDown || Date.now() < state.discoveryRetryAt;
     const scan = uiElement('btn-scan');
     scan.disabled = Boolean(state.busy) || !state.detected || !selectedAccounts().length || coolingDown;
-    scan.textContent = `Scan whitelist (${selectedAccounts().length})`;
-    const enroll = uiElement('btn-enroll-all');
-    const plannedCount = enrollmentPlan().length;
-    enroll.disabled = Boolean(state.busy) || !plannedCount || coolingDown;
-    enroll.textContent = `${state.filter ? 'Add filtered offers' : 'Add all offers'} (${plannedCount})`;
+    hubSetActionLabel(scan, 'Scan offers');
+    renderHubWorkflow(panelRoot.shadowRoot, { count: enrollmentPlan().length,
+        hasScope: selectedAccounts().length > 0, busy: Boolean(state.busy), coolingDown,
+        storageError: state.savedCardsError || state.savedOffersError,
+        needsScan: selectedAccounts().length > 0 && !selectedAccounts().some(account => state.scanReports.get(account.token)?.startsWith('Complete')),
+        progress: state.busy === 'enroll' ? state.enrollmentProgress : null });
     uiElement('btn-stop').disabled = !state.busy || state.cancelRequested;
     uiElement('content').hidden = state.minimized;
-    uiElement('btn-toggle').textContent = state.minimized ? 'Open' : 'Minimize';
-    for (const identifier of ['btn-detect', 'btn-scan', 'btn-enroll-all', 'btn-toggle']) {
-        const control = uiElement(identifier);
-        control.setAttribute('aria-label', control.textContent);
-    }
+    const toggle = uiElement('btn-toggle');
+    toggle.textContent = state.minimized ? '+' : '−';
+    toggle.setAttribute('aria-label', state.minimized ? 'Expand Amex panel' : 'Minimize Amex panel');
+    toggle.setAttribute('aria-expanded', String(!state.minimized));
     const remainingSeconds = Math.max(0, Math.ceil((state.cooldownUntil - Date.now()) / 1000));
     uiElement('cooldown').textContent = remainingSeconds ? `Cooling down: ${remainingSeconds}s. Restart manually afterward.` : '';
 }

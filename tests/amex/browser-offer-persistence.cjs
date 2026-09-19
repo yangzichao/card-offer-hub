@@ -60,7 +60,7 @@ async function run() {
         };
         const waitForStatus = (text) => page.waitForFunction((expected) => document.getElementById('amex-offer-lite-ui').shadowRoot.getElementById('status').textContent.includes(expected), text);
         const refreshOffers = async () => {
-            await page.getByRole('button', { name: 'Scan whitelist (2)', exact: true }).click();
+            await page.getByRole('button', { name: 'Scan offers', exact: true }).click();
             for (let index = 0; index < 4; index++) await page.clock.runFor(16000);
             await waitForStatus('Scan complete: 2/2');
         };
@@ -70,7 +70,7 @@ async function run() {
             window.__INITIAL_STATE__ = { accounts: ['card-a', 'card-b'].map((token) => ({ account_token: token, product: { description: `Test ${token}` } })) };
         });
         await mount();
-        await page.getByRole('button', { name: 'Detect card list', exact: true }).click();
+        await page.getByRole('button', { name: 'Detect cards', exact: true }).click();
         await page.getByRole('checkbox').nth(0).check();
         await page.getByRole('checkbox').nth(1).check();
         await refreshOffers();
@@ -103,7 +103,7 @@ async function run() {
         assert.equal(requests.length, 5);
 
         scanMode = 'failed';
-        await page.getByRole('button', { name: 'Scan whitelist (2)', exact: true }).click();
+        await page.getByRole('button', { name: 'Scan offers', exact: true }).click();
         await waitForStatus('HTTP 500');
         assert.equal(requests.length, 6);
         assert.equal(await page.locator('.offer').count(), 1, 'failed refresh keeps the filtered saved offer visible');

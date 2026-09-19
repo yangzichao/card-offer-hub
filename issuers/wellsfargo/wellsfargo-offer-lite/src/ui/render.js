@@ -2,15 +2,16 @@ function renderOffers() {
     if (!state.panel) return;
     const container = state.panel.getElementById('offers');
     container.replaceChildren();
-    const search = state.search.trim().toLowerCase();
-    const visible = state.offers.filter(offer => `${offer.merchant} ${offer.title}`.toLowerCase().includes(search));
+    const search = state.search;
+    const visible = state.offers.filter(offer => hubMatchesSearch(offer, search));
+    if (!visible.length) hubShowEmptyOffers(container, search);
     for (const offer of visible.slice(0, 200)) {
         const row = document.createElement('div');
         row.className = 'offer';
         const title = document.createElement('strong');
         title.textContent = `${offer.merchant} · ${offer.title}`;
         const detail = document.createElement('small');
-        detail.textContent = `${offer.status} · ${offer.expires}`;
+        detail.textContent = `${hubOfferStatusLabel(offer.status)} · ${offer.expires}`;
         row.append(title, detail);
         container.appendChild(row);
     }
@@ -33,5 +34,9 @@ function renderPanel() {
     panel.getElementById('status').textContent = state.status;
     panel.getElementById('storage-error').textContent = state.storageError;
     panel.getElementById('counts').textContent = `${state.offers.length} offers · ${state.offers.filter(offer => offer.status === 'AVAILABLE').length} eligible · ${state.offers.filter(offer => ['UNSUPPORTED', 'CONFLICT'].includes(offer.status)).length} skipped · ${state.confirmed}/${state.total} added this run`;
+    renderHubWorkflow(panel, { count: state.offers.filter(offer => offer.status === 'AVAILABLE').length, hasScope: state.accountConsent,
+        needsScan: state.needsScan, busy: state.busy, storageError: state.storageError,
+        coolingDown: Date.now() < state.cooldownUntil, readOnly: false,
+        progress: state.activeAction === 'add' && state.total ? { completed: state.confirmed, total: state.total } : null });
     renderOffers();
 }

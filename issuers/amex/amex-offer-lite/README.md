@@ -1,4 +1,4 @@
-# Amex Offer Lite 5.0
+# Amex Offer Lite
 
 American Express 网页中的 Tampermonkey 工具。卡片检测、扫描和添加都由按钮触发，没有任何定时器会自己发请求。
 
@@ -15,16 +15,18 @@ v5.0 改变了添加 Offer 的方式：**一个 Offer 只加到一张卡**。多
 
 不要复制 `src/` 里的单个模块，也不要手工拼贴 `dist/` 的内容——手贴的副本和更新地址没有绑定，不会自动更新。
 
-## 四步操作
+## 统一三步操作
 
-1. **Detect card list**：首次只检测一次卡片列表。优先读取页面已经载入的卡片数据，缺失时仅尝试一次账户列表请求；不会逐卡扫描 Offer。卡列表会保存，普通刷新和下次访问直接恢复，不用再次检测。失败后可等待至少 0.5 秒再手动尝试。
-2. **Choose your whitelist and offer priority**：逐张勾选需要的卡片，并用拖动或 ↑ / ↓ 把它们排成你想要的优先级。勾选和排序都立即保存，本身都不发请求。取消勾选同样持久保存，该卡退出扫描和添加范围，但保留已有 Offer；重新勾选即可显示已有结果。
-3. **Scan whitelist**：手动扫描或刷新 whitelist 内卡片的 Offer，分别读取 Offers Hub 的可添加列表和已添加列表，保留返回的所有页及非登记类信息 Offer。结果会保存；下次打开先显示已有数据，需要更新时再点击这个按钮。筛选框只过滤显示和后续添加，不限制扫描范围。
-4. **Add all offers**：一次点击，把计划里的每个 Offer 按顺序加完，中途不用管。每个 Offer 只发一个请求，两个请求之间至少 0.5 秒。
+面板与其他银行统一为 **Choose scope → Scan offers → Review & add**，其中第一步同时包含检测、勾选和优先级设置。
+
+1. **Detect cards**：首次只检测一次卡片列表。优先读取页面已经载入的卡片数据，缺失时仅尝试一次账户列表请求；不会逐卡扫描 Offer。卡列表会保存，普通刷新和下次访问直接恢复，不用再次检测。失败后可等待至少 0.5 秒再手动尝试。
+   在同一步中 **Choose your whitelist and offer priority**：逐张勾选需要的卡片，并用拖动或 ↑ / ↓ 把它们排成你想要的优先级。勾选和排序都立即保存，本身都不发请求。取消勾选同样持久保存，该卡退出扫描和添加范围，但保留已有 Offer；重新勾选即可显示已有结果。
+2. **Scan offers**：手动扫描或刷新 whitelist 内卡片的 Offer，分别读取 Offers Hub 的可添加列表和已添加列表，保留返回的所有页及非登记类信息 Offer。结果会保存；下次打开先显示已有数据，需要更新时再点击这个按钮。搜索只过滤显示，不改变扫描或 Add all offers 的范围。
+3. **Add all offers**：一次点击，把计划里的每个 Offer 按顺序加完，中途不用管。每个 Offer 只发一个请求，两个请求之间至少 0.5 秒。
 
 扫描和添加时锁定卡片选择和排序，防止执行范围在中途变化。每张卡显示 Pending、Scanning、Complete 或 Incomplete。失败和部分结果不会伪装成扫描成功，未完整扫描的卡片不能发起添加。
 
-卡片发生变化时，点击独立的 **Force refresh card list**：只重新请求一次账户列表，遵守同一请求间隔。保留已有卡片的 whitelist、排序和 Offer，新卡默认不勾选、排在最后，不会插到你已经排好的卡前面；暂时缺失的卡片保留选择、名次及结果但不扫描，重新出现后回到原位。刷新失败保留旧列表和选择。普通网页刷新不会触发此操作。
+卡片发生变化时，点击独立的 **Refresh cards**：只重新请求一次账户列表，遵守同一请求间隔。保留已有卡片的 whitelist、排序和 Offer，新卡默认不勾选、排在最后，不会插到你已经排好的卡前面；暂时缺失的卡片保留选择、名次及结果但不扫描，重新出现后回到原位。刷新失败保留旧列表和选择。普通网页刷新不会触发此操作。
 
 升级时会迁移 v4.0/v4.1 尚存的 whitelist，并尝试从已加载的页面数据补全卡列表，全程不自动请求。若当时没有页面卡数据，只需手动检测一次，已有选择仍会保留。旧版已经删除的选择无法凭空恢复。
 
@@ -53,7 +55,7 @@ v4.1 修正已添加完整列表的字段：`ADDEDTOCARD_LANDING` 读取 `addedT
 - 卡片下方显示 **eligible / added / total**，按这张卡的全部扫描结果统计，不随搜索框变化。
 - 条件相同的 Offer 跨卡合并；不同卡上的不同 Offer ID 保留用于各自登记，奖励或条款不同的活动不会仅因同名就被合并。
 - 每个合并 Offer 显示 **Eligible on N cards / Added on N / Seen on N**，按不同卡片计数。
-- 搜索后的汇总给出独立 Offer 数、eligible 的 Offer 数、**这轮实际会添加的 Offer 数**和 eligible 卡片数。Add all offers 按钮上的数字就是最后一项会发出的请求数。
+- 搜索后的汇总只统计当前可见的独立 Offer、eligible Offer、可添加 Offer 和 eligible 卡片数。**Add all offers** 按钮上的数字单独统计全部已选卡片中的添加计划，不随搜索改变。
 - 每个 Offer 卡片写明它会加到哪张卡（Goes to …），或者已经在哪张卡上（Already on …）。
 - 不完整扫描显示 **Observed so far**，总览显示扫描覆盖率。尚未扫描的卡片不会显示为零 eligible。
 
@@ -70,7 +72,7 @@ v4.1 修正已添加完整列表的字段：`ADDEDTOCARD_LANDING` 读取 `addedT
 
 ## 添加 Offer
 
-扫描完成后点 **Add all offers** 一次跑完，或者点单个 Offer 上的 **Add** 只加那一个。搜索框有内容时按钮变成 **Add filtered offers**，只处理筛选结果。只有 whitelist 卡片中已完整扫描、标为可添加的商户 Offer 会发起请求。
+扫描完成后点 **Add all offers** 一次跑完，或者点单个 Offer 上的 **Add** 只加那一个。搜索只影响列表；按钮始终为 **Add all offers**，覆盖全部已选卡片的可添加 Offer。点击时固定本轮队列，切换浏览器标签页、修改搜索或面板重建都不会缩小任务或重新发送已完成的请求。只有 whitelist 卡片中已完整扫描、标为可添加的商户 Offer 会发起请求。
 
 v4.5 恢复的原始 `CreateCardAccountOfferEnrollment.v1` 接口继续使用：每张卡自己的 `accountNumberProxy` 和 `identifier`，带请求时间及用户时区；全量读取继续使用 Offers Hub。只有响应的 `isEnrolled === true` 才显示成功。原始脚本的 `isEnrolled || true` 会误报成功，没有恢复这一错误行为。
 
@@ -83,6 +85,8 @@ v5.0 起没有并发：一个请求一张卡；v5.0.1 将响应后的间隔缩�
 卡片标识、显示名称、whitelist、优先级顺序和 Offer 快照保存于 Tampermonkey 自身的存储，网站清理 localStorage 不会删除这些数据。保存 API 依据 [Tampermonkey 官方文档](https://www.tampermonkey.net/documentation.php?q=GM_setValue)。卡设置（含优先级，schemaVersion 2）和 Offer 使用独立的版本化快照，保存或读取失败在对应区域明确显示，不会静默宣称成功。v1 快照按检测顺序补上初始优先级，不会被覆写。冷却时间仍使用网站本地存储；不加载旧版 v3 的 Offer 缓存和 blocklist，也不从 localStorage 搜寻会话 token。
 
 已使用 2026-09-10 的本地 HAR 核对页面状态、Offers Hub 数据和登记响应，并在拦截网络的 Chromium 中验证操作流程，包括真实 document reload 后恢复卡片、选择、优先级及扫描能力，以及用真实鼠标拖动改变优先级。浏览器测试模拟 GM 存储 API，未把合成回归当作真实 Tampermonkey 安装或当前账户扫描证明。
+
+统一流程与标签页切换回归见[操作流程说明](../../../docs/unified-workflow.md)。
 
 源码按卡片检测、API、调度流程、UI 拆分。修改后在仓库根目录运行 `npm run build`、`npm run check`、`npm test`。详情见 [修复记录](../../../docs/amex-repair-plan.md) 和 [HAR 适配说明](../../../docs/amex-har-2026-09-10.md)。
 

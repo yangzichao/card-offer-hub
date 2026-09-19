@@ -76,5 +76,5 @@ function addAllOffers() {
         }
         ensureRunning();
         updateStatus(`Finished: ${state.confirmed}/${state.total} confirmed. Refresh Citi's page to update its offer badges.`);
-    });
+    }, 'add');
 }

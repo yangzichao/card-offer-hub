@@ -2,8 +2,9 @@ function renderOffers() {
     if (!state.panel) return;
     const container = state.panel.getElementById('offers');
     container.replaceChildren();
-    const search = state.search.trim().toLowerCase();
-    const visible = state.offers.filter(offer => `${offer.merchant} ${offer.title}`.toLowerCase().includes(search));
+    const search = state.search;
+    const visible = state.offers.filter(offer => state.selected.has(offer.accountId)).filter(offer => hubMatchesSearch(offer, search));
+    if (!visible.length) hubShowEmptyOffers(container, search);
     for (const offer of visible.slice(0, 200)) {
         const row = document.createElement('div');
         row.className = 'offer';
@@ -11,7 +12,7 @@ function renderOffers() {
         title.textContent = `${offer.merchant} · ${offer.title}`;
         const detail = document.createElement('small');
         const card = state.accounts.find(account => account.accountId === offer.accountId);
-        detail.textContent = `${card?.name || 'Card'} · ${offer.status} · ${offer.expires}`;
+        detail.textContent = `${card?.name || 'Card'} · ${hubOfferStatusLabel(offer.status)} · ${offer.expires}`;
         row.append(title, detail);
         container.appendChild(row);
     }
@@ -32,7 +33,8 @@ function renderPanel() {
     panel.getElementById('stop').disabled = !state.busy || state.stopRequested;
     panel.getElementById('status').textContent = state.status;
     panel.getElementById('storage-error').textContent = state.storageError;
-    panel.getElementById('counts').textContent = `${state.offers.length} offers · ${state.offers.filter(offer => offer.status === 'AVAILABLE').length} available · ${state.confirmed}/${state.total} added this run`;
+    const scopeOffers = state.offers.filter(offer => state.selected.has(offer.accountId));
+    panel.getElementById('counts').textContent = `${scopeOffers.length} offers · ${scopeOffers.filter(offer => offer.status === 'AVAILABLE').length} available · ${state.confirmed}/${state.total} added this run`;
     const cards = panel.getElementById('cards');
     cards.replaceChildren();
     for (const card of state.accounts) {
@@ -47,5 +49,9 @@ function renderPanel() {
         label.append(checkbox, document.createTextNode(card.name));
         cards.appendChild(label);
     }
+    renderHubWorkflow(panel, { count: state.offers.filter(offer => state.selected.has(offer.accountId) && offer.status === 'AVAILABLE').length, hasScope: state.selected.size > 0,
+        needsScan: state.needsScan || !state.lastScanAt, busy: state.busy, storageError: state.storageError,
+        coolingDown: Date.now() < state.cooldownUntil, readOnly: false,
+        progress: state.activeAction === 'add' && state.total ? { completed: state.confirmed, total: state.total } : null });
     renderOffers();
 }

@@ -2,8 +2,9 @@ function renderOffers() {
     if (!state.panel) return;
     const container = state.panel.getElementById('offers');
     container.replaceChildren();
-    const search = state.search.trim().toLowerCase();
-    const visible = state.offers.filter(offer => `${offer.merchant} ${offer.title} ${offer.category}`.toLowerCase().includes(search));
+    const search = state.search;
+    const visible = state.offers.filter(offer => hubMatchesSearch(offer, search));
+    if (!visible.length) hubShowEmptyOffers(container, search);
     for (const offer of visible) {
         const row = document.createElement('label');
         row.className = 'offer';
@@ -17,7 +18,7 @@ function renderOffers() {
         title.textContent = ` ${offer.merchant} · ${offer.title}`;
         const detail = document.createElement('small');
         const date = typeof offer.expires === 'string' ? offer.expires.slice(0, 10) : 'Unknown expiry';
-        detail.textContent = `${offer.status} · ${date}`;
+        detail.textContent = `${hubOfferStatusLabel(offer.status)} · ${date}`;
         row.append(checkbox, title, detail);
         container.appendChild(row);
     }
@@ -36,5 +37,9 @@ function renderPanel() {
     panel.getElementById('status').textContent = state.status;
     panel.getElementById('storage-error').textContent = state.storageError;
     panel.getElementById('counts').textContent = `${state.offers.length} offers · ${available} available · ${state.selected.size} selected · ${state.confirmed}/${state.total} newly confirmed`;
+    renderHubWorkflow(panel, { count: available, needsScan: state.needsScan, busy: state.busy,
+        storageError: state.storageError, coolingDown: Date.now() < state.cooldownUntil,
+        progress: state.activeAction === 'add' && state.total ? { completed: state.confirmed, total: state.total } : null });
+    hubSetActionLabel(panel.getElementById('activate'), 'Add selected offers', state.selected.size);
     renderOffers();
 }

@@ -57,7 +57,7 @@ async function fixture(browser, mode = 'success') {
     await page.goto('https://secure.chase.com/web/auth/dashboard');
     assert.equal(await page.evaluate(() => window.fixtureBodyMissingAtInitialization), true, 'userscript initializes before a body exists');
     assert.equal(await page.evaluate(() => window.fixtureDOMContentLoaded), true, 'DOMContentLoaded has fired');
-    assert.equal(await page.getByRole('button', { name: 'Detect Chase cards', exact: true }).isVisible(), true, 'DOMContentLoaded mounts the panel');
+    assert.equal(await page.getByRole('button', { name: 'Detect cards', exact: true }).isVisible(), true, 'DOMContentLoaded mounts the panel');
     const status = () => page.getByRole('status').innerText();
     async function advanceUntil(pattern) {
         for (let turn = 0; turn < 160; turn++) {
@@ -80,7 +80,7 @@ async function fixture(browser, mode = 'success') {
         }, { url: `${endpoint}?native-fixture=true`, headers: sessionHeaders(), transport });
         assert.equal(payload.customerOffers[0].offers.length, 4, 'observer preserves the page response');
         // Response.clone parsing can finish after the page has consumed its copy.
-        await page.getByRole('button', { name: 'Detect Chase cards', exact: true }).click();
+        await page.getByRole('button', { name: 'Detect cards', exact: true }).click();
         await advanceUntil(mode === 'storage' ? /Cannot save/ : /Detected 2/);
         assert.equal(await page.getByRole('checkbox', { checked: true }).count(), 0);
     }
@@ -97,20 +97,20 @@ async function main() {
         assert.equal(successful.requests.length, 1, 'detect cards only reads the native response');
         await successful.page.getByRole('checkbox', { name: 'Select Synthetic Card A · 0000', exact: true }).check();
         await successful.page.getByRole('checkbox', { name: 'Select Synthetic Card B · 0000', exact: true }).check();
-        await successful.page.getByRole('button', { name: 'Scan selected Chase cards', exact: true }).click();
-        await successful.page.getByRole('searchbox', { name: 'Search Chase offers' }).fill('does-not-match');
+        await successful.page.getByRole('button', { name: 'Scan offers', exact: true }).click();
+        await successful.page.getByRole('searchbox', { name: 'Search saved offers' }).fill('does-not-match');
         await successful.advanceUntil(/Scan complete: 6 offers/);
         const scans = successful.requests.filter(request => !request.native);
         assert.deepEqual(scans.map(request => request.accountIdentifier), ['101', '202']);
         assert.ok(scans.every(request => request.method === 'GET'));
         assert.ok(scans[1].time - scans[0].time >= 500);
-        assert.equal(await successful.page.getByRole('button', { name: 'Scan and add all Chase offers' }).isEnabled(), false);
-        await successful.page.getByRole('searchbox', { name: 'Search Chase offers' }).fill('');
+        assert.equal(await successful.page.getByRole('button', { name: 'Add all offers' }).isEnabled(), false);
+        await successful.page.getByRole('searchbox', { name: 'Search saved offers' }).fill('');
         assert.equal(await successful.page.locator('.offer').count(), 6);
         await successful.page.screenshot({ path: resolve(outputDirectory, 'chase-scan-complete.png') });
-        await verifyWorkspaceReload({ page: successful.page, script, id: 'chase-offer-lite', bank: 'Chase', requests: successful.requests, activationName: 'Scan and add all Chase offers', documentStart: true });
+        await verifyWorkspaceReload({ page: successful.page, script, id: 'chase-offer-lite', bank: 'Chase', requests: successful.requests, activationName: 'Add all offers', documentStart: true });
         await successful.page.getByRole('button', { name: 'Minimize Chase panel' }).click();
-        assert.equal(await successful.page.getByRole('button', { name: 'Detect Chase cards' }).isVisible(), false);
+        assert.equal(await successful.page.getByRole('button', { name: 'Detect cards' }).isVisible(), false);
         await successful.page.getByRole('button', { name: 'Expand Chase panel' }).click();
         assert.deepEqual(successful.errors, []);
         await successful.context.close();
@@ -120,20 +120,20 @@ async function main() {
             await failed.captureNativeRequest('xhr');
             if (mode === 'storage') {
                 assert.match(await failed.page.getByRole('alert').innerText(), /Cannot save/);
-                assert.equal(await failed.page.getByRole('button', { name: 'Scan selected Chase cards' }).isEnabled(), false);
+                assert.equal(await failed.page.getByRole('button', { name: 'Scan offers' }).isEnabled(), false);
                 await failed.page.clock.runFor(60000);
                 assert.equal(failed.requests.filter(request => !request.native).length, 0);
                 await failed.context.close();
                 continue;
             }
             await failed.page.getByRole('checkbox', { name: 'Select Synthetic Card A · 0000', exact: true }).check();
-            await failed.page.getByRole('button', { name: 'Scan selected Chase cards', exact: true }).click();
+            await failed.page.getByRole('button', { name: 'Scan offers', exact: true }).click();
             await failed.advanceUntil(mode === '429' ? /HTTP 429/ : mode === 'partial' ? /partial|incomplete/ : /Cannot save/);
             assert.equal(failed.requests.filter(request => !request.native).length, mode === 'storage' ? 0 : 1);
             if (mode === 'storage') assert.match(await failed.page.getByRole('alert').innerText(), /Cannot save/);
             await failed.page.clock.runFor(60000);
             if (mode === '429') {
-                await failed.page.getByRole('button', { name: 'Scan selected Chase cards' }).click();
+                await failed.page.getByRole('button', { name: 'Scan offers' }).click();
                 await failed.advanceUntil(/Rate limited/);
             }
             assert.equal(failed.requests.filter(request => !request.native).length, mode === 'storage' ? 0 : 1, 'failures never retry');
