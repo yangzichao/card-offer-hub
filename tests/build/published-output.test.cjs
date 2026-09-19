@@ -7,6 +7,7 @@ const { bundleUserscript } = require('../../scripts/build/source-bundle.cjs');
 const { buildPublishIndex } = require('../../scripts/build/publish-index.cjs');
 const { replaceCatalog } = require('../../scripts/build/readme-catalog.cjs');
 const { REPOSITORY, publishedFileUrl, publishedUserscriptFileName } = require('../../scripts/build/repository.cjs');
+const { loadAllInOneManifest } = require('../../scripts/build/all-in-one-manifest.cjs');
 
 const scripts = loadScriptRegistry();
 const distDirectory = resolve(projectRoot, REPOSITORY.publishDirectory);
@@ -67,8 +68,8 @@ test('the README install table is in sync with the registry', () => {
     assert.equal(readmeText, replaceCatalog(readmeText, scripts), 'README.md install table is stale; run npm run build.');
 });
 
-test('dist/ holds nothing but the catalog and one file per script', () => {
-    const expected = ['index.json', ...scripts.map((script) => publishedUserscriptFileName(script.id))].sort();
+test('dist/ holds nothing but the catalog, issuer scripts and all-in-one', () => {
+    const expected = ['index.json', ...[...scripts, loadAllInOneManifest(scripts)].map((script) => publishedUserscriptFileName(script.id))].sort();
     assert.deepEqual(readdirSync(distDirectory).sort(), expected,
         'a leftover file in dist/ keeps serving old code to anyone whose Tampermonkey still points at it.');
 });

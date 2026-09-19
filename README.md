@@ -6,6 +6,10 @@
 
 <!-- published-scripts:start -->
 
+**[一键安装全部银行（合并版 1.0.0）](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/card-offer-hub-all.user.js)** — 确认一次安装，包含下列 6 家银行。
+
+合并版与单独版二选一。切换前停用已安装的单独版，保留它们即可保留原有数据；原有扫描结果和选择不会自动转入合并版。[安装说明](bundles/all/README.md)
+
 | 脚本 | 发卡行 | 版本 | 生效站点 | 安装 |
 | --- | --- | --- | --- | --- |
 | [Amex Offer Lite](issuers/amex/amex-offer-lite/README.md) | amex | 5.1.0 | https://global.americanexpress.com/* | [安装 / 更新](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/amex-offer-lite.user.js) |
@@ -22,7 +26,7 @@
 ## 安装与更新
 
 1. 安装 [Tampermonkey](https://www.tampermonkey.net/)。
-2. 点上表里的 **安装 / 更新** 链接，Tampermonkey 会弹出安装页，确认即可。
+2. 推荐点 **一键安装全部银行**，在 Tampermonkey 安装页确认一次；也可以只装上表里需要的单独版。两种方式二选一，切换前停用旧版，旧版数据不会自动迁移。
 3. 之后不用再管。每个发布文件的 metadata 里带 `@updateURL` 和 `@downloadURL`，Tampermonkey 按自己的周期回来检查版本号，`@version` 比本地高就静默更新。想立刻更新就在 Tampermonkey 面板点 **Check for userscript updates**。
 
 不要把 `dist/` 里的文件内容手动贴进已有脚本。手贴出来的副本没有和更新地址绑定，不会自动更新。旧版本手动安装过的同名脚本要先删掉，否则两份会同时匹配同一个站点。
@@ -32,6 +36,7 @@
 ```text
 issuers/<issuer>/<tool>/   # 每个脚本：userscript.json 清单 + src/ 分模块源码 + README
 shared/                    # 跨脚本共享模块，按需引用
+bundles/all/               # 一次安装全部银行的组合清单和本地路由
 scripts/build/             # 零依赖构建：清单 -> 合并 -> dist/
 dist/                      # 发布产物，Tampermonkey 实际抓取的文件；由构建生成，不要手改
 docs/                      # 迁移来源与修复记录
@@ -55,7 +60,7 @@ npm run bump -- <script-id> patch   # 或 minor / major
 npm run build
 ```
 
-然后把 `dist/` 的改动一起提交推到 `main`。Tampermonkey 只认版本号：**版本号没涨，push 了也不会有人收到更新**。
+银行脚本升版时会自动提升合并版 patch；只改合并包装或新增银行时执行 `npm run bump -- card-offer-hub-all patch`。然后把 `dist/` 的改动一起提交推到 `main`。Tampermonkey 只认版本号：**版本号没涨，push 了也不会有人收到更新**。
 
 ## 本地开发
 
