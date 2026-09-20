@@ -53,17 +53,21 @@ test('failed detection requires another manual attempt and a minimum delay', asy
     assert.equal(harness.requests.length, 2);
 });
 
-test('legacy whitelist migrates without losing absent cards; editing it sends no requests', async () => {
-    const storage = new Map([['card_offer_hub_amex_whitelist_v1', '["card-a","old-session-card"]']]);
-    const harness = createUserscriptHarness(undefined, { initialState: pageState(), storage });
-    harness.restoreLocalSettings();
-    await harness.detectCards();
-    assert.deepEqual([...harness.state.whitelist], ['card-a', 'old-session-card']);
-    assert.deepEqual(Array.from(harness.selectedAccounts(), (account) => account.token), ['card-a']);
-    harness.setCardWhitelisted('card-b', true);
-    assert.equal(harness.state.whitelist.size, 3);
-    assert.deepEqual(harness.userscriptStorage.get(harness.SETTINGS.savedCardsKey).whitelist, ['card-a', 'old-session-card', 'card-b']);
-    assert.equal(harness.requests.length, 0);
+test('website whitelist remnants never import selections or create saved cards', async () => {
+    for (const value of ['["card-a","old-session-card"]', '{invalid-json', '{}']) {
+        const storage = new Map([['card_offer_hub_amex_whitelist_v1', value]]);
+        const harness = createUserscriptHarness(undefined, { initialState: pageState(), storage });
+        harness.restoreLocalSettings();
+        assert.equal(harness.state.detected, false);
+        assert.equal(harness.state.whitelist.size, 0);
+        assert.equal(harness.state.savedCardsError, '');
+        assert.equal(harness.userscriptStorage.size, 0);
+        await harness.detectCards();
+        assert.equal(harness.state.whitelist.size, 0);
+        harness.setCardWhitelisted('card-b', true);
+        assert.deepEqual(harness.userscriptStorage.get(harness.SETTINGS.savedCardsKey).whitelist, ['card-b']);
+        assert.equal(harness.requests.length, 0);
+    }
 });
 
 test('old offer caches and blocklists never opt cards in', async () => {

@@ -1,11 +1,10 @@
-const { readFileSync } = require('node:fs');
-const { resolve } = require('node:path');
+const { readPublishedIssuerSource } = require('../../helpers/published-issuer-source.cjs');
 const { runInNewContext } = require('node:vm');
 const { webcrypto } = require('node:crypto');
 
 const sessionFixture = { platformKeyVal: 'OLB', sourceCustomerId: 'synthetic-customer', securityToken: 'synthetic-token' };
 function createHarness(respond, options = {}) {
-    const source = readFileSync(resolve(__dirname, '../../../dist/usbank-offer-lite.user.js'), 'utf8');
+    const source = readPublishedIssuerSource('usbank-offer-lite');
     const marker = '    // --- Init ---';
     let now = 1800000000000;
     let active = 0;

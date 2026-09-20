@@ -50,37 +50,10 @@ function persistCardSettings() {
     }
 }
 
-function migrateLegacyWhitelist() {
-    let legacyValue;
-    try {
-        legacyValue = localStorage.getItem(SETTINGS.whitelistKey);
-    } catch {
-        log('Previous website storage is unavailable. New card settings will be saved in Tampermonkey.');
-        return;
-    }
-    if (legacyValue === null) return;
-    const legacyWhitelist = JSON.parse(legacyValue);
-    if (!Array.isArray(legacyWhitelist)) throw new Error('Legacy whitelist has an unrecognized format.');
-    state.whitelist = new Set(legacyWhitelist.filter((token) => typeof token === 'string' && token));
-    // v4.0/v4.1 saved no catalog. Recover it from already-loaded page data once,
-    // if available; upgrading must never trigger an account or offer request.
-    try {
-        const accounts = accountsFromPage(readPageState());
-        if (accounts.length) {
-            state.accounts = accounts;
-            state.detected = true;
-        }
-    } catch {
-        log('Saved whitelist recovered. Detect the card list manually to display it.');
-    }
-    if (persistCardSettings()) log('Previous whitelist migrated to Tampermonkey storage.');
-}
-
 function restoreSavedCards() {
     try {
         const snapshot = GM_getValue(SETTINGS.savedCardsKey, null);
-        if (snapshot === null) migrateLegacyWhitelist();
-        else {
+        if (snapshot !== null) {
             Object.assign(state, validateSavedCards(snapshot));
             state.savedCardsReady = true;
         }

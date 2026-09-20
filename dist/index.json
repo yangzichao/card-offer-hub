@@ -1,125 +1,82 @@
 {
+    "schemaVersion": 2,
     "repository": "https://github.com/yangzichao/card-offer-hub",
     "publishBranch": "main",
-    "allInOne": {
-        "id": "card-offer-hub-all",
-        "name": "Card Offer Hub — All Banks",
-        "version": "1.2.0",
-        "publishedFile": "dist/card-offer-hub-all.user.js",
-        "installUrl": "https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/card-offer-hub-all.user.js",
-        "updateUrl": "https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/card-offer-hub-all.user.js",
-        "includes": [
-            {
-                "id": "amex-offer-lite",
-                "version": "5.3.0"
-            },
-            {
-                "id": "bofa-offer-lite",
-                "version": "1.3.0"
-            },
-            {
-                "id": "chase-offer-lite",
-                "version": "1.3.0"
-            },
-            {
-                "id": "citi-offer-lite",
-                "version": "1.3.0"
-            },
-            {
-                "id": "usbank-offer-lite",
-                "version": "1.3.0"
-            },
-            {
-                "id": "wellsfargo-offer-lite",
-                "version": "1.3.0"
-            }
-        ]
-    },
     "scripts": [
         {
-            "id": "amex-offer-lite",
-            "name": "Amex Offer Lite",
-            "version": "5.3.0",
-            "description": "Detect cards, rank them by drag, scan Offers Hub slowly, and add every offer to one card at a time",
-            "issuer": "amex",
+            "id": "card-offer-hub-all",
+            "name": "Card Offer Hub — All Banks",
+            "version": "1.3.1",
+            "description": "All six Card Offer Hub tools in one install; manual scanning and activation on the matching bank website",
             "matches": [
-                "https://global.americanexpress.com/*"
-            ],
-            "publishedFile": "dist/amex-offer-lite.user.js",
-            "installUrl": "https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/amex-offer-lite.user.js",
-            "updateUrl": "https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/amex-offer-lite.user.js",
-            "sourceDirectory": "issuers/amex/amex-offer-lite"
-        },
-        {
-            "id": "bofa-offer-lite",
-            "name": "BankAmeriDeals Lite",
-            "version": "1.3.0",
-            "description": "Manually scan and activate ordinary card-linked BankAmeriDeals with verified results",
-            "issuer": "bank-of-america",
-            "matches": [
-                "https://deals.merchant-rewards.com/*"
-            ],
-            "publishedFile": "dist/bofa-offer-lite.user.js",
-            "installUrl": "https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/bofa-offer-lite.user.js",
-            "updateUrl": "https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/bofa-offer-lite.user.js",
-            "sourceDirectory": "issuers/bank-of-america/bofa-offer-lite"
-        },
-        {
-            "id": "chase-offer-lite",
-            "name": "Chase Offer Lite",
-            "version": "1.3.0",
-            "description": "Manually select Chase cards and scan Chase Offers serially; read-only until activation is verified",
-            "issuer": "chase",
-            "matches": [
-                "https://secure.chase.com/web/auth/*"
-            ],
-            "publishedFile": "dist/chase-offer-lite.user.js",
-            "installUrl": "https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/chase-offer-lite.user.js",
-            "updateUrl": "https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/chase-offer-lite.user.js",
-            "sourceDirectory": "issuers/chase/chase-offer-lite"
-        },
-        {
-            "id": "citi-offer-lite",
-            "name": "Citi Offer Lite",
-            "version": "1.3.0",
-            "description": "Manually select Citi cards, scan Merchant Offers, and enroll all available offers serially",
-            "issuer": "citi",
-            "matches": [
-                "https://online.citi.com/US/*"
-            ],
-            "publishedFile": "dist/citi-offer-lite.user.js",
-            "installUrl": "https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/citi-offer-lite.user.js",
-            "updateUrl": "https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/citi-offer-lite.user.js",
-            "sourceDirectory": "issuers/citi/citi-offer-lite"
-        },
-        {
-            "id": "usbank-offer-lite",
-            "name": "US Bank Offer Lite",
-            "version": "1.3.0",
-            "description": "Manually scan and select US Bank Cash Back Deals, activate serially, and verify server state",
-            "issuer": "usbank",
-            "matches": [
-                "https://onlinebanking.usbank.com/*"
-            ],
-            "publishedFile": "dist/usbank-offer-lite.user.js",
-            "installUrl": "https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/usbank-offer-lite.user.js",
-            "updateUrl": "https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/usbank-offer-lite.user.js",
-            "sourceDirectory": "issuers/usbank/usbank-offer-lite"
-        },
-        {
-            "id": "wellsfargo-offer-lite",
-            "name": "Wells Fargo Offer Lite",
-            "version": "1.3.0",
-            "description": "Manually scan and activate eligible account-wide Wells Fargo Deals with conservative serial pacing",
-            "issuer": "wellsfargo",
-            "matches": [
+                "https://global.americanexpress.com/*",
+                "https://deals.merchant-rewards.com/*",
+                "https://secure.chase.com/web/auth/*",
+                "https://online.citi.com/US/*",
+                "https://onlinebanking.usbank.com/*",
                 "https://web.secure.wellsfargo.com/auth/deals-portal*",
                 "https://web.secure.wellsfargo.com/deals-portal/*"
             ],
-            "publishedFile": "dist/wellsfargo-offer-lite.user.js",
-            "installUrl": "https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/wellsfargo-offer-lite.user.js",
-            "updateUrl": "https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/wellsfargo-offer-lite.user.js",
-            "sourceDirectory": "issuers/wellsfargo/wellsfargo-offer-lite"
+            "publishedFile": "dist/card-offer-hub-all.user.js",
+            "installUrl": "https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/card-offer-hub-all.user.js",
+            "updateUrl": "https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/card-offer-hub-all.user.js",
+            "includes": [
+                {
+                    "id": "amex-offer-lite",
+                    "name": "Amex Offer Lite",
+                    "issuer": "amex",
+                    "matches": [
+                        "https://global.americanexpress.com/*"
+                    ],
+                    "sourceDirectory": "issuers/amex/amex-offer-lite"
+                },
+                {
+                    "id": "bofa-offer-lite",
+                    "name": "BankAmeriDeals Lite",
+                    "issuer": "bank-of-america",
+                    "matches": [
+                        "https://deals.merchant-rewards.com/*"
+                    ],
+                    "sourceDirectory": "issuers/bank-of-america/bofa-offer-lite"
+                },
+                {
+                    "id": "chase-offer-lite",
+                    "name": "Chase Offer Lite",
+                    "issuer": "chase",
+                    "matches": [
+                        "https://secure.chase.com/web/auth/*"
+                    ],
+                    "sourceDirectory": "issuers/chase/chase-offer-lite"
+                },
+                {
+                    "id": "citi-offer-lite",
+                    "name": "Citi Offer Lite",
+                    "issuer": "citi",
+                    "matches": [
+                        "https://online.citi.com/US/*"
+                    ],
+                    "sourceDirectory": "issuers/citi/citi-offer-lite"
+                },
+                {
+                    "id": "usbank-offer-lite",
+                    "name": "US Bank Offer Lite",
+                    "issuer": "usbank",
+                    "matches": [
+                        "https://onlinebanking.usbank.com/*"
+                    ],
+                    "sourceDirectory": "issuers/usbank/usbank-offer-lite"
+                },
+                {
+                    "id": "wellsfargo-offer-lite",
+                    "name": "Wells Fargo Offer Lite",
+                    "issuer": "wellsfargo",
+                    "matches": [
+                        "https://web.secure.wellsfargo.com/auth/deals-portal*",
+                        "https://web.secure.wellsfargo.com/deals-portal/*"
+                    ],
+                    "sourceDirectory": "issuers/wellsfargo/wellsfargo-offer-lite"
+                }
+            ]
         }
     ]
 }

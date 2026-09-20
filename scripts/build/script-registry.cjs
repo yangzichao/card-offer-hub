@@ -7,7 +7,6 @@ const sharedDirectory = resolve(projectRoot, 'shared');
 const manifestFileName = 'userscript.json';
 
 const IDENTIFIER_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const VERSION_PATTERN = /^\d+\.\d+\.\d+$/;
 
 function listJavaScriptFilesRecursively(directory, rootDirectory = directory) {
     if (!existsSync(directory)) return [];
@@ -89,12 +88,9 @@ function readScriptManifest(toolDirectory) {
     }
     const identifier = requireString(manifestPath, manifest, 'id');
     if (!IDENTIFIER_PATTERN.test(identifier)) {
-        throw new Error(`${manifestPath}: "id" must be lowercase kebab-case; it becomes the published file name.`);
+        throw new Error(`${manifestPath}: "id" must be lowercase kebab-case; it identifies the bank module and its storage.`);
     }
-    const version = requireString(manifestPath, manifest, 'version');
-    if (!VERSION_PATTERN.test(version)) {
-        throw new Error(`${manifestPath}: "version" must be major.minor.patch; Tampermonkey compares it to decide on updates.`);
-    }
+    if (Object.hasOwn(manifest, 'version')) throw new Error(`${manifestPath}: bank modules must not declare a version. Use bundles/all/userscript.json.`);
     const sources = requireStringArray(manifestPath, manifest, 'sources');
     const sharedModules = requireStringArray(manifestPath, manifest, 'sharedModules', { allowEmpty: true });
     validateSourceCoverage(manifestPath, toolDirectory, sources);
@@ -102,7 +98,6 @@ function readScriptManifest(toolDirectory) {
     return {
         id: identifier,
         name: requireString(manifestPath, manifest, 'name'),
-        version,
         description: requireString(manifestPath, manifest, 'description'),
         author: requireString(manifestPath, manifest, 'author'),
         issuer: requireString(manifestPath, manifest, 'issuer'),

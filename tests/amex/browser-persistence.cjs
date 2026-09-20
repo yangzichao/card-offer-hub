@@ -1,11 +1,12 @@
+const { readPublishedIssuerSource } = require('../helpers/published-issuer-source.cjs');
 const assert = require('node:assert/strict');
-const { readFileSync, mkdirSync } = require('node:fs');
+const { mkdirSync } = require('node:fs');
 const { resolve } = require('node:path');
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE_PATH || 'playwright');
 const { hubResponse } = require('./fixtures/synthetic-offers.cjs');
 const { createBrowserStorageFixture } = require('./helpers/browser-storage.cjs');
 
-const userscript = readFileSync(resolve(__dirname, '../../dist/amex-offer-lite.user.js'), 'utf8');
+const userscript = readPublishedIssuerSource('amex-offer-lite');
 const rawAccount = (token) => ({ account_token: token, product: { description: `Test ${token}` } });
 
 async function run() {

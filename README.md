@@ -1,23 +1,23 @@
 # Card Offer Hub
 
-集中维护信用卡 Offer 的 Tampermonkey 脚本。所有脚本从这个仓库发布，装一次之后由 Tampermonkey 自动更新。
+一个 Tampermonkey 脚本管理六家银行的信用卡 Offer。只维护一个版本、一个安装入口，装一次后由 Tampermonkey 更新。
 
-## 已发布脚本
+## 安装入口
 
 <!-- published-scripts:start -->
 
-**[一键安装全部银行（合并版 1.2.0）](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/card-offer-hub-all.user.js)** — 确认一次安装，包含下列 6 家银行。
+**[安装 / 更新 Card Offer Hub 1.3.1](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/card-offer-hub-all.user.js)** — 唯一安装包，包含下列 6 家银行。
 
-合并版与单独版二选一。切换前停用已安装的单独版，保留它们即可保留原有数据；原有扫描结果和选择不会自动转入合并版。[安装说明](bundles/all/README.md)
+安装一次，按当前银行页面加载对应功能，所有银行共用一个发布版本。[使用说明](bundles/all/README.md)
 
-| 脚本 | 发卡行 | 版本 | 生效站点 | 安装 |
-| --- | --- | --- | --- | --- |
-| [Amex Offer Lite](issuers/amex/amex-offer-lite/README.md) | amex | 5.3.0 | https://global.americanexpress.com/* | [安装 / 更新](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/amex-offer-lite.user.js) |
-| [BankAmeriDeals Lite](issuers/bank-of-america/bofa-offer-lite/README.md) | bank-of-america | 1.3.0 | https://deals.merchant-rewards.com/* | [安装 / 更新](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/bofa-offer-lite.user.js) |
-| [Chase Offer Lite](issuers/chase/chase-offer-lite/README.md) | chase | 1.3.0 | https://secure.chase.com/web/auth/* | [安装 / 更新](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/chase-offer-lite.user.js) |
-| [Citi Offer Lite](issuers/citi/citi-offer-lite/README.md) | citi | 1.3.0 | https://online.citi.com/US/* | [安装 / 更新](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/citi-offer-lite.user.js) |
-| [US Bank Offer Lite](issuers/usbank/usbank-offer-lite/README.md) | usbank | 1.3.0 | https://onlinebanking.usbank.com/* | [安装 / 更新](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/usbank-offer-lite.user.js) |
-| [Wells Fargo Offer Lite](issuers/wellsfargo/wellsfargo-offer-lite/README.md) | wellsfargo | 1.3.0 | https://web.secure.wellsfargo.com/auth/deals-portal*<br>https://web.secure.wellsfargo.com/deals-portal/* | [安装 / 更新](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/wellsfargo-offer-lite.user.js) |
+| 银行 | 生效站点 |
+| --- | --- |
+| [Amex](issuers/amex/amex-offer-lite/README.md) | https://global.americanexpress.com/* |
+| [BankAmeriDeals](issuers/bank-of-america/bofa-offer-lite/README.md) | https://deals.merchant-rewards.com/* |
+| [Chase](issuers/chase/chase-offer-lite/README.md) | https://secure.chase.com/web/auth/* |
+| [Citi](issuers/citi/citi-offer-lite/README.md) | https://online.citi.com/US/* |
+| [US Bank](issuers/usbank/usbank-offer-lite/README.md) | https://onlinebanking.usbank.com/* |
+| [Wells Fargo](issuers/wellsfargo/wellsfargo-offer-lite/README.md) | https://web.secure.wellsfargo.com/auth/deals-portal*<br>https://web.secure.wellsfargo.com/deals-portal/* |
 
 <!-- published-scripts:end -->
 
@@ -25,48 +25,48 @@
 
 ## 跨银行搜索
 
-合并版面板中的 **Search all banks** 可同时搜索六家银行已保存的 Offer，按银行或状态筛选，查看卡片、扫描时间和有效期，再打开对应银行页面。搜索条件会保留；**Reload saved results** 只读取本地缓存。各家银行需要先手动扫描一次，单独版保存的数据不会自动并入搜索。详见[使用说明](bundles/all/README.md#跨银行搜索)。
+面板中的 **Search all banks** 可同时搜索六家银行已保存的 Offer，按银行或状态筛选，查看卡片、扫描时间和有效期，再打开对应银行页面。搜索条件会保留；**Reload saved results** 只读取本地缓存。各家银行需要先手动扫描一次。详见[使用说明](bundles/all/README.md#跨银行搜索)。
 
-六个单独版与合并版共用统一的浅色界面和三步流程：**Choose scope → Scan offers → Review & add**。搜索只改变列表，**Add all offers** 始终覆盖所选范围中的全部可添加优惠。按钮会说明尚未选范围、需要扫描、冷却或只读等禁用原因。详见[统一操作流程](docs/unified-workflow.md)。
+六家银行使用统一的浅色界面和三步流程：**Choose scope → Scan offers → Review & add**。搜索只改变列表，**Add all offers** 始终覆盖所选范围中的全部可添加优惠。按钮会说明尚未选范围、需要扫描、冷却或只读等禁用原因。详见[统一操作流程](docs/unified-workflow.md)。
 
 ## 安装与更新
 
 1. 安装 [Tampermonkey](https://www.tampermonkey.net/)。
-2. 推荐点 **一键安装全部银行**，在 Tampermonkey 安装页确认一次；也可以只装上表里需要的单独版。两种方式二选一，切换前停用旧版，旧版数据不会自动迁移。
-3. 之后不用再管。每个发布文件的 metadata 里带 `@updateURL` 和 `@downloadURL`，Tampermonkey 按自己的周期回来检查版本号，`@version` 比本地高就静默更新。想立刻更新就在 Tampermonkey 面板点 **Check for userscript updates**。
+2. 点上面的 **安装 / 更新 Card Offer Hub**，在 Tampermonkey 安装页确认一次，然后刷新银行页面。
+3. 之后不用再管。唯一发布文件的 metadata 里带 `@updateURL` 和 `@downloadURL`，Tampermonkey 按自己的周期回来检查版本号，`@version` 比本地高就静默更新。想立刻更新就在 Tampermonkey 面板点 **Check for userscript updates**。
 
-不要把 `dist/` 里的文件内容手动贴进已有脚本。手贴出来的副本没有和更新地址绑定，不会自动更新。旧版本手动安装过的同名脚本要先删掉，否则两份会同时匹配同一个站点。
+不要把 `dist/` 里的文件内容手动贴进已有脚本。手贴出来的副本没有和更新地址绑定，不会自动更新。同一站点只运行一份 Card Offer Hub。
 
 ## 目录
 
 ```text
-issuers/<issuer>/<tool>/   # 每个脚本：userscript.json 清单 + src/ 分模块源码 + README
-shared/                    # 跨脚本共享模块，按需引用
-bundles/all/               # 一次安装全部银行的组合清单和本地路由
+issuers/<issuer>/<tool>/   # 银行模块：无版本号的清单 + src/ 分模块源码 + README
+shared/                    # 银行间共享模块，按需引用
+bundles/all/               # 唯一发布清单、版本号、本地路由和跨银行搜索
 scripts/build/             # 零依赖构建：清单 -> 合并 -> dist/
 dist/                      # 发布产物，Tampermonkey 实际抓取的文件；由构建生成，不要手改
-docs/                      # 迁移来源与修复记录
+docs/                      # 接口依据与维护记录
 tests/<issuer>/            # 合成数据的离线回归
 tests/build/               # 构建与发布产物自身的回归
 ```
 
-## 加一个新脚本
+## 加一个银行模块
 
 1. 建 `issuers/<issuer>/<tool>/src/`，按功能拆成小文件。模块之间靠拼接后的同一作用域共享，不写 `import` / `export`。
-2. 写 `issuers/<issuer>/<tool>/userscript.json`：`id`（kebab-case，决定发布文件名）、`name`、`version`、`description`、`author`、`issuer`、`matches`、`grants`，以及按拼接顺序排列的 `sources`。
-3. 跑 `npm run build`。`src/` 下漏登记在 `sources` 里的文件会直接让构建失败，不会被悄悄漏掉。
-4. 提交源码和 `dist/`，推到 `main`。
+2. 写 `issuers/<issuer>/<tool>/userscript.json`：`id`（kebab-case，用于模块与存储隔离）、`name`、`description`、`author`、`issuer`、`matches`、`grants`，以及按拼接顺序排列的 `sources`。
+3. 银行清单不写版本号，发布时统一升版。跑 `npm run build`。`src/` 下漏登记在 `sources` 里的文件会直接让构建失败，不会被悄悄漏掉。
+4. 完成构建、检查、单元和浏览器回归；用户要求发布时提交源码和 `dist/`，推到 `main`。
 
 `@updateURL` 里的仓库地址和发布分支写在 [scripts/build/repository.cjs](scripts/build/repository.cjs)。
 
 ## 发一个版本
 
 ```sh
-npm run bump -- <script-id> patch   # 或 minor / major
+npm run bump -- patch   # 或 minor / major
 npm run build
 ```
 
-银行脚本升版时会自动提升合并版 patch；只改合并包装或新增银行时执行 `npm run bump -- card-offer-hub-all patch`。然后把 `dist/` 的改动一起提交推到 `main`。Tampermonkey 只认版本号：**版本号没涨，push 了也不会有人收到更新**。
+无论修改哪个银行、共享界面或新增银行，都只提升 `bundles/all/userscript.json` 中的统一版本。构建只生成 `dist/card-offer-hub-all.user.js` 和 `dist/index.json`。发布时把源码和 `dist/` 一起提交推到 `main`。Tampermonkey 只认版本号：**版本号没涨，push 了也不会有人收到更新**。
 
 ## 本地开发
 
@@ -94,4 +94,4 @@ node tests/amex/verify-har.cjs /absolute/path/to/capture.har
 
 静态检查和离线测试不代表当前发卡行网站的接口、登录态或实际登记已经验证通过。现场问题与待验证事项见 [Amex 修复记录](docs/amex-repair-plan.md)。
 
-迁移来源见 [迁移说明](docs/migration.md)。
+统一发布流程见[单一安装包说明](docs/single-release.md)。

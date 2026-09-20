@@ -1,5 +1,6 @@
+const { readPublishedIssuerSource } = require('../helpers/published-issuer-source.cjs');
 const assert = require('node:assert/strict');
-const { readFileSync, mkdirSync } = require('node:fs');
+const { mkdirSync } = require('node:fs');
 const { resolve } = require('node:path');
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE_PATH || 'playwright');
 const { confirmation } = require('./fixtures/synthetic-offers.cjs');
@@ -41,7 +42,7 @@ async function run() {
         ]);
         const fixture = await createBrowserStorageFixture(page, storage);
         await fixture.restore();
-        const source = readFileSync(process.env.AMEX_BULK_SCRIPT_PATH || resolve(__dirname, '../../dist/amex-offer-lite.user.js'), 'utf8');
+        const source = readPublishedIssuerSource('amex-offer-lite');
         await page.addScriptTag({ content: source });
         const other = await context.newPage();
         await other.goto('https://example.test/other-tab');

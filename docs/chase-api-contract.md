@@ -14,7 +14,7 @@ It does **not** contain an activation/enrollment request or its response. Some r
 
 ## Native session observation
 
-The userscript installs passive fetch/XHR observers at document start. Installing them sends no request and schedules no timer. The user opens Chase Offers or switches cards in the native site, allowing the observer to see a normal Chase request and its successful JSON response. If that has not happened, Detect cards explains how to prepare the page; it does not issue an account-discovery request.
+The userscript installs passive fetch/XHR observers at document start. Installing them sends no request and schedules no timer. Loading the native dashboard Offers preview, opening Chase Offers, or switching cards allows the observer to see a normal Chase request and its successful JSON response. If that has not happened, Detect cards explains how to prepare the page; it does not issue an account-discovery request.
 
 Only exact-origin `https://secure.chase.com`, exact-path, GET requests are eligible. The request's `path-params` header contains:
 
@@ -30,6 +30,18 @@ These are synthetic examples. The capture uses both numeric and string account i
 Observed request headers include `channel-identifier`, `channel-type`, `x-jpmc-channel`, `path-params`, and `x-jpmc-csrf-token`. Their runtime values come from the current page's own request, never constants copied from the HAR. The HAR does not establish a cookie or DOM source for the CSRF value, so the code does not guess one. Browser-managed cookies accompany subsequent same-origin GETs. The observer retains only a header allowlist in memory, drops tracing and all unrelated headers, and does not persist session material.
 
 A captured response is accepted only if it supplies recognizable account records, a customerOffers group for the request account, and `primaryIndividualEnterprisePartyIdentifier` matching the request's enterprise identifier. Account discovery retains only identifier, nickname, classification, last four, and explicit shopping eligibility. Offer impression tokens, customer offer session tokens, and full response bodies are not retained by the observer.
+
+### Dashboard discovery correction (2026-09-19)
+
+A newer local capture contains five successful reads: one dashboard preview, two complete carousel lists, and two category subsets. The dashboard request uses `primaryDigitalAccountIdentifierList: []`, with `source-request-component-name=OVERVIEW_DASHBOARD`, `source-application-system-name=CHASE_WEB`, `offer-count=12`, and `offerStatusNameList=NEW,ACTIVATED,SERVED`. Earlier code required exactly one requested card, discarding this valid discovery response before reading its card list.
+
+Empty account lists are now accepted only for that observed dashboard query without a category filter. The response must match the requested enterprise identity, contain valid unique card records, and supply exactly one default-card group with an offers array and an identifier belonging to those records. That response establishes the default card and current session. It never selects cards, populates scan results, or sends another request. Unknown or ambiguous groups remain rejected; newer requests still supersede stale responses.
+
+The dashboard preview reports `partial=false` even though its returned row count is below the total. This is discovery evidence only, not a complete scan. A manual scan continues to construct the explicit selected-card, unfiltered `OFFERS_HUB_ALL` request and enforce complete-list counts. The HAR verifier reports dashboard previews separately from full lists.
+
+Synthetic regression coverage includes default-card discovery through fetch/XHR, manual selection and subsequent full scans, rejected foreign profiles/cards and ambiguous groups, stale responses, and no preview persistence. Real Tampermonkey execution on the current Chase site remains pending live verification.
+
+Verification for Chase 1.3.1 / All Banks 1.2.1: `npm run build` PASS; `npm run check` PASS; `npm test` PASS (290 tests); `npm run test:browser` PASS (12 scripts, using the bundled Playwright runtime). `node tests/chase/verify-har.cjs /absolute/path/to/capture.har` PASS for the newer external capture (5 successful reads, 4 discovered cards). No captured traffic was replayed and no real account requests were sent.
 
 ## Account discovery
 

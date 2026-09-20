@@ -9,19 +9,17 @@ const CATALOG_END_MARKER = '<!-- published-scripts:end -->';
 function buildCatalogTable(scripts) {
     const combined = loadAllInOneManifest(scripts);
     const rows = scripts.map((script) => {
-        const installUrl = publishedFileUrl(publishedUserscriptFileName(script.id));
-        return `| [${script.name}](${script.toolDirectoryPath}/README.md) | ${script.issuer} | ${script.version} `
-            + `| ${script.matches.join('<br>')} | [安装 / 更新](${installUrl}) |`;
+        return `| [${script.bankLabel}](${script.toolDirectoryPath}/README.md) | ${script.matches.join('<br>')} |`;
     });
     return [
         CATALOG_START_MARKER,
         '',
-        `**[一键安装全部银行（合并版 ${combined.version}）](${publishedFileUrl(publishedUserscriptFileName(combined.id))})** — 确认一次安装，包含下列 ${scripts.length} 家银行。`,
+        `**[安装 / 更新 Card Offer Hub ${combined.version}](${publishedFileUrl(publishedUserscriptFileName(combined.id))})** — 唯一安装包，包含下列 ${scripts.length} 家银行。`,
         '',
-        '合并版与单独版二选一。切换前停用已安装的单独版，保留它们即可保留原有数据；原有扫描结果和选择不会自动转入合并版。[安装说明](bundles/all/README.md)',
+        '安装一次，按当前银行页面加载对应功能，所有银行共用一个发布版本。[使用说明](bundles/all/README.md)',
         '',
-        '| 脚本 | 发卡行 | 版本 | 生效站点 | 安装 |',
-        '| --- | --- | --- | --- | --- |',
+        '| 银行 | 生效站点 |',
+        '| --- | --- |',
         ...rows,
         '',
         CATALOG_END_MARKER

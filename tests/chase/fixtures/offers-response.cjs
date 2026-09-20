@@ -23,4 +23,13 @@ function sessionHeaders(accountIdentifier = '101', enterprisePartyIdentifier = '
             enterprisePartyIdentifier, primaryDigitalAccountIdentifierList: [accountIdentifier]
         }) };
 }
-module.exports = { account, offer, listing, endpoint, sessionHeaders };
+const dashboardEndpoint = `${endpoint}?${new URLSearchParams({
+    'offer-count': '12', offerStatusNameList: 'NEW,ACTIVATED,SERVED',
+    'source-application-system-name': 'CHASE_WEB', 'source-request-component-name': 'OVERVIEW_DASHBOARD'
+})}`;
+function dashboardHeaders(enterprisePartyIdentifier = '909') {
+    return { ...sessionHeaders(), 'path-params': JSON.stringify({
+        enterprisePartyIdentifier, primaryDigitalAccountIdentifierList: []
+    }) };
+}
+module.exports = { account, offer, listing, endpoint, sessionHeaders, dashboardEndpoint, dashboardHeaders };

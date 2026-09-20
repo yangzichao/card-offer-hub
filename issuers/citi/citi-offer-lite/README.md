@@ -1,10 +1,12 @@
 # Citi Offer Lite
 
-Citi Merchant Offers 的 Tampermonkey 脚本。沿用 Amex Offer Lite 的独立构建、浮动面板与自动更新方式，直接请求 Citi 当前登录会话的 API。
+本银行功能随 [Card Offer Hub 统一安装包](../../../bundles/all/README.md) 发布。
+
+Citi Merchant Offers 的 Tampermonkey 脚本。使用统一安装包的浮动面板与自动更新方式，直接请求 Citi 当前登录会话的 API。
 
 ## 安装与使用
 
-构建产物为 [`dist/citi-offer-lite.user.js`](../../../dist/citi-offer-lite.user.js)。首次发布前，在 Tampermonkey Dashboard → Utilities → Import from file 中导入本地文件；发布到 `main` 后可使用 [安装 / 更新链接](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/citi-offer-lite.user.js)，以后由 Tampermonkey 检查版本更新。
+构建产物为 [`dist/card-offer-hub-all.user.js`](../../../dist/card-offer-hub-all.user.js)。首次发布前，在 Tampermonkey Dashboard → Utilities → Import from file 中导入本地文件；发布到 `main` 后可使用 [安装 / 更新链接](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/card-offer-hub-all.user.js)，以后由 Tampermonkey 检查版本更新。
 
 1. 登录 Citi，打开 [Merchant Offers](https://online.citi.com/US/nga/products-offers/merchantoffers)。
 2. 点击 **Detect cards**，然后手动勾选要处理的卡片；没有默认勾选。

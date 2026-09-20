@@ -3,7 +3,6 @@ const SETTINGS = Object.freeze({
     requestGapMs: 500,
     rateLimitCooldownMs: 120000,
     requestTimeoutMs: 30000,
-    whitelistKey: 'card_offer_hub_amex_whitelist_v1',
     savedCardsKey: 'card_offer_hub_amex_saved_cards_v1',
     savedOffersKey: 'card_offer_hub_amex_saved_offers_v1',
     cooldownKey: 'card_offer_hub_amex_cooldown_v1',

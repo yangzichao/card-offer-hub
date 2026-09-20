@@ -1,11 +1,10 @@
+const { readPublishedIssuerSource } = require('../../helpers/published-issuer-source.cjs');
 const { webcrypto } = require('node:crypto');
-const { readFileSync } = require('node:fs');
-const { resolve } = require('node:path');
 const { runInNewContext } = require('node:vm');
 const { listing, endpoint, sessionHeaders } = require('../fixtures/offers-response.cjs');
 
 function createHarness(respond, options = {}) {
-    const source = readFileSync(resolve(__dirname, '../../../dist/chase-offer-lite.user.js'), 'utf8');
+    const source = readPublishedIssuerSource('chase-offer-lite');
     const marker = '    // --- Init ---';
     let now = 1800000000000;
     let active = 0;

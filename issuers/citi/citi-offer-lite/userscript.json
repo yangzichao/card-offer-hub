@@ -1,7 +1,6 @@
 {
     "id": "citi-offer-lite",
     "name": "Citi Offer Lite",
-    "version": "1.3.0",
     "description": "Manually select Citi cards, scan Merchant Offers, and enroll all available offers serially",
     "author": "Zichao Yang",
     "issuer": "citi",

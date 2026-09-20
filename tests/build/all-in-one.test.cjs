@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { readFileSync, cpSync, mkdtempSync, rmSync } = require('node:fs');
+const { readFileSync, writeFileSync, readdirSync, mkdirSync, cpSync, mkdtempSync, rmSync } = require('node:fs');
 const { resolve, join } = require('node:path');
 const { tmpdir } = require('node:os');
 const { execFileSync } = require('node:child_process');
@@ -8,7 +8,7 @@ const { runInNewContext } = require('node:vm');
 const { loadScriptRegistry, projectRoot } = require('../../scripts/build/script-registry.cjs');
 const { loadAllInOneManifest } = require('../../scripts/build/all-in-one-manifest.cjs');
 const { buildAllInOneBundle, matchPatternExpression } = require('../../scripts/build/all-in-one-bundle.cjs');
-const { bundleUserscript } = require('../../scripts/build/source-bundle.cjs');
+const { bundleIssuerBody } = require('../../scripts/build/source-bundle.cjs');
 const { publishedFileUrl } = require('../../scripts/build/repository.cjs');
 
 const scripts = loadScriptRegistry();
@@ -28,8 +28,8 @@ test('all-in-one embeds every exact issuer body with a single install and update
     assert.deepEqual(metadata('grant'), manifest.grants);
     assert.deepEqual(metadata('run-at'), ['document-start']);
     for (const script of scripts) {
-        const standalone = bundleUserscript(script);
-        assert.ok(published.includes(standalone.slice(standalone.indexOf('(function () {'))), script.id);
+        const issuerBody = bundleIssuerBody(script, manifest.version);
+        assert.ok(published.includes(issuerBody), script.id);
     }
 });
 
@@ -39,8 +39,8 @@ function probe(url, readyState = 'loading', inFrame = false) {
     let source = published;
     source = source.replace('installHubSearchLauncher(configuration);', '');
     for (const script of scripts) {
-        const standalone = bundleUserscript(script);
-        source = source.replace(standalone.slice(standalone.indexOf('(function () {')),
+        const issuerBody = bundleIssuerBody(script, manifest.version);
+        source = source.replace(issuerBody,
             `started.push(${JSON.stringify(script.id)}); GM_setValue('shared-key', ${JSON.stringify(script.id)}); reads.push(GM_getValue('shared-key'));`);
     }
     const callbacks = [], started = [], reads = [], stored = new Map();
@@ -86,25 +86,38 @@ test('unrelated sites, misleading hostnames and unmatched bank paths do nothing'
     assert.throws(() => matchPatternExpression('*://*.example.com/*'), /Unsupported/);
 });
 
-test('issuer releases automatically bump all-in-one and targeted builds keep it current', () => {
+test('one release version drives all modules; legacy outputs are removed and cannot return', () => {
     const directory = mkdtempSync(join(tmpdir(), 'card-offer-hub-release-'));
     try {
         for (const entry of ['scripts', 'issuers', 'shared', 'bundles', 'README.md']) {
             cpSync(join(projectRoot, entry), join(directory, entry), { recursive: true });
         }
         const run = (...args) => execFileSync(process.execPath, args, { cwd: directory, stdio: 'pipe' });
-        run('scripts/build/bump-version.cjs', scripts[0].id, 'patch');
+        const originalModules = scripts.map(script => readFileSync(join(directory, script.manifestPath), 'utf8'));
+        run('scripts/build/bump-version.cjs', 'patch');
         const updated = JSON.parse(readFileSync(join(directory, 'bundles/all/userscript.json')));
         const expected = manifest.version.split('.').map(Number);
         expected[2]++;
         assert.equal(updated.version, expected.join('.'));
-        run('scripts/build/build-userscripts.cjs', '--script', scripts[0].id);
-        run('scripts/build/build-userscripts.cjs', '--script', manifest.id, '--check');
+        assert.deepEqual(scripts.map(script => readFileSync(join(directory, script.manifestPath), 'utf8')), originalModules);
+        mkdirSync(join(directory, 'dist'));
+        for (const script of scripts) writeFileSync(join(directory, `dist/${script.id}.user.js`), 'retired standalone');
+        assert.throws(() => run('scripts/build/build-userscripts.cjs', '--check'));
+        run('scripts/build/build-userscripts.cjs');
+        run('scripts/build/build-userscripts.cjs', '--check');
+        assert.deepEqual(readdirSync(join(directory, 'dist')).sort(), [`${manifest.id}.user.js`, 'index.json'].sort());
         const catalog = JSON.parse(readFileSync(join(directory, 'dist/index.json')));
-        assert.equal(catalog.allInOne.version, updated.version);
-        run('scripts/build/bump-version.cjs', manifest.id, 'minor');
+        assert.equal(catalog.scripts.length, 1);
+        assert.equal(catalog.scripts[0].version, updated.version);
+        run('scripts/build/bump-version.cjs', 'minor');
         const wrapperRelease = JSON.parse(readFileSync(join(directory, 'bundles/all/userscript.json')));
         assert.equal(wrapperRelease.version, `${expected[0]}.${expected[1] + 1}.0`);
+        assert.throws(() => run('scripts/build/bump-version.cjs', scripts[0].id, 'patch'));
+        assert.throws(() => run('scripts/build/build-userscripts.cjs', '--script', scripts[0].id));
+        const bankManifest = JSON.parse(originalModules[0]);
+        bankManifest.version = '99.0.0';
+        writeFileSync(join(directory, scripts[0].manifestPath), JSON.stringify(bankManifest));
+        assert.throws(() => run('scripts/build/build-userscripts.cjs'), /bank modules must not declare a version/);
     } finally {
         rmSync(directory, { recursive: true, force: true });
     }

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Card Offer Hub — All Banks
 // @namespace    https://github.com/yangzichao/card-offer-hub
-// @version      1.2.0
+// @version      1.3.1
 // @description  All six Card Offer Hub tools in one install; manual scanning and activation on the matching bank website
 // @author       Zichao Yang
 // @match        https://global.americanexpress.com/*
@@ -226,7 +226,7 @@ function openHubSearch(launcher) {
           <p id="hub-data-warning" class="hub-search-error" role="alert"></p>
           <div class="hub-search-summary" role="status" aria-live="polite"><strong id="hub-result-count"></strong><span id="hub-result-coverage" class="muted"></span></div>
           <div id="hub-results"></div><button id="hub-load-more" class="hub-more" aria-label="Show more cross-bank results"></button>
-          <details class="hub-coverage"><summary aria-label="Show saved bank coverage">Saved bank coverage</summary><ul id="hub-coverage-list"></ul><p>Data from standalone scripts is separate. Scan each bank using All Banks to include it here.</p></details>
+          <details class="hub-coverage"><summary aria-label="Show saved bank coverage">Saved bank coverage</summary><ul id="hub-coverage-list"></ul><p>Scan each bank to include its saved offers here.</p></details>
         </div>
       </dialog>`;
     const loaded = hubLoadSearchPreferences();
@@ -313,6 +313,7 @@ function dispatchIssuer(configuration, startIssuer) {
 
 // --- Issuer dispatches ---
 dispatchIssuer({"id":"amex-offer-lite","patterns":["^https://global\\.americanexpress\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+// --- Issuer body: amex-offer-lite ---
 (function () {
     'use strict';
 
@@ -411,11 +412,10 @@ dispatchIssuer({"id":"amex-offer-lite","patterns":["^https://global\\.americanex
 
     // Source: core/state.js
     const SETTINGS = Object.freeze({
-        version: "5.3.0",
+        version: "1.3.1",
         requestGapMs: 500,
         rateLimitCooldownMs: 120000,
         requestTimeoutMs: 30000,
-        whitelistKey: 'card_offer_hub_amex_whitelist_v1',
         savedCardsKey: 'card_offer_hub_amex_saved_cards_v1',
         savedOffersKey: 'card_offer_hub_amex_saved_offers_v1',
         cooldownKey: 'card_offer_hub_amex_cooldown_v1',
@@ -633,37 +633,10 @@ dispatchIssuer({"id":"amex-offer-lite","patterns":["^https://global\\.americanex
         }
     }
 
-    function migrateLegacyWhitelist() {
-        let legacyValue;
-        try {
-            legacyValue = localStorage.getItem(SETTINGS.whitelistKey);
-        } catch {
-            log('Previous website storage is unavailable. New card settings will be saved in Tampermonkey.');
-            return;
-        }
-        if (legacyValue === null) return;
-        const legacyWhitelist = JSON.parse(legacyValue);
-        if (!Array.isArray(legacyWhitelist)) throw new Error('Legacy whitelist has an unrecognized format.');
-        state.whitelist = new Set(legacyWhitelist.filter((token) => typeof token === 'string' && token));
-        // v4.0/v4.1 saved no catalog. Recover it from already-loaded page data once,
-        // if available; upgrading must never trigger an account or offer request.
-        try {
-            const accounts = accountsFromPage(readPageState());
-            if (accounts.length) {
-                state.accounts = accounts;
-                state.detected = true;
-            }
-        } catch {
-            log('Saved whitelist recovered. Detect the card list manually to display it.');
-        }
-        if (persistCardSettings()) log('Previous whitelist migrated to Tampermonkey storage.');
-    }
-
     function restoreSavedCards() {
         try {
             const snapshot = GM_getValue(SETTINGS.savedCardsKey, null);
-            if (snapshot === null) migrateLegacyWhitelist();
-            else {
+            if (snapshot !== null) {
                 Object.assign(state, validateSavedCards(snapshot));
                 state.savedCardsReady = true;
             }
@@ -1668,9 +1641,11 @@ dispatchIssuer({"id":"amex-offer-lite","patterns":["^https://global\\.americanex
         setInterval(refreshTimers, 1000);
     }
 })();
+// --- End issuer body: amex-offer-lite ---
 });
 
 dispatchIssuer({"id":"bofa-offer-lite","patterns":["^https://deals\\.merchant-rewards\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+// --- Issuer body: bofa-offer-lite ---
 (function () {
     'use strict';
 
@@ -1921,7 +1896,7 @@ dispatchIssuer({"id":"bofa-offer-lite","patterns":["^https://deals\\.merchant-re
 
     // Source: core/state.js
     const SETTINGS = {
-        id: "bofa-offer-lite", name: "BankAmeriDeals Lite", version: "1.3.0",
+        id: "bofa-offer-lite", name: "BankAmeriDeals Lite", version: "1.3.1",
         gapMilliseconds: 500, timeoutMilliseconds: 45000, pageSize: 24,
         defaultCooldownMilliseconds: 300000
     };
@@ -2275,9 +2250,11 @@ dispatchIssuer({"id":"bofa-offer-lite","patterns":["^https://deals\\.merchant-re
     restoreWorkspace();
     mountPanel();
 })();
+// --- End issuer body: bofa-offer-lite ---
 });
 
 dispatchIssuer({"id":"chase-offer-lite","patterns":["^https://secure\\.chase\\.com/web/auth/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
+// --- Issuer body: chase-offer-lite ---
 (function () {
     'use strict';
 
@@ -2528,7 +2505,7 @@ dispatchIssuer({"id":"chase-offer-lite","patterns":["^https://secure\\.chase\\.c
 
     // Source: core/state.js
     const SETTINGS = {
-        id: "chase-offer-lite", name: "Chase Offer Lite", version: "1.3.0",
+        id: "chase-offer-lite", name: "Chase Offer Lite", version: "1.3.1",
         gapMilliseconds: 500, timeoutMilliseconds: 45000,
         defaultCooldownMilliseconds: 300000
     };
@@ -2698,10 +2675,16 @@ dispatchIssuer({"id":"chase-offer-lite","patterns":["^https://secure\\.chase\\.c
                 || String(method || 'GET').toUpperCase() !== 'GET') return null;
             const headers = chaseReadHeaders(requestHeaders);
             const pathParameters = JSON.parse(headers['path-params']);
-            if (!Array.isArray(pathParameters.primaryDigitalAccountIdentifierList)
-                || pathParameters.primaryDigitalAccountIdentifierList.length !== 1) return null;
+            const requestedAccounts = pathParameters.primaryDigitalAccountIdentifierList;
+            const dashboardDiscovery = Array.isArray(requestedAccounts) && requestedAccounts.length === 0
+                && url.searchParams.get('source-request-component-name') === 'OVERVIEW_DASHBOARD'
+                && url.searchParams.get('source-application-system-name') === 'CHASE_WEB'
+                && url.searchParams.get('offer-count') === '12'
+                && url.searchParams.get('offerStatusNameList') === 'NEW,ACTIVATED,SERVED'
+                && !url.searchParams.has('offerCategoryCodeList');
+            if (!Array.isArray(requestedAccounts) || (requestedAccounts.length !== 1 && !dashboardDiscovery)) return null;
             const enterprisePartyIdentifier = chaseIdentifier(pathParameters.enterprisePartyIdentifier);
-            const accountId = chaseIdentifier(pathParameters.primaryDigitalAccountIdentifierList[0]);
+            const accountId = dashboardDiscovery ? null : chaseIdentifier(requestedAccounts[0]);
             if (!headers['x-jpmc-csrf-token'] || /[\r\n]/.test(headers['x-jpmc-csrf-token'])) return null;
             const safeHeaders = {};
             for (const name of CHASE_SESSION_HEADER_NAMES) if (headers[name]) safeHeaders[name] = headers[name];
@@ -2710,7 +2693,7 @@ dispatchIssuer({"id":"chase-offer-lite","patterns":["^https://secure\\.chase\\.c
                 chaseCapturedSession = null;
                 chaseCapturedAccounts = null;
             }
-            return { accountId, enterprisePartyIdentifier, headers: safeHeaders, sequence };
+            return { accountId, dashboardDiscovery, enterprisePartyIdentifier, headers: safeHeaders, sequence };
         } catch { return null; }
     }
     function captureSessionResponse(context, payload) {
@@ -2718,9 +2701,15 @@ dispatchIssuer({"id":"chase-offer-lite","patterns":["^https://secure\\.chase\\.c
         try {
             const accounts = normalizeAccounts(payload);
             if (chaseIdentifier(payload.primaryIndividualEnterprisePartyIdentifier) !== context.enterprisePartyIdentifier
-                || !accounts.some(account => account.accountId === context.accountId)
-                || !Array.isArray(payload.customerOffers)
-                || !payload.customerOffers.some(account => chaseIdentifier(account.digitalAccountIdentifier) === context.accountId)) return false;
+                || !Array.isArray(payload.customerOffers)) return false;
+            // The homepage asks Chase to choose its default card. Its limited offer
+            // preview can establish discovery/session data, never a completed scan.
+            if (context.dashboardDiscovery && (payload.customerOffers.length !== 1
+                || !Array.isArray(payload.customerOffers[0]?.offers))) return false;
+            const accountId = context.dashboardDiscovery
+                ? chaseIdentifier(payload.customerOffers[0].digitalAccountIdentifier) : context.accountId;
+            if (!accounts.some(account => account.accountId === accountId)
+                || !payload.customerOffers.some(account => chaseIdentifier(account.digitalAccountIdentifier) === accountId)) return false;
             // Only discovery fields survive observation. Impression/session tokens,
             // credentials and the native offer payload stay in memory. Workspace snapshots
             // separately retain normalized display records and the non-secret profile ID.
@@ -2731,12 +2720,12 @@ dispatchIssuer({"id":"chase-offer-lite","patterns":["^https://secure\\.chase\\.c
                 maskedAccountNumber: typeof card.maskedAccountNumber === 'string' ? card.maskedAccountNumber.slice(-4) : '',
                 shoppingEligibilityIndicator: card.shoppingEligibilityIndicator
             })) };
-            chaseCapturedSession = { ...context, headers: { ...context.headers }, capturedAt: Date.now() };
+            chaseCapturedSession = { ...context, accountId, headers: { ...context.headers }, capturedAt: Date.now() };
             return true;
         } catch { return false; }
     }
     function currentSession() {
-        if (!chaseCapturedSession) throw new Error('Open Chase Offers or switch cards there, then detect cards again. Session data stays in this tab only.');
+        if (!chaseCapturedSession) throw new Error('Wait for the Chase dashboard to load, then detect cards again. Open Chase Offers or refresh with the script enabled if needed. Session data stays in this tab only.');
         const { accountId, enterprisePartyIdentifier, capturedAt } = chaseCapturedSession;
         return { accountId, enterprisePartyIdentifier, capturedAt };
     }
@@ -3091,9 +3080,11 @@ dispatchIssuer({"id":"chase-offer-lite","patterns":["^https://secure\\.chase\\.c
     if (document.body) mountPanel();
     else document.addEventListener('DOMContentLoaded', mountPanel, { once: true });
 })();
+// --- End issuer body: chase-offer-lite ---
 });
 
 dispatchIssuer({"id":"citi-offer-lite","patterns":["^https://online\\.citi\\.com/US/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+// --- Issuer body: citi-offer-lite ---
 (function () {
     'use strict';
 
@@ -3344,7 +3335,7 @@ dispatchIssuer({"id":"citi-offer-lite","patterns":["^https://online\\.citi\\.com
 
     // Source: core/state.js
     const SETTINGS = {
-        id: "citi-offer-lite", name: "Citi Offer Lite", version: "1.3.0",
+        id: "citi-offer-lite", name: "Citi Offer Lite", version: "1.3.1",
         apiBase: '/gcgapi/prod/public/v1',
         retrievePath: '/digital/customers/creditCards/merchantOffers/retrieve',
         enrollmentPath: '/digital/customers/creditCards/accounts/rewards/specialOffers/enrollMerchantOffer',
@@ -3779,9 +3770,11 @@ dispatchIssuer({"id":"citi-offer-lite","patterns":["^https://online\\.citi\\.com
     restoreWorkspace();
     mountPanel();
 })();
+// --- End issuer body: citi-offer-lite ---
 });
 
 dispatchIssuer({"id":"usbank-offer-lite","patterns":["^https://onlinebanking\\.usbank\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+// --- Issuer body: usbank-offer-lite ---
 (function () {
     'use strict';
 
@@ -4032,7 +4025,7 @@ dispatchIssuer({"id":"usbank-offer-lite","patterns":["^https://onlinebanking\\.u
 
     // Source: core/state.js
     const SETTINGS = {
-        id: "usbank-offer-lite", name: "US Bank Offer Lite", version: "1.3.0",
+        id: "usbank-offer-lite", name: "US Bank Offer Lite", version: "1.3.1",
         endpoint: '/digital/api/customer-management/graphql/v2',
         gapMilliseconds: 500, timeoutMilliseconds: 45000,
         defaultCooldownMilliseconds: 300000
@@ -4501,9 +4494,11 @@ dispatchIssuer({"id":"usbank-offer-lite","patterns":["^https://onlinebanking\\.u
     restoreWorkspace();
     mountPanel();
 })();
+// --- End issuer body: usbank-offer-lite ---
 });
 
 dispatchIssuer({"id":"wellsfargo-offer-lite","patterns":["^https://web\\.secure\\.wellsfargo\\.com/auth/deals-portal.*$","^https://web\\.secure\\.wellsfargo\\.com/deals-portal/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+// --- Issuer body: wellsfargo-offer-lite ---
 (function () {
     'use strict';
 
@@ -4754,7 +4749,7 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","patterns":["^https://web\\.secure\
 
     // Source: core/state.js
     const SETTINGS = {
-        id: "wellsfargo-offer-lite", name: "Wells Fargo Offer Lite", version: "1.3.0",
+        id: "wellsfargo-offer-lite", name: "Wells Fargo Offer Lite", version: "1.3.1",
         retrievePath: '/deals-portal/as/getDeals', enrollmentPath: '/deals-portal/as/activateCLDeal',
         gapMilliseconds: 500, timeoutMilliseconds: 45000, defaultCooldownMilliseconds: 300000
     };
@@ -5137,5 +5132,6 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","patterns":["^https://web\\.secure\
     restoreWorkspace();
     mountPanel();
 })();
+// --- End issuer body: wellsfargo-offer-lite ---
 });
 })();

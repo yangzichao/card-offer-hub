@@ -1,10 +1,12 @@
 # Wells Fargo Offer Lite
 
+本银行功能随 [Card Offer Hub 统一安装包](../../../bundles/all/README.md) 发布。
+
 手动扫描并批量激活 My Wells Fargo Deals 的 Tampermonkey 脚本。
 
 ## 安装与使用
 
-构建产物：[`dist/wellsfargo-offer-lite.user.js`](../../../dist/wellsfargo-offer-lite.user.js)。尚未发布时，在 Tampermonkey Dashboard → Utilities → Import from file 中导入本地文件。发布到 main 后才可使用 [安装 / 更新链接](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/wellsfargo-offer-lite.user.js)。
+构建产物：[`dist/card-offer-hub-all.user.js`](../../../dist/card-offer-hub-all.user.js)。尚未发布时，在 Tampermonkey Dashboard → Utilities → Import from file 中导入本地文件。发布到 main 后才可使用 [安装 / 更新链接](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/card-offer-hub-all.user.js)。
 
 1. 登录 Wells Fargo，从银行导航打开 **My Wells Fargo Deals**。脚本在 `web.secure.wellsfargo.com/auth/deals-portal` 或 `/deals-portal/` 显示浮动面板。
 2. 在 **Choose scope** 勾选 **Allow adding offers to this account**，确认当前账户范围。刷新后保留勾选；会话变化后需要重新确认。

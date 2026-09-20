@@ -3,13 +3,15 @@ const assert = require('node:assert/strict');
 const { readFileSync, existsSync, readdirSync } = require('node:fs');
 const { resolve } = require('node:path');
 const { loadScriptRegistry, projectRoot } = require('../../scripts/build/script-registry.cjs');
-const { bundleUserscript } = require('../../scripts/build/source-bundle.cjs');
+const { bundleIssuerBody } = require('../../scripts/build/source-bundle.cjs');
 const { buildPublishIndex } = require('../../scripts/build/publish-index.cjs');
 const { replaceCatalog } = require('../../scripts/build/readme-catalog.cjs');
 const { REPOSITORY, publishedFileUrl, publishedUserscriptFileName } = require('../../scripts/build/repository.cjs');
 const { loadAllInOneManifest } = require('../../scripts/build/all-in-one-manifest.cjs');
 
+const { readPublishedIssuerSource } = require('../helpers/published-issuer-source.cjs');
 const scripts = loadScriptRegistry();
+const manifest = loadAllInOneManifest(scripts);
 const distDirectory = resolve(projectRoot, REPOSITORY.publishDirectory);
 
 function readPublishedScript(script) {
@@ -27,40 +29,32 @@ function metadataValues(publishedText, key) {
 }
 
 for (const script of scripts) {
-    test(`${script.id}: the published file matches the current sources`, () => {
-        assert.equal(readPublishedScript(script), bundleUserscript(script),
-            'dist/ is stale; run npm run build and commit the result.');
-    });
-
-    test(`${script.id}: Tampermonkey can update it from this repository`, () => {
-        const publishedText = readPublishedScript(script);
-        const installUrl = publishedFileUrl(publishedUserscriptFileName(script.id));
-        assert.deepEqual(metadataValues(publishedText, 'updateURL'), [installUrl]);
-        assert.deepEqual(metadataValues(publishedText, 'downloadURL'), [installUrl]);
-        assert.deepEqual(metadataValues(publishedText, 'version'), [script.version],
-            'the published @version must match userscript.json, or updates will not be offered.');
-    });
-
-    test(`${script.id}: the published file has exactly one metadata block`, () => {
-        const publishedText = readPublishedScript(script);
-        assert.equal(publishedText.split('\n').filter((line) => line.trim() === '// ==UserScript==').length, 1);
-        assert.equal(publishedText.split('\n').filter((line) => line.trim() === '// ==/UserScript==').length, 1);
-    });
-
-    test(`${script.id}: no build constant is left unresolved`, () => {
-        assert.equal(readPublishedScript(script).match(/__USERSCRIPT_[A-Z_]+__/g), null);
-    });
-
-    test(`${script.id}: the runtime version matches the metadata version`, () => {
-        assert.ok(readPublishedScript(script).includes(`version: ${JSON.stringify(script.version)}`),
-            'the bundled SETTINGS.version should come from the manifest, not a second hand-edited copy.');
+    test(`${script.id}: the shipped module matches its sources and unified version`, () => {
+        const body = readPublishedIssuerSource(script.id);
+        assert.equal(body, bundleIssuerBody(script, manifest.version));
+        assert.equal(body.match(/__USERSCRIPT_[A-Z_]+__/g), null);
+        assert.ok(body.includes(`version: ${JSON.stringify(manifest.version)}`));
+        assert.equal(Object.hasOwn(JSON.parse(readFileSync(resolve(projectRoot, script.manifestPath))), 'version'), false);
     });
 }
 
-test('the published catalog lists every script exactly once', () => {
+test('the only published script has one metadata block and a stable update identity', () => {
+    const publishedText = readPublishedScript(manifest);
+    const installUrl = publishedFileUrl(publishedUserscriptFileName(manifest.id));
+    assert.deepEqual(metadataValues(publishedText, 'updateURL'), [installUrl]);
+    assert.deepEqual(metadataValues(publishedText, 'downloadURL'), [installUrl]);
+    assert.deepEqual(metadataValues(publishedText, 'version'), [manifest.version]);
+    assert.equal(publishedText.split('\n').filter(line => line.trim() === '// ==UserScript==').length, 1);
+    assert.equal(publishedText.split('\n').filter(line => line.trim() === '// ==/UserScript==').length, 1);
+});
+
+test('the published catalog lists one install and all unversioned bank modules', () => {
     assert.equal(readFileSync(resolve(distDirectory, 'index.json'), 'utf8'), buildPublishIndex(scripts));
     const catalog = JSON.parse(readFileSync(resolve(distDirectory, 'index.json'), 'utf8'));
-    assert.deepEqual(catalog.scripts.map((entry) => entry.id), scripts.map((script) => script.id));
+    assert.deepEqual(catalog.scripts.map((entry) => entry.id), [manifest.id]);
+    assert.equal(catalog.schemaVersion, 2);
+    assert.deepEqual(catalog.scripts[0].includes.map(entry => entry.id), scripts.map(script => script.id));
+    assert.ok(catalog.scripts[0].includes.every(entry => !Object.hasOwn(entry, 'version') && !Object.hasOwn(entry, 'installUrl')));
 });
 
 test('the README install table is in sync with the registry', () => {
@@ -68,8 +62,8 @@ test('the README install table is in sync with the registry', () => {
     assert.equal(readmeText, replaceCatalog(readmeText, scripts), 'README.md install table is stale; run npm run build.');
 });
 
-test('dist/ holds nothing but the catalog, issuer scripts and all-in-one', () => {
-    const expected = ['index.json', ...[...scripts, loadAllInOneManifest(scripts)].map((script) => publishedUserscriptFileName(script.id))].sort();
+test('dist/ holds only the catalog and unified userscript', () => {
+    const expected = ['index.json', publishedUserscriptFileName(manifest.id)].sort();
     assert.deepEqual(readdirSync(distDirectory).sort(), expected,
         'a leftover file in dist/ keeps serving old code to anyone whose Tampermonkey still points at it.');
 });

@@ -1,8 +1,7 @@
+const { readPublishedIssuerSource } = require('../../helpers/published-issuer-source.cjs');
 const { webcrypto } = require('node:crypto');
-const { readFileSync } = require('node:fs');
-const { resolve } = require('node:path');
 const { runInNewContext } = require('node:vm');
-const source = () => readFileSync(resolve(__dirname, '../../../dist/bofa-offer-lite.user.js'), 'utf8');
+const source = () => readPublishedIssuerSource('bofa-offer-lite');
 const token = (claims = {}) => `synthetic.${Buffer.from(JSON.stringify({ exp: 9999999999, featureFlags: { dxlEnabled: true }, ...claims })).toString('base64url')}.not-a-signature`;
 const offer = (id = '101', extra = {}) => ({
     id, offer_id: id, merchant_name: `Synthetic Merchant ${id}`, headline: '$5 back',

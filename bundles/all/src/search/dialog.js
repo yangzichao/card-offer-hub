@@ -20,7 +20,7 @@ function openHubSearch(launcher) {
           <p id="hub-data-warning" class="hub-search-error" role="alert"></p>
           <div class="hub-search-summary" role="status" aria-live="polite"><strong id="hub-result-count"></strong><span id="hub-result-coverage" class="muted"></span></div>
           <div id="hub-results"></div><button id="hub-load-more" class="hub-more" aria-label="Show more cross-bank results"></button>
-          <details class="hub-coverage"><summary aria-label="Show saved bank coverage">Saved bank coverage</summary><ul id="hub-coverage-list"></ul><p>Data from standalone scripts is separate. Scan each bank using All Banks to include it here.</p></details>
+          <details class="hub-coverage"><summary aria-label="Show saved bank coverage">Saved bank coverage</summary><ul id="hub-coverage-list"></ul><p>Scan each bank to include its saved offers here.</p></details>
         </div>
       </dialog>`;
     const loaded = hubLoadSearchPreferences();

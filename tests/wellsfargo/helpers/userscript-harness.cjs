@@ -1,6 +1,5 @@
+const { readPublishedIssuerSource } = require('../../helpers/published-issuer-source.cjs');
 const { webcrypto } = require('node:crypto');
-const { readFileSync } = require('node:fs');
-const { resolve } = require('node:path');
 const { runInNewContext } = require('node:vm');
 
 function bootstrap(action = '/deals-portal/as/activateCLDeal?token=synthetic-token') {
@@ -19,7 +18,7 @@ function jsonResponse(payload, status = 200, retryAfter = null) {
     return { status, ok: status >= 200 && status < 300, headers: { get: () => retryAfter }, text: async () => JSON.stringify(payload) };
 }
 function createHarness(respond = () => jsonResponse(listing()), options = {}) {
-    const source = readFileSync(resolve(__dirname, '../../../dist/wellsfargo-offer-lite.user.js'), 'utf8');
+    const source = readPublishedIssuerSource('wellsfargo-offer-lite');
     const marker = '    // --- Init ---';
     let now = 1800000000000;
     let active = 0;

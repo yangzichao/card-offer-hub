@@ -1,10 +1,12 @@
 # US Bank Offer Lite
 
+本银行功能随 [Card Offer Hub 统一安装包](../../../bundles/all/README.md) 发布。
+
 手动扫描、选择并激活 US Bank Cash Back Deals 的 Tampermonkey 脚本。每次激活后回查服务端，只有该优惠的 `activationState === "ACTIVATED"` 才计为成功。
 
 ## 使用
 
-1. 发布到 main 后，从 [安装 / 更新](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/usbank-offer-lite.user.js) 安装；本地开发产物为仓库 `dist/usbank-offer-lite.user.js`，可在 Tampermonkey Utilities 中从文件导入。不要手贴覆盖已安装脚本。
+1. 发布到 main 后，从 [安装 / 更新](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/card-offer-hub-all.user.js) 安装；本地开发产物为仓库 `dist/card-offer-hub-all.user.js`，可在 Tampermonkey Utilities 中从文件导入。不要手贴覆盖已安装脚本。
 2. 登录 US Bank，在网站内进入 **Cash Back Deals**，等待原页面加载完毕。脚本显示浮动面板，但不会自动请求。
 3. 点击 **Scan offers**。扫描不会自动勾选优惠。
 4. 点击 **Add all offers** 添加扫描结果中全部可添加优惠；如只需要部分优惠，逐项勾选后点击次要操作 **Add selected**。

@@ -1,13 +1,13 @@
+const { readPublishedIssuerSource } = require('../helpers/published-issuer-source.cjs');
 // Read-only local contract check. Never emits captured identifiers or payloads.
 const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
-const { resolve } = require('node:path');
 const { createHarness } = require('./helpers/userscript-harness.cjs');
 
 function verifyCapture(filePath) {
     const entries = JSON.parse(readFileSync(filePath, 'utf8')).log.entries;
     const harness = createHarness();
-    const script = readFileSync(resolve(__dirname, '../../dist/usbank-offer-lite.user.js'), 'utf8');
+    const script = readPublishedIssuerSource('usbank-offer-lite');
     const snapshots = [];
     let activationCount = 0;
     const decode = content => JSON.parse(content.encoding === 'base64'

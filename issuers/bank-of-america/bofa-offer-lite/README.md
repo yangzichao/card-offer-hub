@@ -1,8 +1,10 @@
 # BankAmeriDeals Lite
 
+本银行功能随 [Card Offer Hub 统一安装包](../../../bundles/all/README.md) 发布。
+
 手动扫描当前登录的 Bank of America Deals profile，并批量激活普通 card-linked 优惠。
 
-1. 用 Tampermonkey 安装构建产物 `dist/bofa-offer-lite.user.js`。
+1. 用 Tampermonkey 安装构建产物 `dist/card-offer-hub-all.user.js`。
 2. 从 Bank of America 登录并进入 `deals.merchant-rewards.com`。
 3. 在 **Choose scope** 确认当前 profile，点 **Scan offers** 查看优惠，并阅读网站条款。
 4. 在 **Review & add** 点 **Add all offers**。搜索只改变显示列表，不缩小批量添加范围。

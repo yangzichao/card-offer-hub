@@ -10,7 +10,7 @@ if (!capturePath) {
     try {
         const entries = JSON.parse(readFileSync(capturePath, 'utf8')).log.entries;
         const harness = createHarness(undefined, { seedSession: false });
-        const summary = { successfulReads: 0, completeLists: 0, categorySubsets: 0, partialLists: 0,
+        const summary = { successfulReads: 0, completeLists: 0, dashboardPreviews: 0, categorySubsets: 0, partialLists: 0,
             maximumDiscoveredCards: 0, observedNonGetRequests: 0, confirmedEnrollmentSamples: 0 };
         for (const entry of entries) {
             const url = new URL(entry.request.url);
@@ -25,9 +25,11 @@ if (!capturePath) {
             if (!context || !harness.captureSessionResponse(context, payload)) throw new Error('Session contract was rejected.');
             summary.maximumDiscoveredCards = Math.max(summary.maximumDiscoveredCards, harness.normalizeAccounts(payload).length);
             summary.successfulReads++;
+            const dashboardPreview = url.searchParams.get('source-request-component-name') === 'OVERVIEW_DASHBOARD';
             const categorySubset = url.searchParams.has('offerCategoryCodeList');
             const partial = payload.customerOffers.some(account => account.partial !== false);
-            if (categorySubset) summary.categorySubsets++;
+            if (dashboardPreview) summary.dashboardPreviews++;
+            else if (categorySubset) summary.categorySubsets++;
             else if (partial) summary.partialLists++;
             else {
                 const component = url.searchParams.get('source-request-component-name');
@@ -39,13 +41,13 @@ if (!capturePath) {
             }
             let accepted = false;
             try {
-                harness.normalizeOffers(payload, context.accountId, context.enterprisePartyIdentifier);
+                harness.normalizeOffers(payload, harness.currentSession().accountId, context.enterprisePartyIdentifier);
                 accepted = true;
             } catch {
-                if (!categorySubset && !partial) throw new Error('A full-list response failed strict normalization.');
+                if (!dashboardPreview && !categorySubset && !partial) throw new Error('A full-list response failed strict normalization.');
             }
             if (partial && accepted) throw new Error('An incomplete list was incorrectly accepted.');
-            if (!categorySubset && !partial) summary.completeLists++;
+            if (!dashboardPreview && !categorySubset && !partial) summary.completeLists++;
         }
         if (!summary.successfulReads || !summary.completeLists) throw new Error('No successful full-list samples were found.');
         console.log(JSON.stringify({ ...summary,

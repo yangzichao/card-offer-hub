@@ -1,11 +1,12 @@
+const { readPublishedIssuerSource } = require('../helpers/published-issuer-source.cjs');
 const { verifyWorkspaceReload } = require('../helpers/browser-workspace.cjs');
 const assert = require('node:assert/strict');
-const { readFileSync, mkdirSync } = require('node:fs');
+const { mkdirSync } = require('node:fs');
 const { resolve } = require('node:path');
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE_PATH || 'playwright');
 const { cookieFixture, listing, offer, confirmation } = require('./helpers/userscript-harness.cjs');
 
-const script = readFileSync(resolve(__dirname, '../../dist/citi-offer-lite.user.js'), 'utf8');
+const script = readPublishedIssuerSource('citi-offer-lite');
 const outputDirectory = resolve(__dirname, '../../work/browser');
 mkdirSync(outputDirectory, { recursive: true });
 

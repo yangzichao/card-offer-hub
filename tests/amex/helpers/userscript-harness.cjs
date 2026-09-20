@@ -1,10 +1,9 @@
-const { readFileSync } = require('node:fs');
-const { resolve } = require('node:path');
+const { readPublishedIssuerSource } = require('../../helpers/published-issuer-source.cjs');
 const { runInNewContext } = require('node:vm');
 const { randomUUID } = require('node:crypto');
 
 function createUserscriptHarness(fetchResponse = () => { throw new Error('Unexpected request'); }, options = {}) {
-    const source = readFileSync(resolve(__dirname, '../../../dist/amex-offer-lite.user.js'), 'utf8');
+    const source = readPublishedIssuerSource('amex-offer-lite');
     const marker = '    // --- Init ---';
     if (!source.includes(marker)) throw new Error('Update the test probe for the new initialization boundary.');
     let now = 1700000000000;

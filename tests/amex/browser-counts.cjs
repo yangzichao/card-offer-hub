@@ -1,5 +1,6 @@
+const { readPublishedIssuerSource } = require('../helpers/published-issuer-source.cjs');
 const assert = require('node:assert/strict');
-const { readFileSync, mkdirSync } = require('node:fs');
+const { mkdirSync } = require('node:fs');
 const { resolve } = require('node:path');
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE_PATH || 'playwright');
 const { rawOffer, hubResponse, confirmation } = require('./fixtures/synthetic-offers.cjs');
@@ -61,7 +62,7 @@ async function run() {
                 account: { display_account_number: `1000${index}` }
             })) };
         });
-        const userscript = readFileSync(resolve(__dirname, '../../dist/amex-offer-lite.user.js'), 'utf8');
+        const userscript = readPublishedIssuerSource('amex-offer-lite');
         const storageFixture = await createBrowserStorageFixture(page);
         await storageFixture.restore();
         await page.addScriptTag({ content: userscript });

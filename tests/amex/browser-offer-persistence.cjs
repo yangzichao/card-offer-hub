@@ -1,11 +1,12 @@
+const { readPublishedIssuerSource } = require('../helpers/published-issuer-source.cjs');
 const assert = require('node:assert/strict');
-const { readFileSync, mkdirSync } = require('node:fs');
+const { mkdirSync } = require('node:fs');
 const { resolve } = require('node:path');
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE_PATH || 'playwright');
 const { rawOffer, hubResponse, confirmation } = require('./fixtures/synthetic-offers.cjs');
 const { createBrowserStorageFixture } = require('./helpers/browser-storage.cjs');
 
-const userscript = readFileSync(resolve(__dirname, '../../dist/amex-offer-lite.user.js'), 'utf8');
+const userscript = readPublishedIssuerSource('amex-offer-lite');
 
 async function run() {
     const browser = await chromium.launch({ headless: true });

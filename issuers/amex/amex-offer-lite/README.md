@@ -1,15 +1,17 @@
 # Amex Offer Lite
 
+本银行功能随 [Card Offer Hub 统一安装包](../../../bundles/all/README.md) 发布。
+
 American Express 网页中的 Tampermonkey 工具。卡片检测、扫描和添加都由按钮触发，没有任何定时器会自己发请求。
 
-v5.0 改变了添加 Offer 的方式：**一个 Offer 只加到一张卡**。多张卡都能加的 Offer 归你排在最前面、且当前 eligible 的那张；只有某一张卡才有的 Offer 就加到那张卡。
-同时取消了同 Offer 跨卡并发，改成严格一个请求一个请求地发。
+添加规则：**一个 Offer 只加到一张卡**。多张卡都能加的 Offer 归你排在最前面、且当前 eligible 的那张；只有某一张卡才有的 Offer 就加到那张卡。
+所有请求严格串行发送。
 
 ## 安装
 
 1. 安装 [Tampermonkey](https://www.tampermonkey.net/)。
-2. 打开 [amex-offer-lite.user.js](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/amex-offer-lite.user.js)，Tampermonkey 会弹出安装页，确认即可。脚本需要其中的 `GM_getValue`、`GM_setValue` 和 `unsafeWindow` grants。
-3. 删掉以前手动贴进去的旧副本，否则两份会同时匹配 Amex 站点。保存后刷新已登录的 [Amex Offers 页面](https://global.americanexpress.com/offers)。
+2. 打开 [Card Offer Hub](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/card-offer-hub-all.user.js)，Tampermonkey 会弹出安装页，确认即可。脚本需要其中的 `GM_getValue`、`GM_setValue` 和 `unsafeWindow` grants。
+3. 安装后刷新已登录的 [Amex Offers 页面](https://global.americanexpress.com/offers)。
 
 之后不用再手动更新。发布文件里带 `@updateURL`，Tampermonkey 会按自己的周期检查版本号并静默升级；要立刻更新就在 Tampermonkey 面板点 **Check for userscript updates**。
 
@@ -28,9 +30,7 @@ v5.0 改变了添加 Offer 的方式：**一个 Offer 只加到一张卡**。多
 
 卡片发生变化时，点击独立的 **Refresh cards**：只重新请求一次账户列表，遵守同一请求间隔。保留已有卡片的 whitelist、排序和 Offer，新卡默认不勾选、排在最后，不会插到你已经排好的卡前面；暂时缺失的卡片保留选择、名次及结果但不扫描，重新出现后回到原位。刷新失败保留旧列表和选择。普通网页刷新不会触发此操作。
 
-升级时会迁移 v4.0/v4.1 尚存的 whitelist，并尝试从已加载的页面数据补全卡列表，全程不自动请求。若当时没有页面卡数据，只需手动检测一次，已有选择仍会保留。旧版已经删除的选择无法凭空恢复。
-
-v4.1 修正已添加完整列表的字段：`ADDEDTOCARD_LANDING` 读取 `addedToCardViewAll.offersList`。首页摘要和登记响应的 `addedToCard.offersList` 用途不同，不作为完整列表的替代。
+已添加完整列表的字段：`ADDEDTOCARD_LANDING` 读取 `addedToCardViewAll.offersList`。首页摘要和登记响应的 `addedToCard.offersList` 用途不同，不作为完整列表的替代。
 
 ## 卡片优先级
 
@@ -40,15 +40,13 @@ v4.1 修正已添加完整列表的字段：`ADDEDTOCARD_LANDING` 读取 `addedT
 - 某个 Offer 已经在任意一张 whitelist 卡上是 added，或者上次发出后还是 UNCONFIRMED，就不会再加到别的卡上；要重新判断先重新扫描。
 - 最靠前的卡如果扫描不完整、或者这个 Offer 明确被拒绝（FAILED），顺位交给下一张卡。
 - 扫描顺序也跟着优先级走，最靠前的卡先扫。
-- 升级到 v5.0 时，已保存的卡按当时的检测顺序作为初始名次，不会打乱，也不会因此发请求。
 
 ## 保存 Offer 与手动刷新
 
-- v4.4 保存每张卡的 Offer 列表、eligible/added 等登记状态、扫描完整性和扫描时间。刷新页面直接恢复，跨卡分组和统计同时恢复；没有自动扫描、后台更新或缓存到期清空。
+- 保存每张卡的 Offer 列表、eligible/added 等登记状态、扫描完整性和扫描时间。刷新页面直接恢复，跨卡分组和统计同时恢复；没有自动扫描、后台更新或缓存到期清空。
 - 已完整扫描的保存结果可以直接手动登记，无需先重新扫描。每张卡及结果区显示 Last scan，方便自行决定何时更新。
 - 手动刷新保留屏幕上的旧结果，逐卡成功后替换。网络错误或列表解析不完整时保留该卡旧数据和旧时间，并标记 Incomplete；首次扫描的部分结果也会保存，不能冒充完整扫描参与登记。
 - 每次添加前先保存待确认状态，响应回来后立即保存结果。中途刷新页面不会把已发送但尚未确认的添加恢复成可重复添加的 eligible，而是显示 UNCONFIRMED，待手动扫描核实；UNCONFIRMED 同时会挡住这个 Offer 落到别的卡上。无法保存待确认状态时不会发送任何请求。
-- v4.3 及更早版本没有保存 Offer，无法恢复已经丢失的结果。更新后首次扫描建立快照，此后可一直复用，直到手动刷新。
 
 ## 数量与重复 Offer
 
@@ -74,15 +72,15 @@ v4.1 修正已添加完整列表的字段：`ADDEDTOCARD_LANDING` 读取 `addedT
 
 扫描完成后点 **Add all offers** 一次跑完，或者点单个 Offer 上的 **Add** 只加那一个。搜索只影响列表；按钮始终为 **Add all offers**，覆盖全部已选卡片的可添加 Offer。点击时固定本轮队列，切换浏览器标签页、修改搜索或面板重建都不会缩小任务或重新发送已完成的请求。只有 whitelist 卡片中已完整扫描、标为可添加的商户 Offer 会发起请求。
 
-v4.5 恢复的原始 `CreateCardAccountOfferEnrollment.v1` 接口继续使用：每张卡自己的 `accountNumberProxy` 和 `identifier`，带请求时间及用户时区；全量读取继续使用 Offers Hub。只有响应的 `isEnrolled === true` 才显示成功。原始脚本的 `isEnrolled || true` 会误报成功，没有恢复这一错误行为。
+登记使用 `CreateCardAccountOfferEnrollment.v1` 接口：每张卡自己的 `accountNumberProxy` 和 `identifier`，带请求时间及用户时区；全量读取继续使用 Offers Hub。只有响应的 `isEnrolled === true` 才显示成功。false 或未知响应不会计为成功。
 
-v5.0 起没有并发：一个请求一张卡；v5.0.1 将响应后的间隔缩短为 0.5 秒。失败或未确认会停住本轮并要求重新扫描，不会盲目重发。Activity 记录这轮计划的 Offer 数、涉及的卡数、登记接口以及每次的 isEnrolled 结果。信息类 Offer 保留在列表中供查看，永远不会被添加。
+一次请求处理一张卡，响应后的间隔为 0.5 秒。失败或未确认会停住本轮并要求重新扫描，不会盲目重发。Activity 记录这轮计划的 Offer 数、涉及的卡数、登记接口以及每次的 isEnrolled 结果。信息类 Offer 保留在列表中供查看，永远不会被添加。
 
-登记协议依据旧脚本和 HAR 中实际成功的 Card 接口请求恢复。v4.x 里“同一个 Offer 只成功一张卡”是待查的故障；v5.0 起这是**设计行为**——一个 Offer 本来就只加一张卡，所以那个现象不再是判断依据。协议本身仍未在当前账户上现场验证。完整差异与证据见 [登记对照说明](../../../docs/amex-enrollment-comparison.md)。
+登记协议依据 HAR 中实际成功的 Card 接口请求。一个 Offer 只加一张卡是当前设计行为。协议本身仍未在当前账户上现场验证。完整差异与证据见 [登记对照说明](../../../docs/amex-enrollment-comparison.md)。
 
 ## 数据与验证
 
-卡片标识、显示名称、whitelist、优先级顺序和 Offer 快照保存于 Tampermonkey 自身的存储，网站清理 localStorage 不会删除这些数据。保存 API 依据 [Tampermonkey 官方文档](https://www.tampermonkey.net/documentation.php?q=GM_setValue)。卡设置（含优先级，schemaVersion 2）和 Offer 使用独立的版本化快照，保存或读取失败在对应区域明确显示，不会静默宣称成功。v1 快照按检测顺序补上初始优先级，不会被覆写。冷却时间仍使用网站本地存储；不加载旧版 v3 的 Offer 缓存和 blocklist，也不从 localStorage 搜寻会话 token。
+卡片标识、显示名称、whitelist、优先级顺序和 Offer 快照保存于 Tampermonkey 自身的存储，网站清理 localStorage 不会删除这些数据。保存 API 依据 [Tampermonkey 官方文档](https://www.tampermonkey.net/documentation.php?q=GM_setValue)。卡设置（含优先级，schemaVersion 2）和 Offer 使用独立的版本化快照，保存或读取失败在对应区域明确显示，不会静默宣称成功。v1 快照按检测顺序补上初始优先级，不会被覆写。冷却时间仍使用网站本地存储；不从网站存储导入卡片选择、Offer 或会话 token。
 
 已使用 2026-09-10 的本地 HAR 核对页面状态、Offers Hub 数据和登记响应，并在拦截网络的 Chromium 中验证操作流程，包括真实 document reload 后恢复卡片、选择、优先级及扫描能力，以及用真实鼠标拖动改变优先级。浏览器测试模拟 GM 存储 API，未把合成回归当作真实 Tampermonkey 安装或当前账户扫描证明。
 

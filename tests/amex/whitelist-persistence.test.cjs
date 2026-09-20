@@ -81,21 +81,6 @@ test('saved choices survive unavailable or cleared website storage', async () =>
     assert.equal(nextVisit.state.savedCardsError, '');
 });
 
-test('legacy choices without page data survive until the one-time manual detection', async () => {
-    const storage = new Map([['card_offer_hub_amex_whitelist_v1', '["card-a"]']]);
-    const previousVisit = createUserscriptHarness(undefined, { storage });
-    previousVisit.restoreLocalSettings();
-    assert.equal(previousVisit.requests.length, 0);
-    assert.equal(previousVisit.state.detected, false);
-    const nextVisit = createUserscriptHarness(() => jsonResponse({ accounts: [rawAccount('card-a')] }), {
-        userscriptStorage: previousVisit.userscriptStorage
-    });
-    nextVisit.restoreLocalSettings();
-    await nextVisit.detectCards();
-    assert.equal(nextVisit.requests.length, 1);
-    assert.deepEqual([...nextVisit.state.whitelist], ['card-a']);
-});
-
 test('force refresh bypasses stale page data, keeps approvals, and excludes missing and new cards', async () => {
     const previousVisit = await savedSelection();
     previousVisit.setCardWhitelisted('card-b', true);

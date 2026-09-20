@@ -20,10 +20,16 @@ function captureSessionRequest(requestUrl, method, requestHeaders) {
             || String(method || 'GET').toUpperCase() !== 'GET') return null;
         const headers = chaseReadHeaders(requestHeaders);
         const pathParameters = JSON.parse(headers['path-params']);
-        if (!Array.isArray(pathParameters.primaryDigitalAccountIdentifierList)
-            || pathParameters.primaryDigitalAccountIdentifierList.length !== 1) return null;
+        const requestedAccounts = pathParameters.primaryDigitalAccountIdentifierList;
+        const dashboardDiscovery = Array.isArray(requestedAccounts) && requestedAccounts.length === 0
+            && url.searchParams.get('source-request-component-name') === 'OVERVIEW_DASHBOARD'
+            && url.searchParams.get('source-application-system-name') === 'CHASE_WEB'
+            && url.searchParams.get('offer-count') === '12'
+            && url.searchParams.get('offerStatusNameList') === 'NEW,ACTIVATED,SERVED'
+            && !url.searchParams.has('offerCategoryCodeList');
+        if (!Array.isArray(requestedAccounts) || (requestedAccounts.length !== 1 && !dashboardDiscovery)) return null;
         const enterprisePartyIdentifier = chaseIdentifier(pathParameters.enterprisePartyIdentifier);
-        const accountId = chaseIdentifier(pathParameters.primaryDigitalAccountIdentifierList[0]);
+        const accountId = dashboardDiscovery ? null : chaseIdentifier(requestedAccounts[0]);
         if (!headers['x-jpmc-csrf-token'] || /[\r\n]/.test(headers['x-jpmc-csrf-token'])) return null;
         const safeHeaders = {};
         for (const name of CHASE_SESSION_HEADER_NAMES) if (headers[name]) safeHeaders[name] = headers[name];
@@ -32,7 +38,7 @@ function captureSessionRequest(requestUrl, method, requestHeaders) {
             chaseCapturedSession = null;
             chaseCapturedAccounts = null;
         }
-        return { accountId, enterprisePartyIdentifier, headers: safeHeaders, sequence };
+        return { accountId, dashboardDiscovery, enterprisePartyIdentifier, headers: safeHeaders, sequence };
     } catch { return null; }
 }
 function captureSessionResponse(context, payload) {
@@ -40,9 +46,15 @@ function captureSessionResponse(context, payload) {
     try {
         const accounts = normalizeAccounts(payload);
         if (chaseIdentifier(payload.primaryIndividualEnterprisePartyIdentifier) !== context.enterprisePartyIdentifier
-            || !accounts.some(account => account.accountId === context.accountId)
-            || !Array.isArray(payload.customerOffers)
-            || !payload.customerOffers.some(account => chaseIdentifier(account.digitalAccountIdentifier) === context.accountId)) return false;
+            || !Array.isArray(payload.customerOffers)) return false;
+        // The homepage asks Chase to choose its default card. Its limited offer
+        // preview can establish discovery/session data, never a completed scan.
+        if (context.dashboardDiscovery && (payload.customerOffers.length !== 1
+            || !Array.isArray(payload.customerOffers[0]?.offers))) return false;
+        const accountId = context.dashboardDiscovery
+            ? chaseIdentifier(payload.customerOffers[0].digitalAccountIdentifier) : context.accountId;
+        if (!accounts.some(account => account.accountId === accountId)
+            || !payload.customerOffers.some(account => chaseIdentifier(account.digitalAccountIdentifier) === accountId)) return false;
         // Only discovery fields survive observation. Impression/session tokens,
         // credentials and the native offer payload stay in memory. Workspace snapshots
         // separately retain normalized display records and the non-secret profile ID.
@@ -53,12 +65,12 @@ function captureSessionResponse(context, payload) {
             maskedAccountNumber: typeof card.maskedAccountNumber === 'string' ? card.maskedAccountNumber.slice(-4) : '',
             shoppingEligibilityIndicator: card.shoppingEligibilityIndicator
         })) };
-        chaseCapturedSession = { ...context, headers: { ...context.headers }, capturedAt: Date.now() };
+        chaseCapturedSession = { ...context, accountId, headers: { ...context.headers }, capturedAt: Date.now() };
         return true;
     } catch { return false; }
 }
 function currentSession() {
-    if (!chaseCapturedSession) throw new Error('Open Chase Offers or switch cards there, then detect cards again. Session data stays in this tab only.');
+    if (!chaseCapturedSession) throw new Error('Wait for the Chase dashboard to load, then detect cards again. Open Chase Offers or refresh with the script enabled if needed. Session data stays in this tab only.');
     const { accountId, enterprisePartyIdentifier, capturedAt } = chaseCapturedSession;
     return { accountId, enterprisePartyIdentifier, capturedAt };
 }

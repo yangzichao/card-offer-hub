@@ -8,7 +8,6 @@ const { loadScriptRegistry, readScriptManifest, manifestFileName } = require('..
 const VALID_MANIFEST = {
     id: 'demo-script',
     name: 'Demo Script',
-    version: '1.0.0',
     description: 'Fixture manifest for registry validation',
     author: 'Tester',
     issuer: 'demo',
@@ -66,9 +65,9 @@ test('a source file listed twice fails the build', () => {
     });
 });
 
-test('a version Tampermonkey cannot compare fails the build', () => {
-    withFixture({ version: '4.5' }, ['main.js'], (toolDirectory) => {
-        assert.throws(() => readScriptManifest(toolDirectory), /"version" must be major\.minor\.patch/);
+test('independent bank versions are rejected in favor of the unified release', () => {
+    withFixture({ version: '1.0.0' }, ['main.js'], (toolDirectory) => {
+        assert.throws(() => readScriptManifest(toolDirectory), /bank modules must not declare a version/);
     });
 });
 

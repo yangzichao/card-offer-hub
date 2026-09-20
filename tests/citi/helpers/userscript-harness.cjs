@@ -1,12 +1,11 @@
+const { readPublishedIssuerSource } = require('../../helpers/published-issuer-source.cjs');
 const { webcrypto } = require('node:crypto');
-const { readFileSync } = require('node:fs');
-const { resolve } = require('node:path');
 const { runInNewContext } = require('node:vm');
 const { enrollmentResponse } = require('../fixtures/enrollment-response.cjs');
 
 const cookieFixture = 'appVersion=synthetic; businessCode=GCB; channelId=CBOL; client_id=synthetic-client; countryCode=US; tmx_sessionid=synthetic-session';
 function createHarness(respond, options = {}) {
-    const source = readFileSync(resolve(__dirname, '../../../dist/citi-offer-lite.user.js'), 'utf8');
+    const source = readPublishedIssuerSource('citi-offer-lite');
     const marker = '    // --- Init ---';
     let now = 1800000000000;
     let active = 0;

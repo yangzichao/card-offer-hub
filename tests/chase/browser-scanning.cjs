@@ -1,11 +1,12 @@
+const { readPublishedIssuerSource } = require('../helpers/published-issuer-source.cjs');
 const { verifyWorkspaceReload } = require('../helpers/browser-workspace.cjs');
 const assert = require('node:assert/strict');
-const { readFileSync, mkdirSync } = require('node:fs');
+const { mkdirSync } = require('node:fs');
 const { resolve } = require('node:path');
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE_PATH || 'playwright');
-const { listing, offer, endpoint, sessionHeaders } = require('./fixtures/offers-response.cjs');
+const { listing, offer, endpoint, sessionHeaders, dashboardEndpoint, dashboardHeaders } = require('./fixtures/offers-response.cjs');
 
-const script = readFileSync(resolve(__dirname, '../../dist/chase-offer-lite.user.js'), 'utf8');
+const script = readPublishedIssuerSource('chase-offer-lite');
 const outputDirectory = resolve(__dirname, '../../work/browser');
 mkdirSync(outputDirectory, { recursive: true });
 
@@ -43,7 +44,7 @@ async function fixture(browser, mode = 'success') {
             return;
         }
         const headers = await request.allHeaders();
-        const accountIdentifier = JSON.parse(headers['path-params']).primaryDigitalAccountIdentifierList[0];
+        const accountIdentifier = JSON.parse(headers['path-params']).primaryDigitalAccountIdentifierList[0] || '101';
         const native = new URL(request.url()).searchParams.get('native-fixture') === 'true';
         requests.push({ accountIdentifier, native, method: request.method(), time: await page.evaluate(() => Date.now()) });
         if (!native && mode === '429') {
@@ -51,6 +52,9 @@ async function fixture(browser, mode = 'success') {
             return;
         }
         const payload = listing(accountIdentifier, [offer('a'), offer('b', 'SERVED'), offer('already', 'ACTIVATED'), offer('a')]);
+        if (new URL(request.url()).searchParams.get('source-request-component-name') === 'OVERVIEW_DASHBOARD') {
+            payload.customerOffers[0].totalAvailableOfferCount = 37;
+        }
         if (!native && mode === 'partial') payload.customerOffers[0].partial = true;
         await route.fulfill({ contentType: 'application/json', body: JSON.stringify(payload) });
     });
@@ -66,7 +70,7 @@ async function fixture(browser, mode = 'success') {
         }
         throw new Error(`Did not reach ${pattern}: ${await status()}`);
     }
-    async function captureNativeRequest(transport = 'fetch') {
+    async function captureNativeRequest(transport = 'fetch', dashboard = true) {
         const payload = await page.evaluate(async ({ url, headers, transport }) => {
             if (transport === 'fetch') return (await fetch(url, { headers })).json();
             return new Promise((resolve, reject) => {
@@ -77,12 +81,14 @@ async function fixture(browser, mode = 'success') {
                 request.onerror = reject;
                 request.send();
             });
-        }, { url: `${endpoint}?native-fixture=true`, headers: sessionHeaders(), transport });
+        }, { url: dashboard ? `${dashboardEndpoint}&native-fixture=true` : `${endpoint}?native-fixture=true`,
+            headers: dashboard ? dashboardHeaders() : sessionHeaders(), transport });
         assert.equal(payload.customerOffers[0].offers.length, 4, 'observer preserves the page response');
         // Response.clone parsing can finish after the page has consumed its copy.
         await page.getByRole('button', { name: 'Detect cards', exact: true }).click();
         await advanceUntil(mode === 'storage' ? /Cannot save/ : /Detected 2/);
         assert.equal(await page.getByRole('checkbox', { checked: true }).count(), 0);
+        assert.equal(await page.locator('.offer').count(), 0, 'native previews never become scan results');
     }
     return { context, page, requests, errors, status, advanceUntil, captureNativeRequest };
 }
@@ -114,6 +120,12 @@ async function main() {
         await successful.page.getByRole('button', { name: 'Expand Chase panel' }).click();
         assert.deepEqual(successful.errors, []);
         await successful.context.close();
+
+        const offersPage = await fixture(browser);
+        await offersPage.captureNativeRequest('fetch', false);
+        assert.equal(offersPage.requests.length, 1, 'explicit-card Offers page remains supported');
+        assert.deepEqual(offersPage.errors, []);
+        await offersPage.context.close();
 
         for (const mode of ['429', 'partial', 'storage']) {
             const failed = await fixture(browser, mode);
