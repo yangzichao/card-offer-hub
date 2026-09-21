@@ -6,7 +6,7 @@ function hubRetryAfterMilliseconds(value, fallback, now = Date.now(), minimum = 
 
 // An instance belongs to one issuer. The shared definition has no startup effects.
 function createHubRequestScheduler({ state, gapMilliseconds, ensureRunning, checkStorage = () => {},
-    persist = () => {}, reservationMilliseconds = 0, onWait = () => {},
+    persist = () => {}, reservationMilliseconds = 0, onWait = () => {}, pacing = null,
     cooldownError = () => new Error('Rate limited. Wait for the cooldown, then scan again.') }) {
     async function waitForRequestSlot() {
         ensureRunning();
@@ -26,19 +26,26 @@ function createHubRequestScheduler({ state, gapMilliseconds, ensureRunning, chec
         if (state.requestInFlight) throw new Error('Another request is still active.');
         state.requestInFlight = true;
         let reserved = false;
+        let ticket;
+        let outcome = 'neutral';
         try {
             await waitForRequestSlot();
             if (reservationMilliseconds) {
-                state.nextRequestAt = Date.now() + reservationMilliseconds + gapMilliseconds;
+                state.nextRequestAt = Date.now() + reservationMilliseconds + (pacing?.getGap() ?? gapMilliseconds);
                 persist();
                 checkStorage();
             }
             reserved = true;
-            return await operation();
+            ticket = pacing?.requestStarted();
+            return await operation(result => { outcome = result; });
+        } catch (error) {
+            if (outcome !== 'limited') outcome = 'failure';
+            throw error;
         } finally {
             try {
                 if (reserved) {
-                    state.nextRequestAt = Date.now() + gapMilliseconds;
+                    pacing?.requestFinished(ticket, outcome);
+                    state.nextRequestAt = Date.now() + (pacing?.getGap() ?? gapMilliseconds);
                     persist();
                     checkStorage();
                 }

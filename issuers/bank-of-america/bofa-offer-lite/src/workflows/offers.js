@@ -34,10 +34,10 @@ async function scanOffers() {
         updateStatus(`Scan complete: ${available} eligible, ${state.offers.length - available} skipped. Upside offers are excluded.`);
     });
 }
-async function fetchOfferDetail(id) {
+async function fetchOfferDetail(id, requireActivated = false) {
     return normalizeDetail(await requestJson('/api/offers-details', 'POST', {
         offer_id: id, proximity_target: state.proximity
-    }), id);
+    }, detail => requireActivated ? detail.activated : detail.eligible), id);
 }
 async function activateOffers() {
     if (state.needsScan || !state.consent) return;
@@ -62,7 +62,7 @@ async function activateOffers() {
             const result = await requestJson(`/api/activate-offer/${offer.id}`, 'PUT');
             if (result?.ok !== true) throw new Error('Activation not explicitly confirmed. Scan again.');
             updateStatus('Activation accepted; verifying saved state…');
-            const verified = await fetchOfferDetail(offer.id);
+            const verified = await fetchOfferDetail(offer.id, true);
             ensureRunning();
             if (!verified.activated) throw new Error('Activation readback is unconfirmed. Scan again.');
             Object.assign(offer, verified, { result: 'Confirmed' });

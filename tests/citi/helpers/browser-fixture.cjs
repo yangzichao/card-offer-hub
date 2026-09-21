@@ -49,6 +49,7 @@ async function fixture(browser, mode = 'success') {
                 return;
             }
             if (enrollment) {
+                await bankState.beforeEnrollmentResponse?.(record);
                 payload = bankState.mode === 'unconfirmed' ? {} : confirmation(record);
                 if (bankState.mode !== 'unconfirmed') bankState.enrolled.add(`${record.body.accountId}:${record.body.offerId}`);
             } else {

@@ -29,7 +29,7 @@ test('Chase missing native page capture explains the missing session without fet
     assert.match(harness.state.status, /Chase|Offers/);
 });
 
-test('Chase scans only selected accounts, serially, with 0.5 seconds after response completion', async () => {
+test('Chase scans only selected accounts, serially, with 1 second initially after response completion', async () => {
     const harness = createHarness(request => jsonResponse(listing(accountForRequest(request),
         [offer('a'), offer('a'), offer('already', 'ACTIVATED')])) , { responseDelay: 4000 });
     await harness.detectCards();
@@ -39,7 +39,7 @@ test('Chase scans only selected accounts, serially, with 0.5 seconds after respo
     assert.equal(harness.requests.length, 2);
     assert.equal(harness.maximumActive(), 1);
     assert.deepEqual(harness.requests.map(accountForRequest), ['101', '202']);
-    assert.equal(harness.requests[1].startedAt - harness.requests[0].finishedAt, 500);
+    assert.equal(harness.requests[1].startedAt - harness.requests[0].finishedAt, 1000);
     assert.equal(harness.state.offers.length, 4);
     assert.equal(harness.state.confirmed, 0);
     assert.equal(harness.state.needsScan, false);

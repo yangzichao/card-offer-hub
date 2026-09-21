@@ -6,7 +6,7 @@
 
 <!-- published-scripts:start -->
 
-**[安装 / 更新 Card Offer Hub 1.4.3](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/card-offer-hub-all.user.js)** — 唯一安装包，包含下列 6 家银行。
+**[安装 / 更新 Card Offer Hub 1.5.0](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/card-offer-hub-all.user.js)** — 唯一安装包，包含下列 6 家银行。
 
 安装一次，覆盖银行主域名和所有子域名；网银显示操作面板，其他页面提供 Offers 入口和缓存搜索。所有银行共用一个发布版本。[地址匹配说明](docs/website-matching.md)
 
@@ -28,6 +28,8 @@
 面板中的 **Search all banks** 可同时搜索六家银行已保存的 Offer，按银行或状态筛选，查看卡片、扫描时间和有效期，再打开对应银行页面。搜索条件会保留；**Reload saved results** 只读取本地缓存。各家银行需要先手动扫描一次。详见[使用说明](bundles/all/README.md#跨银行搜索)。
 
 六家银行使用统一的浅色界面，按每卡、账户和 Amex 组合三种业务模型组织流程。Citi 选卡后可直接 **Add saved offers** 使用缓存添加，或 **Refresh & add offers** 刷新后自动添加。搜索只改变列表，批量添加始终处理已选范围。详见[统一操作流程](docs/unified-workflow.md)。
+
+请求速度按银行自动学习并保存在本地：从响应后 1 秒开始，稳定后小步提速，遇到 429 减速并保留冷却；下次点击沿用上次经验。无需调参数，始终串行、手动开始，失败不自动重试。详见[自动调速算法](docs/adaptive-pacing.md)。
 
 ## 安装与更新
 
@@ -80,13 +82,16 @@ npm run check   # 校验语法，并确认 dist/ 和源码一致（CI 跑的就�
 npm test        # 离线回归
 ```
 
-浏览器验证使用 Playwright 和 Chromium：
+浏览器及 Gherkin 验证使用已锁定版本的 Cucumber、Playwright 和 Chromium：
 
 ```sh
-PLAYWRIGHT_MODULE_PATH=/absolute/path/to/playwright npm run test:browser
+npm ci
+npx playwright install chromium
+npm run test:gherkin # Citi Given / When / Then 场景
+npm run test:browser # 既有浏览器回归 + Gherkin 场景
 ```
 
-若项目环境已安装 Playwright，可直接运行 `npm run test:browser`。浏览器测试拦截全部网络请求，仅使用合成数据。
+已有外部 Playwright 运行时也可通过 `PLAYWRIGHT_MODULE_PATH=/absolute/path/to/playwright` 指定，但仍需 `npm ci` 安装 Cucumber。浏览器测试拦截全部网络请求，仅使用合成数据。Gherkin 场景会由 CI 执行，详情见 [Gherkin 行为测试](docs/gherkin-tests.md)。
 
 本地 HAR 的结构适配检查不会联网，也不会输出卡片或会话标识：
 

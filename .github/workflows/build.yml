@@ -19,3 +19,17 @@ jobs:
         run: npm run check
       - name: Run offline regressions
         run: npm test
+
+  verify-gherkin-behavior:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Run executable Citi behavior scenarios
+        run: npm run test:gherkin

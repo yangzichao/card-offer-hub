@@ -62,7 +62,7 @@ test('enrollment requests reach the legacy endpoint one at a time, and a rejecte
     assert.equal(pending.length, 2, 'a rejected enrollment stops the run with no retry and no third request');
     assert.ok(pending.every(({ request }) => request.url.endsWith('/CreateCardAccountOfferEnrollment.v1')));
     assert.equal(new Set(pending.map(({ request }) => request.options.headers['one-data-correlation-id'])).size, 2);
-    assert.equal(pending[1].request.startedAt - firstResponseAt, 500, 'the gap is measured from the previous response');
+    assert.equal(pending[1].request.startedAt - firstResponseAt, 1000, 'the gap is measured from the previous response');
     assert.equal(harness.state.offersByAccount.get('card-a')[0].status, 'ENROLLED');
     assert.equal(harness.state.offersByAccount.get('card-b')[0].status, 'FAILED');
     assert.equal(harness.state.offersByAccount.get('card-c')[0].status, 'ELIGIBLE');

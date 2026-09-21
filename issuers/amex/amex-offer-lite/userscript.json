@@ -21,7 +21,13 @@
         "ui/workflow-layout.js",
         "runtime/request-scheduler.js",
         "offers/display-records.js",
-        "runtime/action-lifecycle.js"
+        "runtime/action-lifecycle.js",
+        "pacing/policy.js",
+        "pacing/profile.js",
+        "pacing/learning.js",
+        "pacing/controller.js",
+        "persistence/pacing-storage.js",
+        "ui/pacing-details.js"
     ],
     "sources": [
         "snapshots/saved-results.js",

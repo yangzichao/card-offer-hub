@@ -64,7 +64,7 @@ test('an enrollment interrupted by reload restores as unconfirmed, never as an e
     const pending = [];
     const nextVisit = reload(previousVisit, (request) => new Promise((resolve) => pending.push({ request, resolve })));
     const run = nextVisit.startEnrollment();
-    for (let index = 0; index < 30; index++) await Promise.resolve();
+    for (let index = 0; index < 1000 && !pending.length; index++) await Promise.resolve();
     assert.equal(pending.length, 1);
     assert.equal(pending[0].request.body.accountNumberProxy, 'card-a');
     const interruptedVisit = reload(nextVisit);
@@ -161,7 +161,9 @@ test('malformed offer snapshots do not erase valid cards or silently overwrite s
 
 test('failed offer writes are visible and a failed enrollment checkpoint sends no requests', async () => {
     const previousVisit = await savedScan();
-    const options = { userscriptStorage: previousVisit.userscriptStorage, storageWriteError: true };
+    const options = { userscriptStorage: previousVisit.userscriptStorage, onSave(key) {
+        if (key === previousVisit.SETTINGS.savedOffersKey) throw new Error('Synthetic offer checkpoint failure');
+    } };
     const nextVisit = createUserscriptHarness(scanResponse, options);
     nextVisit.restoreLocalSettings();
     await nextVisit.startScan();

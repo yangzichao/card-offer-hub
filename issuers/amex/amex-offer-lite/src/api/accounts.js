@@ -38,7 +38,9 @@ async function detectAccountSnapshot({ forceRefresh = false } = {}) {
         }
     }
     // One fallback or explicit refresh request; never iterate through cards here.
-    const member = await requestJson('https://global.americanexpress.com/api/servicing/v1/member');
+    const member = await requestJson('https://global.americanexpress.com/api/servicing/v1/member', {
+        validateResponse: payload => Array.isArray(payload?.accounts) && normalizeAccounts(payload.accounts).length > 0
+    });
     if (!Array.isArray(member?.accounts)) throw new Error('Account-list format was not recognized. Open the Amex Offers page and reload.');
     const accounts = normalizeAccounts(member.accounts);
     if (!accounts.length) throw new Error('No cards were found in this session.');

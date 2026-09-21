@@ -12,7 +12,7 @@ for (const [retryAfter, expectedDelay] of [['300', 300000], ['1', 120000], ['inv
         assert.equal(harness.state.cooldownUntil - harness.requests[0].startedAt, expectedDelay);
         await harness.startScan();
         assert.equal(harness.requests.length, 1);
-        const nextVisit = createUserscriptHarness(undefined, { storage: harness.storage });
+        const nextVisit = createUserscriptHarness(undefined, { storage: harness.storage, userscriptStorage: harness.userscriptStorage });
         nextVisit.restoreLocalSettings();
         assert.equal(nextVisit.state.cooldownUntil, harness.state.cooldownUntil);
     });

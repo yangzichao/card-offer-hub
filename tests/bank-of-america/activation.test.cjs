@@ -31,7 +31,7 @@ test('manual pagination, consent, empty PUT and readback, response-completion pa
     assert.equal(writes[0].body, undefined);
     assert.equal(writes[0].headers['Content-Type'], undefined);
     for (let index = 1; index < harness.requests.length; index++) {
-        assert.equal(harness.requests[index].startedAt - harness.requests[index - 1].finishedAt, 500);
+        assert.equal(harness.requests[index].startedAt - harness.requests[index - 1].finishedAt, 1000);
     }
     const stored = JSON.stringify([...harness.storage]);
     assert.ok(!stored.includes(token()));

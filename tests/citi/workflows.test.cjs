@@ -28,7 +28,7 @@ test('one cached click verifies ownership without scanning offers and serially e
     assert.equal(harness.maximumActive(), 1);
     assert.deepEqual(harness.requests.map(request => request.body.accountId), [undefined, 'card-a', 'card-b']);
     for (let index = 1; index < harness.requests.length; index++) {
-        assert.equal(harness.requests[index].startedAt - harness.requests[index - 1].finishedAt, 500);
+        assert.equal(harness.requests[index].startedAt - harness.requests[index - 1].finishedAt, 1000);
     }
     assert.match(harness.state.status, /Finished: 2\/2/);
     const stored = JSON.stringify([...harness.storage]);

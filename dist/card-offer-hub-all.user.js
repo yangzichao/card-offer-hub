@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Card Offer Hub — All Banks
 // @namespace    https://github.com/yangzichao/card-offer-hub
-// @version      1.4.3
+// @version      1.5.0
 // @description  All six Card Offer Hub tools in one install; manual scanning and activation on the matching bank website
 // @author       Zichao Yang
 // @match        https://*.americanexpress.com/*
@@ -82,7 +82,7 @@
               <p id="counts" class="muted"></p>${extraReviewMarkup ? `<div class="actions">${extraReviewMarkup}</div>` : ''}
               <div id="offers" class="offers"></div>
             </section>
-            <footer><p id="workspace-cache" class="muted"></p><div id="status" role="status" aria-live="polite"></div><div id="storage-error" class="error" role="alert"></div></footer>
+            <footer><p id="workspace-cache" class="muted"></p><div id="status" role="status" aria-live="polite"></div><div id="storage-error" class="error" role="alert"></div>${hubPacingDetailsMarkup()}</footer>
           </div></div>`;
     }
     function hubMatchesSearch(offer, query) {
@@ -142,7 +142,7 @@
 
     // An instance belongs to one issuer. The shared definition has no startup effects.
     function createHubRequestScheduler({ state, gapMilliseconds, ensureRunning, checkStorage = () => {},
-        persist = () => {}, reservationMilliseconds = 0, onWait = () => {},
+        persist = () => {}, reservationMilliseconds = 0, onWait = () => {}, pacing = null,
         cooldownError = () => new Error('Rate limited. Wait for the cooldown, then scan again.') }) {
         async function waitForRequestSlot() {
             ensureRunning();
@@ -162,19 +162,26 @@
             if (state.requestInFlight) throw new Error('Another request is still active.');
             state.requestInFlight = true;
             let reserved = false;
+            let ticket;
+            let outcome = 'neutral';
             try {
                 await waitForRequestSlot();
                 if (reservationMilliseconds) {
-                    state.nextRequestAt = Date.now() + reservationMilliseconds + gapMilliseconds;
+                    state.nextRequestAt = Date.now() + reservationMilliseconds + (pacing?.getGap() ?? gapMilliseconds);
                     persist();
                     checkStorage();
                 }
                 reserved = true;
-                return await operation();
+                ticket = pacing?.requestStarted();
+                return await operation(result => { outcome = result; });
+            } catch (error) {
+                if (outcome !== 'limited') outcome = 'failure';
+                throw error;
             } finally {
                 try {
                     if (reserved) {
-                        state.nextRequestAt = Date.now() + gapMilliseconds;
+                        pacing?.requestFinished(ticket, outcome);
+                        state.nextRequestAt = Date.now() + (pacing?.getGap() ?? gapMilliseconds);
                         persist();
                         checkStorage();
                     }
@@ -234,6 +241,179 @@
         } finally {
             finish();
         }
+    }
+
+    // Source: shared/pacing/policy.js
+    // Client heuristics, not issuer-published limits. Each bank owns an independent profile.
+    const HUB_PACING_POLICY = Object.freeze({
+        version: 1, initialGapMs: 1000, minimumGapMs: 500, maximumGapMs: 15000,
+        accelerationStepMs: 50, stableSamples: 30, stableActiveMs: 60000,
+        recoveryHoldMs: 600000, staleAfterMs: 7 * 86400000,
+        defaultCooldownMs: 300000, maximumClientCooldownMs: 3600000,
+        maximumSampleDurationMs: 45000
+    });
+    function hubPacingPolicy(overrides = {}) {
+        const policy = { ...HUB_PACING_POLICY, ...overrides };
+        for (const value of Object.values(policy)) {
+            if (!Number.isSafeInteger(value) || value <= 0) throw new Error('Invalid pacing policy.');
+        }
+        if (policy.version !== HUB_PACING_POLICY.version || policy.minimumGapMs > policy.initialGapMs
+            || policy.initialGapMs > policy.maximumGapMs || policy.defaultCooldownMs > policy.maximumClientCooldownMs) {
+            throw new Error('Inconsistent pacing policy.');
+        }
+        return Object.freeze(policy);
+    }
+    function hubNewPacingProfile(policy) {
+        return { policyVersion: policy.version, currentGapMs: policy.initialGapMs, lastStableGapMs: null,
+            successCount: 0, observedActiveMs: 0, lastRateLimitAt: 0, consecutiveLimits: 0, updatedAt: 0 };
+    }
+
+    // Source: shared/pacing/profile.js
+    function hubReadPacingSnapshot(saved, policy, now) {
+        if (!saved || ![1, 2].includes(saved.schemaVersion)) throw new Error('Unsupported pacing snapshot.');
+        for (const field of ['nextRequestAt', 'cooldownUntil']) {
+            if (!Number.isSafeInteger(saved[field]) || saved[field] < 0) throw new Error('Invalid pacing deadline.');
+        }
+        let profile = hubNewPacingProfile(policy);
+        let revision = 0;
+        if (saved.schemaVersion === 2) {
+            if (saved.policyVersion !== policy.version) throw new Error('Unsupported pacing policy version.');
+            for (const field of ['revision', 'currentGapMs', 'successCount', 'observedActiveMs', 'lastRateLimitAt', 'consecutiveLimits', 'updatedAt']) {
+                if (!Number.isSafeInteger(saved[field]) || saved[field] < 0) throw new Error('Invalid pacing profile.');
+            }
+            const validGap = gap => Number.isSafeInteger(gap) && gap >= policy.minimumGapMs && gap <= policy.maximumGapMs;
+            if (!validGap(saved.currentGapMs) || (saved.lastStableGapMs !== null && !validGap(saved.lastStableGapMs))) {
+                throw new Error('Invalid learned request interval.');
+            }
+            profile = Object.fromEntries(Object.keys(profile).map(key => [key, saved[key]]));
+            revision = saved.revision;
+            if (now - profile.updatedAt > policy.staleAfterMs) {
+                profile = { ...profile, currentGapMs: Math.max(profile.currentGapMs, policy.initialGapMs),
+                    lastStableGapMs: null, successCount: 0, observedActiveMs: 0 };
+            }
+        }
+        return { profile, revision, nextRequestAt: saved.nextRequestAt, cooldownUntil: saved.cooldownUntil };
+    }
+
+    // Source: shared/pacing/learning.js
+    // Pure transition: no timers, requests, UI, storage, or issuer globals.
+    function hubLearnPacing(profile, event, policy) {
+        const next = { ...profile, updatedAt: event.now };
+        if (event.outcome === 'limited') {
+            next.currentGapMs = Math.min(policy.maximumGapMs, profile.currentGapMs * 2);
+            next.consecutiveLimits = Math.min(32, profile.consecutiveLimits + 1);
+            next.lastRateLimitAt = event.now;
+            next.successCount = 0;
+            next.observedActiveMs = 0;
+        } else if (event.outcome === 'success') {
+            next.successCount = Math.min(policy.stableSamples, profile.successCount + 1);
+            next.observedActiveMs = Math.min(policy.stableActiveMs, profile.observedActiveMs + event.activeMs);
+            if (next.successCount >= policy.stableSamples && next.observedActiveMs >= policy.stableActiveMs) {
+                next.lastStableGapMs = profile.currentGapMs;
+                if (!profile.consecutiveLimits || event.now - profile.lastRateLimitAt >= policy.recoveryHoldMs) {
+                    next.currentGapMs = Math.max(policy.minimumGapMs, profile.currentGapMs - policy.accelerationStepMs);
+                    next.consecutiveLimits = 0;
+                }
+                next.successCount = 0;
+                next.observedActiveMs = 0;
+            }
+        } else if (event.outcome === 'failure') {
+            next.successCount = 0;
+            next.observedActiveMs = 0;
+        } else if (event.outcome !== 'neutral') {
+            throw new Error('Unknown pacing observation.');
+        }
+        return next;
+    }
+
+    // Source: shared/pacing/controller.js
+    function createHubAdaptivePacing({ state, policy }) {
+        state.pacing = hubNewPacingProfile(policy);
+        let previousCompletion = null;
+        function startRun() { previousCompletion = null; }
+        function requestStarted() {
+            const now = Date.now();
+            return { startedAt: now, gapCreditMs: previousCompletion === null ? 0
+                : Math.min(state.pacing.currentGapMs, Math.max(0, now - previousCompletion)) };
+        }
+        function requestFinished(ticket, outcome) {
+            const now = Date.now();
+            previousCompletion = now;
+            if (outcome === 'limited') return; // Already learned and persisted at the response headers.
+            const duration = Math.min(policy.maximumSampleDurationMs, Math.max(0, now - ticket.startedAt));
+            state.pacing = hubLearnPacing(state.pacing, { outcome, now, activeMs: duration + ticket.gapCreditMs }, policy);
+        }
+        function rateLimited(retryAfter) {
+            const now = Date.now();
+            state.pacing = hubLearnPacing(state.pacing, { outcome: 'limited', now }, policy);
+            const clientDelay = Math.min(policy.maximumClientCooldownMs,
+                policy.defaultCooldownMs * 2 ** (state.pacing.consecutiveLimits - 1));
+            const serverDelay = hubRetryAfterMilliseconds(retryAfter, policy.defaultCooldownMs, now);
+            const serverDeadline = Math.min(Number.MAX_SAFE_INTEGER, now + Math.ceil(serverDelay));
+            state.cooldownUntil = Math.max(state.cooldownUntil, now + clientDelay, serverDeadline);
+        }
+        return { policy, startRun, requestStarted, requestFinished, rateLimited,
+            getGap: () => state.pacing.currentGapMs };
+    }
+
+    // Source: shared/persistence/pacing-storage.js
+    function createHubPacingStorage({ state, storage, storageKey, onError = () => {}, policy: overrides,
+        readLegacyCooldown = () => 0 }) {
+        const policy = hubPacingPolicy(overrides);
+        const pacing = createHubAdaptivePacing({ state, policy });
+        let revision = 0;
+        function restorePacing() {
+            try {
+                const saved = storage.get(storageKey, null);
+                if (saved !== null) {
+                    const restored = hubReadPacingSnapshot(saved, policy, Date.now());
+                    revision = restored.revision;
+                    state.pacing = saved.schemaVersion === 1 ? { ...restored.profile,
+                        currentGapMs: Math.max(state.pacing.currentGapMs, restored.profile.currentGapMs) } : restored.profile;
+                    state.cooldownUntil = Math.max(state.cooldownUntil, restored.cooldownUntil);
+                    state.nextRequestAt = Math.max(state.nextRequestAt, restored.nextRequestAt);
+                } else {
+                    const legacyDeadline = readLegacyCooldown();
+                    if (!Number.isSafeInteger(legacyDeadline) || legacyDeadline < 0) throw new Error('Invalid legacy cooldown.');
+                    state.cooldownUntil = Math.max(state.cooldownUntil, legacyDeadline);
+                }
+                pacing.startRun();
+            } catch {
+                state.storageError = 'Cannot read pacing storage. Stored data was preserved; resolve storage before running.';
+                onError(state.storageError);
+            }
+        }
+        function savePacing() {
+            if (state.storageError) return false;
+            try {
+                const current = storage.get(storageKey, null);
+                const currentRevision = current === null ? 0 : hubReadPacingSnapshot(current, policy, Date.now()).revision;
+                if (currentRevision !== revision) throw new Error('Pacing changed in another page.');
+                storage.set(storageKey, {
+                    schemaVersion: 2, revision: revision + 1, ...state.pacing,
+                    cooldownUntil: state.cooldownUntil, nextRequestAt: state.nextRequestAt
+                });
+                revision++;
+                return true;
+            } catch {
+                state.storageError = 'Cannot save pacing storage. Further requests are blocked; reload after fixing storage.';
+                onError(state.storageError);
+                return false;
+            }
+        }
+        return { restorePacing, savePacing, pacing };
+    }
+
+    // Source: shared/ui/pacing-details.js
+    function hubPacingDetailsMarkup() {
+        return '<details class="muted"><summary aria-label="Automatic request speed details">Automatic request speed</summary><p id="hub-pacing-details"></p></details>';
+    }
+    function renderHubPacingDetails(root, state) {
+        const detail = root?.getElementById('hub-pacing-details');
+        if (!detail || !state.pacing) return;
+        const profile = state.pacing;
+        const lastLimit = profile.lastRateLimitAt ? ` Last limited: ${new Date(profile.lastRateLimitAt).toLocaleString()}.` : '';
+        detail.textContent = `${(profile.currentGapMs / 1000).toFixed(2)}s after each response · ${profile.successCount} successful samples in this window. Learns separately for this bank.${lastLimit}`;
     }
 
     // Source: shared/workflows/contract.js
@@ -514,9 +694,14 @@
         const timeout = setTimeout(() => controller.abort(), timeoutMilliseconds);
         try {
             const response = await fetch(url, { ...options, signal: controller.signal });
-            if (response.status === 429) onRateLimited(response.headers.get('Retry-After'));
+            let persistenceError;
+            if (response.status === 429) {
+                try { onRateLimited(response.headers.get('Retry-After')); }
+                catch (error) { persistenceError = error; }
+            }
             // Body consumption is part of the request, including HTTP error bodies.
             const responseText = await response.text();
+            if (persistenceError) throw persistenceError;
             if (response.status === 429) throw new Error(`${label} returned HTTP 429. Cooling down; scan again later.`);
             if (!response.ok) throw new Error(`${label} returned HTTP ${response.status}. Sign in and scan again.`);
             try { return JSON.parse(responseText); }
@@ -531,24 +716,27 @@
         }
     }
 
-    function createHubJsonTransport({ state, settings, ensureRunning, savePacing }) {
+    function createHubJsonTransport({ state, settings, ensureRunning, savePacing, pacing }) {
         const scheduler = createHubRequestScheduler({ state, gapMilliseconds: settings.gapMilliseconds,
-            reservationMilliseconds: settings.timeoutMilliseconds, ensureRunning, persist: savePacing,
+            reservationMilliseconds: settings.timeoutMilliseconds, ensureRunning, persist: savePacing, pacing,
             checkStorage() { if (state.storageError) throw new Error(state.storageError); } });
         function retryAfterMilliseconds(value, now = Date.now()) {
             return hubRetryAfterMilliseconds(value, settings.defaultCooldownMilliseconds, now);
         }
         function sendRequest(prepareRequest) {
-            return scheduler.withRequestSlot(async () => {
+            return scheduler.withRequestSlot(async observe => {
                 const { url, options, validateResponse = () => {} } = await prepareRequest();
                 ensureRunning();
                 const payload = await hubSendJsonRequest({ url, options, label: settings.name,
                     timeoutMilliseconds: settings.timeoutMilliseconds,
                     onRateLimited(value) {
-                        state.cooldownUntil = Math.max(state.cooldownUntil, Date.now() + retryAfterMilliseconds(value));
+                        observe('limited');
+                        pacing.rateLimited(value);
                         savePacing();
+                        if (state.storageError) throw new Error(state.storageError);
                     } });
-                validateResponse(payload);
+                const outcome = validateResponse(payload);
+                observe(outcome === true ? 'success' : outcome === false ? 'failure' : 'neutral');
                 return payload;
             });
         }
@@ -594,36 +782,6 @@
                 }
             });
         };
-    }
-
-    // Source: shared/persistence/pacing-storage.js
-    function createHubPacingStorage({ state, storage, storageKey, onError = () => {} }) {
-        function restorePacing() {
-            try {
-                const saved = storage.get(storageKey, null);
-                if (saved === null) return;
-                if (saved.schemaVersion !== 1 || !Number.isFinite(saved.cooldownUntil)
-                    || !Number.isFinite(saved.nextRequestAt)) throw new Error('Unsupported pacing snapshot');
-                state.cooldownUntil = Math.max(state.cooldownUntil, saved.cooldownUntil);
-                state.nextRequestAt = Math.max(state.nextRequestAt, saved.nextRequestAt);
-            } catch {
-                state.storageError = 'Cannot read pacing storage. Stored data was preserved; resolve storage before running.';
-            }
-        }
-        function savePacing() {
-            if (state.storageError) return false;
-            try {
-                storage.set(storageKey, {
-                    schemaVersion: 1, cooldownUntil: state.cooldownUntil, nextRequestAt: state.nextRequestAt
-                });
-                return true;
-            } catch {
-                state.storageError = 'Cannot save pacing storage. Further requests are blocked; reload after fixing storage.';
-                onError(state.storageError);
-                return false;
-            }
-        }
-        return { restorePacing, savePacing };
     }
 
     // Source: shared/ui/workflow-panel.js
@@ -1066,14 +1224,14 @@ function dispatchIssuer(configuration, startIssuer) {
 }
 
 // --- Issuer dispatches ---
-dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://global.americanexpress.com/offers","version":"1.4.3","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*americanexpress\\.com/.*$"],"patterns":["^https://global\\.americanexpress\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://global.americanexpress.com/offers","version":"1.5.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*americanexpress\\.com/.*$"],"patterns":["^https://global\\.americanexpress\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: amex-offer-lite ---
 (function () {
     'use strict';
 
     // Source: core/state.js
     const SETTINGS = Object.freeze({
-        version: "1.4.3", capabilities: {"activation":true,"scope":"card"}, workflow: "amex-combination",
+        version: "1.5.0", capabilities: {"activation":true,"scope":"card"}, workflow: "amex-combination",
         requestGapMs: 500,
         rateLimitCooldownMs: 120000,
         requestTimeoutMs: 30000,
@@ -1102,6 +1260,7 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
         requestInFlight: false,
         nextRequestAt: 0,
         cooldownUntil: 0,
+        storageError: '',
         discoveryRetryAt: 0,
         filter: '',
         minimized: false,
@@ -1211,24 +1370,18 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
     }
 
     // Source: core/storage.js
+    const { restorePacing, savePacing, pacing } = createHubPacingStorage({
+        state, storageKey: `${"amex-offer-lite"}:pacing`,
+        storage: { get: (key, fallback) => GM_getValue(key, fallback), set: (key, value) => GM_setValue(key, value) },
+        policy: { minimumGapMs: SETTINGS.requestGapMs, defaultCooldownMs: SETTINGS.rateLimitCooldownMs,
+            maximumSampleDurationMs: SETTINGS.requestTimeoutMs },
+        readLegacyCooldown: () => Number(localStorage.getItem(SETTINGS.cooldownKey))
+    });
     function restoreLocalSettings() {
         restoreSavedCards();
         restoreSavedOffers();
         restoreViewSettings();
-        try {
-            const cooldownUntil = Number(localStorage.getItem(SETTINGS.cooldownKey));
-            if (Number.isFinite(cooldownUntil)) state.cooldownUntil = cooldownUntil;
-        } catch {
-            log('Saved cooldown could not be read.');
-        }
-    }
-
-    function persistCooldown() {
-        try {
-            localStorage.setItem(SETTINGS.cooldownKey, String(state.cooldownUntil));
-        } catch {
-            log('Cooldown is active for this page; browser storage is unavailable.');
-        }
+        restorePacing();
     }
 
     // Source: core/view-settings.js
@@ -1486,7 +1639,9 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
     }
 
     const { waitForRequestSlot, withRequestSlot } = createHubRequestScheduler({
-        state, gapMilliseconds: SETTINGS.requestGapMs, ensureRunning: requireActiveRequest,
+        state, gapMilliseconds: SETTINGS.requestGapMs, ensureRunning: requireActiveRequest, pacing,
+        reservationMilliseconds: SETTINGS.requestTimeoutMs, persist: savePacing,
+        checkStorage() { if (state.storageError) throw new Error(state.storageError); },
         cooldownError: () => new RateLimited('Cooling down after HTTP 429. Start again manually when the timer ends.'),
         onWait: remaining => setStatus(`Waiting ${Math.ceil(remaining / 1000)}s before the next request. Stop is available.`)
     });
@@ -1495,20 +1650,20 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
     }
 
     function requestJson(url, options = {}) {
-        return withRequestSlot(() => sendJsonRequest(url, options));
+        return withRequestSlot(observe => sendJsonRequest(url, { ...options, observe }));
     }
 
-    function requestHub(endpoint, accountToken, payload) {
+    function requestHub(endpoint, accountToken, payload, validateResponse) {
         assertWhitelisted(accountToken);
         return requestJson(`${SETTINGS.functionsBase}/${endpoint}`, {
-            accountToken, body: { accountNumberProxy: accountToken, locale: 'en-US', ...payload }
+            accountToken, body: { accountNumberProxy: accountToken, locale: 'en-US', ...payload }, validateResponse
         });
     }
 
     // Source: api/transport.js
     // Call only while holding a request slot. Same-offer enrollments share one slot;
     // scan requests and different offers each acquire their own slot.
-    async function sendJsonRequest(url, { body, accountToken, source = 'WEB' } = {}) {
+    async function sendJsonRequest(url, { body, accountToken, source = 'WEB', observe = () => {}, validateResponse = () => {} } = {}) {
         requireActiveRequest();
         if (accountToken) assertWhitelisted(accountToken);
         let timeoutId;
@@ -1522,16 +1677,27 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
                 ...(body ? { body: JSON.stringify(body) } : {}), signal: controller.signal
             });
             if (response.status === 429) {
-                state.cooldownUntil = Math.max(state.cooldownUntil, Date.now() + retryAfterMilliseconds(response.headers.get('Retry-After')));
-                persistCooldown();
+                observe('limited');
+                pacing.rateLimited(response.headers.get('Retry-After'));
+                const persisted = savePacing();
+                // Consume the body before releasing the serial request slot.
+                try { await response.json(); } catch { /* The 429 headers remain authoritative. */ }
+                if (!persisted) throw new Error(state.storageError);
                 throw new RateLimited('HTTP 429: this run stopped. No automatic retry will be made.');
             }
-            if (!response.ok) throw new Error(`HTTP ${response.status}. No automatic retry was made.`);
+            if (!response.ok) {
+                try { await response.json(); } catch { /* Keep the HTTP failure even for a non-JSON error page. */ }
+                throw new Error(`HTTP ${response.status}. No automatic retry was made.`);
+            }
+            let payload;
             try {
-                return await response.json();
+                payload = await response.json();
             } catch {
                 throw new Error('The response was not valid JSON; the result is unconfirmed.');
             }
+            const outcome = validateResponse(payload);
+            observe(outcome === true ? 'success' : outcome === false ? 'failure' : 'neutral');
+            return payload;
         } catch (error) {
             if (error.name === 'AbortError') throw new Error('Request timed out; the result is unconfirmed. No automatic retry was made.');
             throw error;
@@ -1581,7 +1747,9 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
             }
         }
         // One fallback or explicit refresh request; never iterate through cards here.
-        const member = await requestJson('https://global.americanexpress.com/api/servicing/v1/member');
+        const member = await requestJson('https://global.americanexpress.com/api/servicing/v1/member', {
+            validateResponse: payload => Array.isArray(payload?.accounts) && normalizeAccounts(payload.accounts).length > 0
+        });
         if (!Array.isArray(member?.accounts)) throw new Error('Account-list format was not recognized. Open the Amex Offers page and reload.');
         const accounts = normalizeAccounts(member.accounts);
         if (!accounts.length) throw new Error('No cards were found in this session.');
@@ -1641,6 +1809,10 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
             requireActiveRequest();
             const response = await requestHub('ReadOffersHubPresentation.web.v1', accountToken, {
                 offerPage: 'page1', requestType
+            }, payload => {
+                if (payload?.accountNumberProxy && payload.accountNumberProxy !== accountToken) return false;
+                try { offersInSection(payload, sectionName); return true; }
+                catch { return false; }
             });
             if (response?.accountNumberProxy && response.accountNumberProxy !== accountToken) {
                 throw new Error('Offers Hub returned a different card; this scan was stopped.');
@@ -1701,13 +1873,14 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
 
     // Source: api/enrollment.js
     function enrollOffer(accountToken, offerId) {
-        return withRequestSlot(() => sendEnrollmentRequest(accountToken, offerId));
+        return withRequestSlot(observe => sendEnrollmentRequest(accountToken, offerId, observe));
     }
 
-    async function sendEnrollmentRequest(accountToken, offerId) {
+    async function sendEnrollmentRequest(accountToken, offerId, observe) {
         const response = await sendJsonRequest(`${SETTINGS.functionsBase}/${CARD_ENROLLMENT_ENDPOINT}`, {
             accountToken,
-            body: cardEnrollmentBody(accountToken, offerId)
+            body: cardEnrollmentBody(accountToken, offerId), observe,
+            validateResponse: payload => cardEnrollmentStatus(payload, accountToken, offerId) === 'ENROLLED'
         });
         const status = cardEnrollmentStatus(response, accountToken, offerId);
         const cardName = state.accounts.find((account) => account.token === accountToken)?.cardName || 'Selected card';
@@ -1720,7 +1893,15 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
         return runHubActionLifecycle({
             isBusy: () => Boolean(state.busy),
             begin() { state.busy = actionKind; state.cancelRequested = false; render(); },
-            execute, fail,
+            async execute() {
+                if (!navigator.locks?.request) throw new Error('This browser does not support the required tab lock. Use current Chrome.');
+                return navigator.locks.request("amex-offer-lite", { ifAvailable: true }, async lock => {
+                    if (!lock) throw new Error('Amex is running in another tab. Wait for it to finish.');
+                    restorePacing();
+                    requireActiveRequest();
+                    return execute();
+                });
+            }, fail,
             finish() { state.busy = null; state.cancelRequested = false; render(); }
         });
     }
@@ -1889,7 +2070,7 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
     // One offer, one card, one request slot. The slot enforces the minimum gap from
     // the previous response, so nothing overlaps and nothing retries on its own.
     function enrollPlannedOffer({ account, offer }) {
-        return withRequestSlot(async () => {
+        return withRequestSlot(async observe => {
             assertWhitelisted(account.token);
             offerWorkflow.assertAction(offer);
             if (offer.status !== 'ELIGIBLE' || !offer.enrollable || !state.scanReports.get(account.token)?.startsWith('Complete')) {
@@ -1905,7 +2086,7 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
                 throw new Error('Could not save pending enrollment state. No enrollment request was sent.');
             }
             try {
-                const status = await sendEnrollmentRequest(account.token, offer.id);
+                const status = await sendEnrollmentRequest(account.token, offer.id, observe);
                 updateEnrollmentStatus(account, offer, status);
                 if (status !== 'ENROLLED') throw new Error('Enrollment was not confirmed. Scan again before trying it again.');
             } catch (error) {
@@ -2209,11 +2390,11 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
         refresh.hidden = !state.detected;
         refresh.disabled = Boolean(state.busy) || coolingDown || Date.now() < state.discoveryRetryAt;
         const scan = uiElement('btn-scan');
-        scan.disabled = Boolean(state.busy) || !state.detected || !selectedAccounts().length || coolingDown;
+        scan.disabled = Boolean(state.busy) || !state.detected || !selectedAccounts().length || coolingDown || Boolean(state.storageError);
         hubSetActionLabel(scan, 'Scan offers');
         renderHubWorkflow(panelRoot.shadowRoot, { template: offerWorkflow, readOnly: !SETTINGS.capabilities.activation, count: enrollmentPlan().length,
             hasScope: selectedAccounts().length > 0, busy: Boolean(state.busy), coolingDown,
-            storageError: state.savedCardsError || state.savedOffersError,
+            storageError: state.storageError || state.savedCardsError || state.savedOffersError,
             needsScan: selectedAccounts().length > 0 && !selectedAccounts().some(account => state.scanReports.get(account.token)?.startsWith('Complete')),
             progress: state.busy === 'enroll' ? state.enrollmentProgress : null });
         uiElement('btn-stop').disabled = !state.busy || state.cancelRequested;
@@ -2230,6 +2411,8 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
         const status = uiElement('status');
         if (!status) return;
         status.textContent = state.status;
+        uiElement('storage-error').textContent = state.storageError;
+        renderHubPacingDetails(panelRoot.shadowRoot, state);
         const logs = uiElement('logs');
         logs.replaceChildren(...state.logs.map((message) => element('div', message)));
     }
@@ -2267,7 +2450,7 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
 // --- End issuer body: amex-offer-lite ---
 });
 
-dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"https://deals.merchant-rewards.com/","version":"1.4.3","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*bankofamerica\\.com/.*$","^https://deals\\.merchant-rewards\\.com/.*$"],"patterns":["^https://deals\\.merchant-rewards\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"https://deals.merchant-rewards.com/","version":"1.5.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*bankofamerica\\.com/.*$","^https://deals\\.merchant-rewards\\.com/.*$"],"patterns":["^https://deals\\.merchant-rewards\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: bofa-offer-lite ---
 (function () {
     'use strict';
@@ -2275,7 +2458,7 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "bofa-offer-lite", name: "BankAmeriDeals Lite", version: "1.4.3",
+        id: "bofa-offer-lite", name: "BankAmeriDeals Lite", version: "1.5.0",
         gapMilliseconds: 500, timeoutMilliseconds: 45000, pageSize: 24,
         defaultCooldownMilliseconds: 300000
     };
@@ -2317,8 +2500,9 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
     // Source: core/storage.js
     // Existing keys and schema remain readable after the runtime refactor.
     const issuerStorage = { get: (key, fallback) => GM_getValue(key, fallback), set: (key, value) => GM_setValue(key, value) };
-    const { restorePacing, savePacing } = createHubPacingStorage({
-        state, storage: issuerStorage, storageKey: `${SETTINGS.id}:pacing`, onError: () => renderPanel()
+    const { restorePacing, savePacing, pacing } = createHubPacingStorage({
+        state, policy: { minimumGapMs: SETTINGS.gapMilliseconds, defaultCooldownMs: SETTINGS.defaultCooldownMilliseconds,
+            maximumSampleDurationMs: SETTINGS.timeoutMilliseconds }, storage: issuerStorage, storageKey: `${SETTINGS.id}:pacing`, onError: () => renderPanel()
     });
 
     // Source: core/workspace-fields.js
@@ -2366,11 +2550,11 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
 
     // Source: api/request-runtime.js
     const { sendRequest, retryAfterMilliseconds, waitForRequestSlot } = createHubJsonTransport({
-        state, settings: SETTINGS, ensureRunning, savePacing
+        state, settings: SETTINGS, ensureRunning, savePacing, pacing
     });
 
     // Source: api/transport.js
-    async function requestJson(path, method = 'POST', body) {
+    async function requestJson(path, method = 'POST', body, validateDetail = () => true) {
         const allowed = (path === '/geo' && method === 'GET')
             || (['/api/offers-search', '/api/offers-details'].includes(path) && method === 'POST')
             || (/^\/api\/activate-offer\/\d+$/.test(path) && method === 'PUT' && body === undefined);
@@ -2381,6 +2565,12 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
             return { url: path, options: {
                 method, headers, body: body === undefined ? undefined : JSON.stringify(body),
                 credentials: 'same-origin', redirect: 'error'
+            }, validateResponse(payload) {
+                if (path === '/geo') normalizeLocation(payload);
+                else if (path === '/api/offers-search') normalizePage(payload);
+                else if (path === '/api/offers-details') return validateDetail(normalizeDetail(payload, body.offer_id));
+                else return payload?.ok === true ? undefined : false; // A write acknowledgement still needs readback.
+                return true;
             } };
         });
     }
@@ -2465,10 +2655,10 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
             updateStatus(`Scan complete: ${available} eligible, ${state.offers.length - available} skipped. Upside offers are excluded.`);
         });
     }
-    async function fetchOfferDetail(id) {
+    async function fetchOfferDetail(id, requireActivated = false) {
         return normalizeDetail(await requestJson('/api/offers-details', 'POST', {
             offer_id: id, proximity_target: state.proximity
-        }), id);
+        }, detail => requireActivated ? detail.activated : detail.eligible), id);
     }
     async function activateOffers() {
         if (state.needsScan || !state.consent) return;
@@ -2493,7 +2683,7 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
                 const result = await requestJson(`/api/activate-offer/${offer.id}`, 'PUT');
                 if (result?.ok !== true) throw new Error('Activation not explicitly confirmed. Scan again.');
                 updateStatus('Activation accepted; verifying saved state…');
-                const verified = await fetchOfferDetail(offer.id);
+                const verified = await fetchOfferDetail(offer.id, true);
                 ensureRunning();
                 if (!verified.activated) throw new Error('Activation readback is unconfirmed. Scan again.');
                 Object.assign(offer, verified, { result: 'Confirmed' });
@@ -2543,6 +2733,7 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
     }
     function renderPanel() {
         const panel = state.panel;
+        renderHubPacingDetails(panel, state);
         if (!panel) return;
         panel.getElementById('workspace-cache').textContent = workspaceCacheNotice();
         panel.getElementById('status').textContent = state.status;
@@ -2569,7 +2760,7 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
 // --- End issuer body: bofa-offer-lite ---
 });
 
-dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://secure.chase.com/web/auth/dashboard","version":"1.4.3","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*chase\\.com/.*$"],"patterns":["^https://secure\\.chase\\.com/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://secure.chase.com/web/auth/dashboard","version":"1.5.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*chase\\.com/.*$"],"patterns":["^https://secure\\.chase\\.com/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: chase-offer-lite ---
 (function () {
     'use strict';
@@ -2577,7 +2768,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":false,"scope":"card"}, workflow: "per-card",
-        id: "chase-offer-lite", name: "Chase Offer Lite", version: "1.4.3",
+        id: "chase-offer-lite", name: "Chase Offer Lite", version: "1.5.0",
         gapMilliseconds: 500, timeoutMilliseconds: 45000,
         defaultCooldownMilliseconds: 300000
     };
@@ -2617,8 +2808,9 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
     // Source: core/storage.js
     // Existing keys and schema remain readable after the runtime refactor.
     const issuerStorage = { get: (key, fallback) => GM_getValue(key, fallback), set: (key, value) => GM_setValue(key, value) };
-    const { restorePacing, savePacing } = createHubPacingStorage({
-        state, storage: issuerStorage, storageKey: `${SETTINGS.id}:pacing`, onError: () => renderPanel()
+    const { restorePacing, savePacing, pacing } = createHubPacingStorage({
+        state, policy: { minimumGapMs: SETTINGS.gapMilliseconds, defaultCooldownMs: SETTINGS.defaultCooldownMilliseconds,
+            maximumSampleDurationMs: SETTINGS.timeoutMilliseconds }, storage: issuerStorage, storageKey: `${SETTINGS.id}:pacing`, onError: () => renderPanel()
     });
 
     // Source: core/workspace-fields.js
@@ -2813,7 +3005,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
 
     // Source: api/request-runtime.js
     const { sendRequest, retryAfterMilliseconds, waitForRequestSlot } = createHubJsonTransport({
-        state, settings: SETTINGS, ensureRunning, savePacing
+        state, settings: SETTINGS, ensureRunning, savePacing, pacing
     });
 
     // Source: api/observer.js
@@ -2901,7 +3093,11 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
             return { url: expected.path, options: {
                 method: 'GET', credentials: 'same-origin', redirect: 'error',
                 headers: { ...sessionHeaders(), ...expected.headers }
-            }, validateResponse: () => ensureSelectedSession(accountId, { allowStopped: true }) };
+            }, validateResponse(payload) {
+                ensureSelectedSession(accountId, { allowStopped: true });
+                normalizeOffers(payload, accountId, state.sessionIdentity);
+                return true;
+            } };
         });
     }
 
@@ -2956,7 +3152,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
             state.total = accounts.length;
             for (const [index, card] of accounts.entries()) {
                 ensureSelectedSession(card.accountId);
-                updateStatus(`Scanning card ${index + 1}/${accounts.length}; requests are spaced 0.5 seconds apart…`);
+                updateStatus(`Scanning card ${index + 1}/${accounts.length}…`);
                 const payload = await requestJson(buildOffersRequest(card.accountId));
                 ensureSelectedSession(card.accountId, { allowStopped: true });
                 const scannedOffers = normalizeOffers(payload, card.accountId, state.sessionIdentity);
@@ -3029,6 +3225,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
     function renderPanel() {
         if (!state.panel) return;
         const panel = state.panel;
+        renderHubPacingDetails(panel, state);
         panel.getElementById('workspace-cache').textContent = workspaceCacheNotice();
         const blocked = state.busy || Boolean(state.storageError);
         panel.getElementById('detect').disabled = blocked;
@@ -3075,7 +3272,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
 // --- End issuer body: chase-offer-lite ---
 });
 
-dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://online.citi.com/US/nga/products-offers/merchantoffers","version":"1.4.3","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*citi\\.com/.*$"],"patterns":["^https://online\\.citi\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://online.citi.com/US/nga/products-offers/merchantoffers","version":"1.5.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*citi\\.com/.*$"],"patterns":["^https://online\\.citi\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: citi-offer-lite ---
 (function () {
     'use strict';
@@ -3083,7 +3280,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"card"}, workflow: "per-card",
-        id: "citi-offer-lite", name: "Citi Offer Lite", version: "1.4.3",
+        id: "citi-offer-lite", name: "Citi Offer Lite", version: "1.5.0",
         apiBase: '/gcgapi/prod/public/v1',
         retrievePath: '/digital/customers/creditCards/merchantOffers/retrieve',
         enrollmentPath: '/digital/customers/creditCards/accounts/rewards/specialOffers/enrollMerchantOffer',
@@ -3130,8 +3327,9 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
     // Source: core/storage.js
     // Existing keys and schema remain readable after the runtime refactor.
     const issuerStorage = { get: (key, fallback) => GM_getValue(key, fallback), set: (key, value) => GM_setValue(key, value) };
-    const { restorePacing, savePacing } = createHubPacingStorage({
-        state, storage: issuerStorage, storageKey: `${SETTINGS.id}:pacing`, onError: () => renderPanel()
+    const { restorePacing, savePacing, pacing } = createHubPacingStorage({
+        state, policy: { minimumGapMs: SETTINGS.gapMilliseconds, defaultCooldownMs: SETTINGS.defaultCooldownMilliseconds,
+            maximumSampleDurationMs: SETTINGS.timeoutMilliseconds }, storage: issuerStorage, storageKey: `${SETTINGS.id}:pacing`, onError: () => renderPanel()
     });
 
     // Source: core/workspace-fields.js
@@ -3188,7 +3386,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
 
     // Source: api/request-runtime.js
     const { sendRequest, retryAfterMilliseconds, waitForRequestSlot } = createHubJsonTransport({
-        state, settings: SETTINGS, ensureRunning, savePacing
+        state, settings: SETTINGS, ensureRunning, savePacing, pacing
     });
 
     // Source: api/transport.js
@@ -3197,6 +3395,10 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
         return sendRequest(() => ({ url: SETTINGS.apiBase + path, options: {
             method: 'POST', credentials: 'same-origin', redirect: 'error',
             headers: sessionHeaders(), body: JSON.stringify(body)
+        }, validateResponse(payload) {
+            if (path === SETTINGS.enrollmentPath) return enrollmentConfirmed(payload, body);
+            if (body?.accountId) normalizeOffers(payload, body.accountId); else normalizeAccounts(payload);
+            return true;
         } }));
     }
 
@@ -3325,7 +3527,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
         state.total = 0;
         for (const [index, card] of accounts.entries()) {
             ensureRunning();
-            updateStatus(`Scanning card ${index + 1}/${accounts.length}; requests are spaced ${SETTINGS.gapMilliseconds / 1000} seconds apart…`);
+            updateStatus(`Scanning card ${index + 1}/${accounts.length}…`);
             const payload = await requestJson(SETTINGS.retrievePath, { accountId: card.accountId });
             ensureRunning();
             const scannedOffers = normalizeOffers(payload, card.accountId);
@@ -3497,6 +3699,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
     function renderPanel() {
         if (!state.panel) return;
         const panel = state.panel;
+        renderHubPacingDetails(panel, state);
         panel.getElementById('workspace-cache').textContent = state.lastScanAt
             ? `Offers last refreshed: ${new Date(state.lastScanAt).toLocaleString()}` : '';
         panel.getElementById('status').textContent = state.status;
@@ -3539,7 +3742,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
 // --- End issuer body: citi-offer-lite ---
 });
 
-dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://onlinebanking.usbank.com/digital/servicing/dominjection/cashback-deals","version":"1.4.3","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*usbank\\.com/.*$"],"patterns":["^https://onlinebanking\\.usbank\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://onlinebanking.usbank.com/digital/servicing/dominjection/cashback-deals","version":"1.5.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*usbank\\.com/.*$"],"patterns":["^https://onlinebanking\\.usbank\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: usbank-offer-lite ---
 (function () {
     'use strict';
@@ -3547,7 +3750,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "usbank-offer-lite", name: "US Bank Offer Lite", version: "1.4.3",
+        id: "usbank-offer-lite", name: "US Bank Offer Lite", version: "1.5.0",
         endpoint: '/digital/api/customer-management/graphql/v2',
         gapMilliseconds: 500, timeoutMilliseconds: 45000,
         defaultCooldownMilliseconds: 300000
@@ -3591,8 +3794,9 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
     // Source: core/storage.js
     // Existing keys and schema remain readable after the runtime refactor.
     const issuerStorage = { get: (key, fallback) => GM_getValue(key, fallback), set: (key, value) => GM_setValue(key, value) };
-    const { restorePacing, savePacing } = createHubPacingStorage({
-        state, storage: issuerStorage, storageKey: `${SETTINGS.id}:pacing`, onError: () => renderPanel()
+    const { restorePacing, savePacing, pacing } = createHubPacingStorage({
+        state, policy: { minimumGapMs: SETTINGS.gapMilliseconds, defaultCooldownMs: SETTINGS.defaultCooldownMilliseconds,
+            maximumSampleDurationMs: SETTINGS.timeoutMilliseconds }, storage: issuerStorage, storageKey: `${SETTINGS.id}:pacing`, onError: () => renderPanel()
     });
 
     // Source: core/workspace-fields.js
@@ -3655,7 +3859,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
 
     // Source: api/request-runtime.js
     const { sendRequest, retryAfterMilliseconds, waitForRequestSlot } = createHubJsonTransport({
-        state, settings: SETTINGS, ensureRunning, savePacing
+        state, settings: SETTINGS, ensureRunning, savePacing, pacing
     });
 
     // Source: api/queries.js
@@ -3753,14 +3957,18 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
     }
 
     // Source: api/transport.js
-    async function requestGraphql(query, variablesFactory, session) {
+    async function requestGraphql(query, variablesFactory, session, verifyListing = () => true) {
         if (![LIST_OFFERS_QUERY, ACTIVATE_OFFER_QUERY].includes(query)) throw new Error('Unsupported US Bank operation.');
         return sendRequest(() => {
             ensureSameSession(session);
             return { url: SETTINGS.endpoint, options: {
                 method: 'POST', credentials: 'same-origin', redirect: 'error', cache: 'no-store',
                 headers: sessionHeaders(), body: JSON.stringify({ query, variables: variablesFactory() })
-            }, validateResponse: () => ensureSameSession(session) };
+            }, validateResponse(payload) {
+                ensureSameSession(session);
+                if (query === ACTIVATE_OFFER_QUERY) return activationAcknowledged(payload) ? undefined : false;
+                return verifyListing(normalizeListing(payload));
+            } };
         });
     }
 
@@ -3784,8 +3992,9 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
     }
 
     // Source: workflows/offers.js
-    async function fetchListing(session) {
-        const payload = await requestGraphql(LIST_OFFERS_QUERY, () => ({ request: session }), session);
+    async function fetchListing(session, expectedActivatedId = null) {
+        const payload = await requestGraphql(LIST_OFFERS_QUERY, () => ({ request: session }), session,
+            listing => expectedActivatedId === null || activationConfirmed(listing, expectedActivatedId));
         return normalizeListing(payload);
     }
     function scanOffers() {
@@ -3829,7 +4038,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
                 const offer = listing.offers.find(item => item.offerId === offerId);
                 if (offer?.status === 'ACTIVATED') { state.selected.delete(offerId); continue; }
                 if (!offer || offer.status !== 'AVAILABLE') throw new Error('A selected offer changed or disappeared. Scan and select again.');
-                updateStatus(`Activating ${offer.merchant}; each request waits ${SETTINGS.gapMilliseconds / 1000} seconds after the previous response…`);
+                updateStatus(`Activating ${offer.merchant}…`);
                 try {
                     offerWorkflow.assertAction(offer);
                     markWorkspaceOfferPending(offer);
@@ -3839,7 +4048,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
                     updateStatus(`Verifying ${offer.merchant} with US Bank…`);
                     // An acknowledgement is not success. One read-back is allowed;
                     // a missing/unchanged result stops the entire queue, without polling.
-                    const verified = await fetchListing(state.session);
+                    const verified = await fetchListing(state.session, offerId);
                     if (!activationConfirmed(verified, offerId)) throw new Error('Activation was not explicitly confirmed. Scan again before continuing.');
                     listing = verified;
                     state.offers = listing.offers;
@@ -3910,6 +4119,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
     function renderPanel() {
         if (!state.panel) return;
         const panel = state.panel;
+        renderHubPacingDetails(panel, state);
         panel.getElementById('workspace-cache').textContent = workspaceCacheNotice();
         const blocked = state.busy || Boolean(state.storageError);
         const available = state.offers.filter(offer => offer.status === 'AVAILABLE').length;
@@ -3937,7 +4147,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
 // --- End issuer body: usbank-offer-lite ---
 });
 
-dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"https://web.secure.wellsfargo.com/auth/deals-portal","version":"1.4.3","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*wellsfargo\\.com/.*$"],"patterns":["^https://web\\.secure\\.wellsfargo\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"https://web.secure.wellsfargo.com/auth/deals-portal","version":"1.5.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*wellsfargo\\.com/.*$"],"patterns":["^https://web\\.secure\\.wellsfargo\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: wellsfargo-offer-lite ---
 (function () {
     'use strict';
@@ -3945,7 +4155,7 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "wellsfargo-offer-lite", name: "Wells Fargo Offer Lite", version: "1.4.3",
+        id: "wellsfargo-offer-lite", name: "Wells Fargo Offer Lite", version: "1.5.0",
         retrievePath: '/deals-portal/as/getDeals', enrollmentPath: '/deals-portal/as/activateCLDeal',
         gapMilliseconds: 500, timeoutMilliseconds: 45000, defaultCooldownMilliseconds: 300000
     };
@@ -3986,8 +4196,9 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"
     // Source: core/storage.js
     // Existing keys and schema remain readable after the runtime refactor.
     const issuerStorage = { get: (key, fallback) => GM_getValue(key, fallback), set: (key, value) => GM_setValue(key, value) };
-    const { restorePacing, savePacing } = createHubPacingStorage({
-        state, storage: issuerStorage, storageKey: `${SETTINGS.id}:pacing`, onError: () => renderPanel()
+    const { restorePacing, savePacing, pacing } = createHubPacingStorage({
+        state, policy: { minimumGapMs: SETTINGS.gapMilliseconds, defaultCooldownMs: SETTINGS.defaultCooldownMilliseconds,
+            maximumSampleDurationMs: SETTINGS.timeoutMilliseconds }, storage: issuerStorage, storageKey: `${SETTINGS.id}:pacing`, onError: () => renderPanel()
     });
 
     // Source: core/workspace-fields.js
@@ -4041,7 +4252,7 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"
 
     // Source: api/request-runtime.js
     const { sendRequest, retryAfterMilliseconds, waitForRequestSlot } = createHubJsonTransport({
-        state, settings: SETTINGS, ensureRunning, savePacing
+        state, settings: SETTINGS, ensureRunning, savePacing, pacing
     });
 
     // Source: api/transport.js
@@ -4059,6 +4270,10 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"
             return { url, options: {
                 method: enrollment ? 'POST' : 'GET', credentials: 'same-origin', redirect: 'error', cache: 'no-store',
                 headers, ...(enrollment ? { body: JSON.stringify(body) } : {})
+            }, validateResponse(payload) {
+                if (enrollment) return enrollmentConfirmed(payload);
+                normalizeOffers(payload);
+                return true;
             } };
         });
     }
@@ -4219,6 +4434,7 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"
     function renderPanel() {
         if (!state.panel) return;
         const panel = state.panel;
+        renderHubPacingDetails(panel, state);
         panel.getElementById('workspace-cache').textContent = workspaceCacheNotice();
         const blocked = state.busy || Boolean(state.storageError);
         panel.getElementById('scan').disabled = blocked;

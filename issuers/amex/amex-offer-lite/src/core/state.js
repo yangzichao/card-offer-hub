@@ -28,6 +28,7 @@ const state = {
     requestInFlight: false,
     nextRequestAt: 0,
     cooldownUntil: 0,
+    storageError: '',
     discoveryRetryAt: 0,
     filter: '',
     minimized: false,

@@ -74,7 +74,7 @@ American Express 网页中的 Tampermonkey 工具。卡片检测、扫描和添�
 
 登记使用 `CreateCardAccountOfferEnrollment.v1` 接口：每张卡自己的 `accountNumberProxy` 和 `identifier`，带请求时间及用户时区；全量读取继续使用 Offers Hub。只有响应的 `isEnrolled === true` 才显示成功。false 或未知响应不会计为成功。
 
-一次请求处理一张卡，响应后的间隔为 0.5 秒。失败或未确认会停住本轮并要求重新扫描，不会盲目重发。Activity 记录这轮计划的 Offer 数、涉及的卡数、登记接口以及每次的 isEnrolled 结果。信息类 Offer 保留在列表中供查看，永远不会被添加。
+一次请求处理一张卡，响应后的间隔按 Amex 反馈自动调整，首次为 1 秒、最低 0.5 秒，限流后使用更慢的间隔。失败或未确认会停住本轮并要求重新扫描，不会盲目重发。Activity 记录这轮计划的 Offer 数、涉及的卡数、登记接口以及每次的 isEnrolled 结果。信息类 Offer 保留在列表中供查看，永远不会被添加。
 
 登记协议依据 HAR 中实际成功的 Card 接口请求。一个 Offer 只加一张卡是当前设计行为。协议本身仍未在当前账户上现场验证。完整差异与证据见 [登记对照说明](../../../docs/amex-enrollment-comparison.md)。
 
@@ -89,3 +89,5 @@ American Express 网页中的 Tampermonkey 工具。卡片检测、扫描和添�
 源码按卡片检测、API、调度流程、UI 拆分。修改后在仓库根目录运行 `npm run build`、`npm run check`、`npm test`。详情见 [修复记录](../../../docs/amex-repair-plan.md) 和 [HAR 适配说明](../../../docs/amex-har-2026-09-10.md)。
 
 搜索条件和面板折叠状态也会保存在独立的版本化本地快照中；原有卡片、白名单、优先级和 Offer 快照继续保留，刷新不会自动发请求。
+
+自动调速的样本、间隔与冷却按银行保存，刷新页面不丢失，也不自动启动任务。速度详情默认折叠，无需用户调参。算法、缓存迁移与现场验证边界见[自动调速](../../../docs/adaptive-pacing.md)。

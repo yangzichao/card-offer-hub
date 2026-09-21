@@ -12,6 +12,10 @@ async function requestJson(path, body) {
         return { url, options: {
             method: enrollment ? 'POST' : 'GET', credentials: 'same-origin', redirect: 'error', cache: 'no-store',
             headers, ...(enrollment ? { body: JSON.stringify(body) } : {})
+        }, validateResponse(payload) {
+            if (enrollment) return enrollmentConfirmed(payload);
+            normalizeOffers(payload);
+            return true;
         } };
     });
 }

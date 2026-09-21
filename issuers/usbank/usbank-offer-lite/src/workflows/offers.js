@@ -1,5 +1,6 @@
-async function fetchListing(session) {
-    const payload = await requestGraphql(LIST_OFFERS_QUERY, () => ({ request: session }), session);
+async function fetchListing(session, expectedActivatedId = null) {
+    const payload = await requestGraphql(LIST_OFFERS_QUERY, () => ({ request: session }), session,
+        listing => expectedActivatedId === null || activationConfirmed(listing, expectedActivatedId));
     return normalizeListing(payload);
 }
 function scanOffers() {
@@ -43,7 +44,7 @@ function activateOfferIds(selectedIds) {
             const offer = listing.offers.find(item => item.offerId === offerId);
             if (offer?.status === 'ACTIVATED') { state.selected.delete(offerId); continue; }
             if (!offer || offer.status !== 'AVAILABLE') throw new Error('A selected offer changed or disappeared. Scan and select again.');
-            updateStatus(`Activating ${offer.merchant}; each request waits ${SETTINGS.gapMilliseconds / 1000} seconds after the previous response…`);
+            updateStatus(`Activating ${offer.merchant}…`);
             try {
                 offerWorkflow.assertAction(offer);
                 markWorkspaceOfferPending(offer);
@@ -53,7 +54,7 @@ function activateOfferIds(selectedIds) {
                 updateStatus(`Verifying ${offer.merchant} with US Bank…`);
                 // An acknowledgement is not success. One read-back is allowed;
                 // a missing/unchanged result stops the entire queue, without polling.
-                const verified = await fetchListing(state.session);
+                const verified = await fetchListing(state.session, offerId);
                 if (!activationConfirmed(verified, offerId)) throw new Error('Activation was not explicitly confirmed. Scan again before continuing.');
                 listing = verified;
                 state.offers = listing.offers;

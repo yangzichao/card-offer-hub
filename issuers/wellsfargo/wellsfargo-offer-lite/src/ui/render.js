@@ -24,6 +24,7 @@ function renderOffers() {
 function renderPanel() {
     if (!state.panel) return;
     const panel = state.panel;
+    renderHubPacingDetails(panel, state);
     panel.getElementById('workspace-cache').textContent = workspaceCacheNotice();
     const blocked = state.busy || Boolean(state.storageError);
     panel.getElementById('scan').disabled = blocked;

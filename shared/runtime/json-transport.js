@@ -5,9 +5,14 @@ async function hubSendJsonRequest({ url, options, timeoutMilliseconds, label, on
     const timeout = setTimeout(() => controller.abort(), timeoutMilliseconds);
     try {
         const response = await fetch(url, { ...options, signal: controller.signal });
-        if (response.status === 429) onRateLimited(response.headers.get('Retry-After'));
+        let persistenceError;
+        if (response.status === 429) {
+            try { onRateLimited(response.headers.get('Retry-After')); }
+            catch (error) { persistenceError = error; }
+        }
         // Body consumption is part of the request, including HTTP error bodies.
         const responseText = await response.text();
+        if (persistenceError) throw persistenceError;
         if (response.status === 429) throw new Error(`${label} returned HTTP 429. Cooling down; scan again later.`);
         if (!response.ok) throw new Error(`${label} returned HTTP ${response.status}. Sign in and scan again.`);
         try { return JSON.parse(responseText); }
@@ -22,24 +27,27 @@ async function hubSendJsonRequest({ url, options, timeoutMilliseconds, label, on
     }
 }
 
-function createHubJsonTransport({ state, settings, ensureRunning, savePacing }) {
+function createHubJsonTransport({ state, settings, ensureRunning, savePacing, pacing }) {
     const scheduler = createHubRequestScheduler({ state, gapMilliseconds: settings.gapMilliseconds,
-        reservationMilliseconds: settings.timeoutMilliseconds, ensureRunning, persist: savePacing,
+        reservationMilliseconds: settings.timeoutMilliseconds, ensureRunning, persist: savePacing, pacing,
         checkStorage() { if (state.storageError) throw new Error(state.storageError); } });
     function retryAfterMilliseconds(value, now = Date.now()) {
         return hubRetryAfterMilliseconds(value, settings.defaultCooldownMilliseconds, now);
     }
     function sendRequest(prepareRequest) {
-        return scheduler.withRequestSlot(async () => {
+        return scheduler.withRequestSlot(async observe => {
             const { url, options, validateResponse = () => {} } = await prepareRequest();
             ensureRunning();
             const payload = await hubSendJsonRequest({ url, options, label: settings.name,
                 timeoutMilliseconds: settings.timeoutMilliseconds,
                 onRateLimited(value) {
-                    state.cooldownUntil = Math.max(state.cooldownUntil, Date.now() + retryAfterMilliseconds(value));
+                    observe('limited');
+                    pacing.rateLimited(value);
                     savePacing();
+                    if (state.storageError) throw new Error(state.storageError);
                 } });
-            validateResponse(payload);
+            const outcome = validateResponse(payload);
+            observe(outcome === true ? 'success' : outcome === false ? 'failure' : 'neutral');
             return payload;
         });
     }

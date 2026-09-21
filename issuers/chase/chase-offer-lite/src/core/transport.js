@@ -23,6 +23,10 @@ function requestJson(descriptor) {
         return { url: expected.path, options: {
             method: 'GET', credentials: 'same-origin', redirect: 'error',
             headers: { ...sessionHeaders(), ...expected.headers }
-        }, validateResponse: () => ensureSelectedSession(accountId, { allowStopped: true }) };
+        }, validateResponse(payload) {
+            ensureSelectedSession(accountId, { allowStopped: true });
+            normalizeOffers(payload, accountId, state.sessionIdentity);
+            return true;
+        } };
     });
 }

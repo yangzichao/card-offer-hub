@@ -17,6 +17,7 @@ function renderOffers() {
 }
 function renderPanel() {
     const panel = state.panel;
+    renderHubPacingDetails(panel, state);
     if (!panel) return;
     panel.getElementById('workspace-cache').textContent = workspaceCacheNotice();
     panel.getElementById('status').textContent = state.status;

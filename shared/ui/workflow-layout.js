@@ -18,7 +18,7 @@ function hubWorkflowMarkup(scopeMarkup, { bank, template, extraReviewMarkup = ''
           <p id="counts" class="muted"></p>${extraReviewMarkup ? `<div class="actions">${extraReviewMarkup}</div>` : ''}
           <div id="offers" class="offers"></div>
         </section>
-        <footer><p id="workspace-cache" class="muted"></p><div id="status" role="status" aria-live="polite"></div><div id="storage-error" class="error" role="alert"></div></footer>
+        <footer><p id="workspace-cache" class="muted"></p><div id="status" role="status" aria-live="polite"></div><div id="storage-error" class="error" role="alert"></div>${hubPacingDetailsMarkup()}</footer>
       </div></div>`;
 }
 function hubMatchesSearch(offer, query) {

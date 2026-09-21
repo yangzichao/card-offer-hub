@@ -24,7 +24,7 @@ async function drainMicrotasks() {
     for (let index = 0; index < 30; index++) await Promise.resolve();
 }
 
-test('one run adds every planned offer, one request at a time, 0.5 seconds apart', async () => {
+test('one run adds every planned offer, one request at a time, initially 1 second apart', async () => {
     const harness = preparedHarness(confirmEveryRequest);
     assert.deepEqual(Array.from(harness.enrollmentPlan(), ({ account, offer }) => `${offer.name}@${account.token}`),
         ['Only A@card-a', 'Shared@card-a', 'Only B@card-b']);
@@ -32,7 +32,7 @@ test('one run adds every planned offer, one request at a time, 0.5 seconds apart
     assert.equal(harness.requests.length, 3);
     assert.equal(harness.maximumActiveRequests(), 1, 'nothing overlaps');
     const gaps = harness.requests.slice(1).map((request, index) => request.startedAt - harness.requests[index].startedAt);
-    assert.ok(gaps.every((gap) => gap === 500), `expected every gap to be exactly 0.5s, saw ${gaps}`);
+    assert.ok(gaps.every((gap) => gap === 1000), `expected every gap to be exactly 1s, saw ${gaps}`);
     assert.match(harness.state.status, /Enrollment complete\. 3 offers added/);
     assert.equal(harness.state.busy, null);
     assert.equal(harness.state.offersByAccount.get('card-a')[0].status, 'ENROLLED');
@@ -86,7 +86,7 @@ test('HTTP 429 stops the run, saves the cooldown, and blocks an immediate restar
     await harness.startEnrollment();
     assert.equal(harness.requests.length, 2, 'no retry and no third offer');
     assert.equal(harness.state.cooldownUntil, harness.requests[1].startedAt + 300000);
-    assert.equal(Number(harness.storage.get(harness.SETTINGS.cooldownKey)), harness.state.cooldownUntil);
+    assert.equal(harness.userscriptStorage.get('amex-offer-lite:pacing').cooldownUntil, harness.state.cooldownUntil);
     assert.equal(harness.state.offersByAccount.get('card-a')[1].status, 'ENROLLED');
     assert.equal(harness.state.offersByAccount.get('card-a')[0].status, 'ELIGIBLE', 'a rate-limited offer is not marked unconfirmed');
     assert.match(harness.state.status, /HTTP 429.*1 offers added/);
@@ -109,7 +109,9 @@ test('a network error marks only that card unconfirmed and stops before the next
 });
 
 test('an unsaveable pending state stops the run before any request leaves', async () => {
-    const harness = preparedHarness(confirmEveryRequest, { storageWriteError: true });
+    const harness = preparedHarness(confirmEveryRequest, { onSave(key) {
+        if (key === 'card_offer_hub_amex_saved_offers_v1') throw new Error('Synthetic offer checkpoint failure');
+    } });
     await harness.startEnrollment();
     assert.equal(harness.requests.length, 0);
     assert.match(harness.state.status, /No enrollment request was sent.*0 offers added/);

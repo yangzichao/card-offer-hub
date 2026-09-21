@@ -27,7 +27,7 @@ test('fresh scan, deduplication, serial activation, response-completion pacing, 
     assert.equal(harness.maximumActive(), 1);
     assert.deepEqual(harness.requests.map(request => request.method), ['GET', 'GET', 'POST', 'POST']);
     for (let index = 1; index < harness.requests.length; index++) {
-        assert.equal(harness.requests[index].startedAt - harness.requests[index - 1].finishedAt, 500);
+        assert.equal(harness.requests[index].startedAt - harness.requests[index - 1].finishedAt, 1000);
     }
     for (const request of harness.requests) {
         assert.equal(request.config.credentials, 'same-origin');

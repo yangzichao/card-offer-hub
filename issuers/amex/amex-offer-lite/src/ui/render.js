@@ -8,11 +8,11 @@ function renderControls() {
     refresh.hidden = !state.detected;
     refresh.disabled = Boolean(state.busy) || coolingDown || Date.now() < state.discoveryRetryAt;
     const scan = uiElement('btn-scan');
-    scan.disabled = Boolean(state.busy) || !state.detected || !selectedAccounts().length || coolingDown;
+    scan.disabled = Boolean(state.busy) || !state.detected || !selectedAccounts().length || coolingDown || Boolean(state.storageError);
     hubSetActionLabel(scan, 'Scan offers');
     renderHubWorkflow(panelRoot.shadowRoot, { template: offerWorkflow, readOnly: !SETTINGS.capabilities.activation, count: enrollmentPlan().length,
         hasScope: selectedAccounts().length > 0, busy: Boolean(state.busy), coolingDown,
-        storageError: state.savedCardsError || state.savedOffersError,
+        storageError: state.storageError || state.savedCardsError || state.savedOffersError,
         needsScan: selectedAccounts().length > 0 && !selectedAccounts().some(account => state.scanReports.get(account.token)?.startsWith('Complete')),
         progress: state.busy === 'enroll' ? state.enrollmentProgress : null });
     uiElement('btn-stop').disabled = !state.busy || state.cancelRequested;
@@ -29,6 +29,8 @@ function renderStatus() {
     const status = uiElement('status');
     if (!status) return;
     status.textContent = state.status;
+    uiElement('storage-error').textContent = state.storageError;
+    renderHubPacingDetails(panelRoot.shadowRoot, state);
     const logs = uiElement('logs');
     logs.replaceChildren(...state.logs.map((message) => element('div', message)));
 }

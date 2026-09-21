@@ -105,6 +105,7 @@ async function run() {
 
         scanMode = 'failed';
         await page.getByRole('button', { name: 'Scan offers', exact: true }).click();
+        await page.clock.runFor(1000); // Reload now preserves the previous response's pacing deadline.
         await waitForStatus('HTTP 500');
         assert.equal(requests.length, 6);
         assert.equal(await page.locator('.offer').count(), 1, 'failed refresh keeps the filtered saved offer visible');
@@ -126,6 +127,7 @@ async function run() {
         // A document reload during enrollment cannot resurrect stale eligibility.
         holdEnrollments = true;
         await page.getByRole('button', { name: 'Add', exact: true }).click();
+        await page.clock.runFor(1000);
         await page.waitForFunction(() => window.__testPendingEnrollments === 1);
         await reload();
         assert.equal(requests.length, 11);

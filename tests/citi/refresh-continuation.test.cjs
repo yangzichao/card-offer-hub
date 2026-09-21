@@ -25,7 +25,7 @@ test('one refresh updates all current cards, preserves opt-outs, removes old car
     assert.equal(harness.maximumActive(), 1);
     assert.ok(harness.requests.every(request => request.url.endsWith('/retrieve')));
     for (let index = 1; index < harness.requests.length; index++) {
-        assert.equal(harness.requests[index].startedAt - harness.requests[index - 1].finishedAt, 500);
+        assert.equal(harness.requests[index].startedAt - harness.requests[index - 1].finishedAt, 1000);
     }
     const restored = createHarness(() => { throw new Error('no startup requests'); }, { storage: harness.storage });
     restored.restoreWorkspace();
@@ -144,7 +144,7 @@ test('refresh and add discovers offers on all cards then enrolls only selected c
     assert.equal(harness.state.confirmed, 1);
     assert.equal(harness.maximumActive(), 1);
     for (let index = 1; index < harness.requests.length; index++) {
-        assert.equal(harness.requests[index].startedAt - harness.requests[index - 1].finishedAt, 500);
+        assert.equal(harness.requests[index].startedAt - harness.requests[index - 1].finishedAt, 1000);
     }
 });
 

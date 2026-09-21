@@ -1,19 +1,13 @@
+const { restorePacing, savePacing, pacing } = createHubPacingStorage({
+    state, storageKey: `${__USERSCRIPT_ID__}:pacing`,
+    storage: { get: (key, fallback) => GM_getValue(key, fallback), set: (key, value) => GM_setValue(key, value) },
+    policy: { minimumGapMs: SETTINGS.requestGapMs, defaultCooldownMs: SETTINGS.rateLimitCooldownMs,
+        maximumSampleDurationMs: SETTINGS.requestTimeoutMs },
+    readLegacyCooldown: () => Number(localStorage.getItem(SETTINGS.cooldownKey))
+});
 function restoreLocalSettings() {
     restoreSavedCards();
     restoreSavedOffers();
     restoreViewSettings();
-    try {
-        const cooldownUntil = Number(localStorage.getItem(SETTINGS.cooldownKey));
-        if (Number.isFinite(cooldownUntil)) state.cooldownUntil = cooldownUntil;
-    } catch {
-        log('Saved cooldown could not be read.');
-    }
-}
-
-function persistCooldown() {
-    try {
-        localStorage.setItem(SETTINGS.cooldownKey, String(state.cooldownUntil));
-    } catch {
-        log('Cooldown is active for this page; browser storage is unavailable.');
-    }
+    restorePacing();
 }

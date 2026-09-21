@@ -14,7 +14,7 @@ test('manual scan and selection; activation read-back after every write, serial 
     assert.equal(harness.state.confirmed, 2);
     assert.equal(harness.state.needsScan, true);
     for (let index = 1; index < harness.requests.length; index++) {
-        assert.equal(harness.requests[index].startedAt - harness.requests[index - 1].finishedAt, 500);
+        assert.equal(harness.requests[index].startedAt - harness.requests[index - 1].finishedAt, 1000);
     }
     const storage = JSON.stringify([...harness.storage]);
     for (const secret of ['synthetic-customer', 'synthetic-token', 'synthetic-deals-session', 'synthetic-serve', 'serveToken']) assert.equal(storage.includes(secret), false);

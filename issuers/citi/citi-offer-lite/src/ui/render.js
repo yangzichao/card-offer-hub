@@ -31,6 +31,7 @@ function renderOffers() {
 function renderPanel() {
     if (!state.panel) return;
     const panel = state.panel;
+    renderHubPacingDetails(panel, state);
     panel.getElementById('workspace-cache').textContent = state.lastScanAt
         ? `Offers last refreshed: ${new Date(state.lastScanAt).toLocaleString()}` : '';
     panel.getElementById('status').textContent = state.status;

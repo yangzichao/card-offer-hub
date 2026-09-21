@@ -6,7 +6,9 @@ function requireActiveRequest() {
 }
 
 const { waitForRequestSlot, withRequestSlot } = createHubRequestScheduler({
-    state, gapMilliseconds: SETTINGS.requestGapMs, ensureRunning: requireActiveRequest,
+    state, gapMilliseconds: SETTINGS.requestGapMs, ensureRunning: requireActiveRequest, pacing,
+    reservationMilliseconds: SETTINGS.requestTimeoutMs, persist: savePacing,
+    checkStorage() { if (state.storageError) throw new Error(state.storageError); },
     cooldownError: () => new RateLimited('Cooling down after HTTP 429. Start again manually when the timer ends.'),
     onWait: remaining => setStatus(`Waiting ${Math.ceil(remaining / 1000)}s before the next request. Stop is available.`)
 });
@@ -15,12 +17,12 @@ function retryAfterMilliseconds(value) {
 }
 
 function requestJson(url, options = {}) {
-    return withRequestSlot(() => sendJsonRequest(url, options));
+    return withRequestSlot(observe => sendJsonRequest(url, { ...options, observe }));
 }
 
-function requestHub(endpoint, accountToken, payload) {
+function requestHub(endpoint, accountToken, payload, validateResponse) {
     assertWhitelisted(accountToken);
     return requestJson(`${SETTINGS.functionsBase}/${endpoint}`, {
-        accountToken, body: { accountNumberProxy: accountToken, locale: 'en-US', ...payload }
+        accountToken, body: { accountNumberProxy: accountToken, locale: 'en-US', ...payload }, validateResponse
     });
 }

@@ -41,7 +41,7 @@ function scanOffers() {
         state.total = accounts.length;
         for (const [index, card] of accounts.entries()) {
             ensureSelectedSession(card.accountId);
-            updateStatus(`Scanning card ${index + 1}/${accounts.length}; requests are spaced 0.5 seconds apart…`);
+            updateStatus(`Scanning card ${index + 1}/${accounts.length}…`);
             const payload = await requestJson(buildOffersRequest(card.accountId));
             ensureSelectedSession(card.accountId, { allowStopped: true });
             const scannedOffers = normalizeOffers(payload, card.accountId, state.sessionIdentity);

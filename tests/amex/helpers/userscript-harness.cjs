@@ -17,6 +17,7 @@ function createUserscriptHarness(fetchResponse = () => { throw new Error('Unexpe
         static now() { return now; }
     }
     const context = {
+        navigator: { locks: { request: async (name, config, action) => action(options.locked ? null : {}) } },
         window: { __INITIAL_STATE__: options.initialState },
         ...(options.pageWindow ? { unsafeWindow: options.pageWindow } : {}),
         GM_getValue(key, defaultValue) {
@@ -25,6 +26,7 @@ function createUserscriptHarness(fetchResponse = () => { throw new Error('Unexpe
         },
         GM_setValue(key, value) {
             if (options.storageWriteError) throw new Error('Synthetic userscript write failure');
+            options.onSave?.(key, value);
             userscriptStorage.set(key, structuredClone(value));
         },
         document: { getElementById: () => null },
@@ -55,7 +57,7 @@ function createUserscriptHarness(fetchResponse = () => { throw new Error('Unexpe
     };
     const probe = `
     globalThis.amexTestAccess = {
-        state, SETTINGS, restoreViewSettings, persistViewSettings, SAVED_VIEW_SETTINGS_KEY, restoreLocalSettings, selectedAccounts, decodePageState, readPageState, accountsFromPage,
+        state, SETTINGS, pacing, restorePacing, savePacing, restoreViewSettings, persistViewSettings, SAVED_VIEW_SETTINGS_KEY, restoreLocalSettings, selectedAccounts, decodePageState, readPageState, accountsFromPage,
         normalizeAccounts, detectCards, setCardWhitelisted, startScan, getAllOffersForAccount,
         offersInSection, normalizeHubOffer, requestJson, retryAfterMilliseconds, cancelRun,
         enrollOffer, cardEnrollmentBody, cardEnrollmentStatus, enrollmentUserOffset, startEnrollment, enrollmentCandidates, groupedOffers,

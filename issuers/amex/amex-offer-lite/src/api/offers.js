@@ -50,6 +50,10 @@ async function getAllOffersForAccount(accountToken, onProgress = () => {}) {
         requireActiveRequest();
         const response = await requestHub('ReadOffersHubPresentation.web.v1', accountToken, {
             offerPage: 'page1', requestType
+        }, payload => {
+            if (payload?.accountNumberProxy && payload.accountNumberProxy !== accountToken) return false;
+            try { offersInSection(payload, sectionName); return true; }
+            catch { return false; }
         });
         if (response?.accountNumberProxy && response.accountNumberProxy !== accountToken) {
             throw new Error('Offers Hub returned a different card; this scan was stopped.');
