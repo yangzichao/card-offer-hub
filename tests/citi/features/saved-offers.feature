@@ -32,7 +32,8 @@ Feature: Add Citi offers from a saved list
     When I click "Add saved offers"
     And the operation reports "do not match this login"
     Then no enrollment requests have been sent
-    And the "Add saved offers" button is disabled
+    And the "Add saved offers" button is enabled
+    And the saved-offers button shows 2 available offers
 
   Scenario: Refresh finds new offers when the saved list is exhausted
     Given I loaded offers and selected only card A

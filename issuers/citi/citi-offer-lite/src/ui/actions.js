@@ -12,7 +12,7 @@ function renderCitiActions(panel) {
     refresh.classList.toggle('primary', !canUseSaved);
     const add = panel.getElementById('add');
     hubSetActionLabel(add, 'Add saved offers', state.busy ? null : savedCount);
-    add.title = 'Add available offers from your saved list without refreshing offers.';
+    add.title = 'Add available saved offers. If the session changed or a previous attempt failed, verify their current status first.';
     add.hidden = !hasCards;
     add.disabled = blocked || !canUseSaved;
     add.classList.toggle('primary', canUseSaved);

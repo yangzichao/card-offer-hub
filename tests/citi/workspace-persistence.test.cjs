@@ -26,7 +26,7 @@ test('Citi verifies restored card IDs before scanning and rejects another login'
     assert.equal(second.requests.length, 1);
     assert.deepEqual(second.requests[0].body, {});
     assert.equal(second.state.selected.size, 1);
-    assert.equal(second.state.offers.length, 0);
+    assert.equal(second.state.offers.length, 1);
     assert.match(second.state.status, /do not match this login/);
 });
 test('Citi writes pending state before sending, then persists confirmed results', async () => {

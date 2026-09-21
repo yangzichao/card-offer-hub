@@ -62,20 +62,19 @@ test('Stop preserves the unconfirmed item but lets the user continue remaining o
     assert.equal(harness.state.offers[0].status, 'UNCONFIRMED');
 });
 
-test('transport failures still require refresh, including after a reload', async () => {
+test('transport failures require verification on the next explicit click, without disabling it', async () => {
     const harness = createHarness(request => request.url.endsWith('/retrieve')
         ? jsonResponse(listing([], cards)) : jsonResponse({}, 500));
     seedSavedOffers(harness);
     await harness.addSavedOffers();
-    assert.equal(harness.canAddSavedOffers(), false);
+    assert.equal(harness.canAddSavedOffers(), true);
     const restored = createHarness(() => { throw new Error('no requests'); }, { storage: harness.storage });
     restored.restoreWorkspace();
-    assert.equal(restored.canAddSavedOffers(), false);
-    await restored.addSavedOffers();
-    assert.equal(restored.requests.length, 0);
+    assert.equal(restored.canAddSavedOffers(), true);
+    assert.equal(restored.requests.length, 0, 'reloading never automatically resumes');
 });
 
-test('conflicting offers are skipped; an incomplete first scan still blocks the batch', async () => {
+test('conflicting offers are skipped and an incomplete scan does not permanently disable recovery', async () => {
     const harness = createHarness(request => jsonResponse(request.url.endsWith('/retrieve')
         ? listing([], cards) : confirmation(request)));
     seedSavedOffers(harness);
@@ -84,7 +83,7 @@ test('conflicting offers are skipped; an incomplete first scan still blocks the 
     await harness.addSavedOffers();
     assert.deepEqual(harness.requests.filter(request => request.body.offerId).map(request => request.body.offerId), ['b']);
     harness.state.lastScanAt = 0;
-    assert.match(harness.savedOffersBlockReason(), /first offer refresh did not finish/);
+    assert.equal(harness.canAddSavedOffers(), true);
 });
 
 test('Stop during refresh-and-add also leaves completed scans ready to continue', async () => {

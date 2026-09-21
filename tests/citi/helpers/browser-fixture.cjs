@@ -44,6 +44,10 @@ async function fixture(browser, mode = 'success') {
         try {
             let payload;
             const enrollment = request.url().endsWith('/enrollMerchantOffer');
+            if (bankState.mode === '401') {
+                await route.fulfill({ status: 401, contentType: 'application/json', body: '{}' });
+                return;
+            }
             if (enrollment && bankState.mode === '429') {
                 await route.fulfill({ status: 429, headers: { 'Retry-After': '600' }, contentType: 'application/json', body: '{}' });
                 return;
@@ -58,7 +62,7 @@ async function fixture(browser, mode = 'success') {
                 const offers = bankState.offerIds.map(id => offer(id,
                     id === 'already' || bankState.enrolled.has(`${record.body.accountId}:${id}`) ? 'ENROLLED' : 'AVAILABLE'));
                 payload = listing(offers, record.body.accountId ? [] : bankState.cards.map(accountId => ({
-                    accountId, displayProductName: `Synthetic Card ${accountId.slice(-1).toUpperCase()}`
+                    accountId, displayProductName: bankState.cardNames?.[accountId] || `Synthetic Card ${accountId.slice(-1).toUpperCase()}`
                 })));
             }
             await route.fulfill({ contentType: 'application/json', body: JSON.stringify(payload) });

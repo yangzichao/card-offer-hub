@@ -1,9 +1,5 @@
-async function scanCardOffers(accounts) {
-    state.needsScan = true;
-    // Cached account IDs are display data until verified against this login.
-    if (state.restoredWorkspace) {
-        await verifySelectedCards(accounts);
-    }
+async function readCardOffers(accounts) {
+    const offers = [];
     state.confirmed = 0;
     state.completed = 0;
     state.total = 0;
@@ -12,12 +8,20 @@ async function scanCardOffers(accounts) {
         updateStatus(`Scanning card ${index + 1}/${accounts.length}…`);
         const payload = await requestJson(SETTINGS.retrievePath, { accountId: card.accountId });
         ensureRunning();
-        const scannedOffers = normalizeOffers(payload, card.accountId);
-        state.offers = state.offers.filter(offer => offer.accountId !== card.accountId).concat(scannedOffers);
-        requireWorkspaceSaved();
+        offers.push(...normalizeOffers(payload, card.accountId));
     }
-    state.needsScan = false;
-    state.continuationBlocked = false;
+    return offers;
+}
+async function scanCardOffers(accounts) {
+    state.needsScan = true;
+    const workspace = state.restoredWorkspace ? await verifySelectedCards(accounts) : {
+        accounts: state.accounts, selected: state.selected, offers: state.offers,
+        identifierMap: new Map(accounts.map(card => [card.accountId, card.accountId]))
+    };
+    const scanIds = new Set(accounts.map(card => workspace.identifierMap.get(card.accountId)));
+    const scannedOffers = await readCardOffers(workspace.accounts.filter(card => scanIds.has(card.accountId)));
+    workspace.offers = workspace.offers.filter(offer => !scanIds.has(offer.accountId)).concat(scannedOffers);
+    adoptCurrentWorkspace(workspace);
     recordWorkspaceScan();
     renderPanel();
 }

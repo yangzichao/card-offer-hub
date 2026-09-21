@@ -75,6 +75,8 @@ async function run() {
         assert.equal(changedLogin.requests.length, 4);
         assert.equal(changedLogin.requests.filter(request => request.url.endsWith('/enrollMerchantOffer')).length, 0);
         assert.equal(await changedLogin.page.getByRole('checkbox', { checked: true }).count(), 1);
+        assert.equal(await changedLogin.page.getByRole('button', { name: savedName, exact: true }).isEnabled(), true);
+        assert.ok((await changedLogin.page.getByRole('button', { name: savedName, exact: true }).innerText()).includes('(2)'));
         assert.deepEqual(changedLogin.errors, []);
         await changedLogin.context.close();
 
