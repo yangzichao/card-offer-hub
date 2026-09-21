@@ -33,7 +33,10 @@
         "pacing/profile.js",
         "pacing/learning.js",
         "pacing/controller.js",
-        "ui/pacing-details.js"
+        "ui/pacing-details.js",
+        "diagnostics/pacing-records.js",
+        "diagnostics/pacing-storage.js",
+        "diagnostics/pacing-download.js"
     ],
     "sources": [
         "snapshots/saved-results.js",

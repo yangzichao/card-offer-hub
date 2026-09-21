@@ -28,6 +28,7 @@ function createHubRequestScheduler({ state, gapMilliseconds, ensureRunning, chec
         let reserved = false;
         let ticket;
         let outcome = 'neutral';
+        let httpStatus;
         try {
             await waitForRequestSlot();
             if (reservationMilliseconds) {
@@ -37,14 +38,14 @@ function createHubRequestScheduler({ state, gapMilliseconds, ensureRunning, chec
             }
             reserved = true;
             ticket = pacing?.requestStarted();
-            return await operation(result => { outcome = result; });
+            return await operation((result, status) => { outcome = result; if (status !== undefined) httpStatus = status; });
         } catch (error) {
             if (outcome !== 'limited') outcome = 'failure';
             throw error;
         } finally {
             try {
                 if (reserved) {
-                    pacing?.requestFinished(ticket, outcome);
+                    pacing?.requestFinished(ticket, outcome, httpStatus);
                     state.nextRequestAt = Date.now() + (pacing?.getGap() ?? gapMilliseconds);
                     persist();
                     checkStorage();

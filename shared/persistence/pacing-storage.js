@@ -1,9 +1,11 @@
 function createHubPacingStorage({ state, storage, storageKey, onError = () => {}, policy: overrides,
-    readLegacyCooldown = () => 0 }) {
+    readLegacyCooldown = () => 0, version = 'unknown' }) {
     const policy = hubPacingPolicy(overrides);
-    const pacing = createHubAdaptivePacing({ state, policy });
+    const diagnostics = createHubPacingDiagnostics({ state, storage, storageKey, version });
+    const pacing = createHubAdaptivePacing({ state, policy, diagnostics });
     let revision = 0;
     function restorePacing() {
+        diagnostics.restore();
         try {
             const saved = storage.get(storageKey, null);
             if (saved !== null) {
@@ -21,6 +23,7 @@ function createHubPacingStorage({ state, storage, storageKey, onError = () => {}
             pacing.startRun();
         } catch {
             state.storageError = 'Cannot read pacing storage. Stored data was preserved; resolve storage before running.';
+            diagnostics.record('pacing-read-failed', {}, false);
             onError(state.storageError);
         }
     }
@@ -38,6 +41,7 @@ function createHubPacingStorage({ state, storage, storageKey, onError = () => {}
             return true;
         } catch {
             state.storageError = 'Cannot save pacing storage. Further requests are blocked; reload after fixing storage.';
+            diagnostics.record('pacing-save-failed');
             onError(state.storageError);
             return false;
         }

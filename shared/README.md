@@ -6,6 +6,7 @@
 
 - `runtime/`：任务生命周期、请求槽、响应完成后限速、超时、429 和错误清理。
 - `pacing/`：各银行独立的自动调速、稳定样本、限流退让和策略校验。详见[自动调速](../docs/adaptive-pacing.md)。
+- `diagnostics/`：只记录白名单字段的调速日志、独立存储和本地 JSON 下载，不读取账户数据或发送请求。
 - `persistence/`：注入存储接口和字段规则的快照与 pacing 工厂；保留原来的键，schema 变更显式迁移。
 - `workflows/`：每卡、账户和 Amex 组合模板；严格的归属模型、操作计划与视图定义。详见 [工作流模板](../docs/workflow-templates.md)。
 - `offers/`：用于显示与搜索的公共记录，不能用来授权写请求。

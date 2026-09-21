@@ -13,6 +13,7 @@ async function sendJsonRequest(url, { body, accountToken, source = 'WEB', observ
             method: body ? 'POST' : 'GET', credentials: 'include', headers,
             ...(body ? { body: JSON.stringify(body) } : {}), signal: controller.signal
         });
+        observe('neutral', response.status);
         if (response.status === 429) {
             observe('limited');
             pacing.rateLimited(response.headers.get('Retry-After'));

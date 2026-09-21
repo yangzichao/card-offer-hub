@@ -1,5 +1,5 @@
 const assert = require('node:assert/strict');
-const { mkdirSync } = require('node:fs');
+const { mkdirSync, readFileSync } = require('node:fs');
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE_PATH || 'playwright');
 const { fixture } = require('../citi/helpers/browser-fixture.cjs');
 
@@ -53,9 +53,23 @@ async function run() {
         assert.deepEqual(await profile(), limited);
         await page.clock.runFor(601000);
         assert.equal(requests.length, afterLimit, 'cooldown expiry never resumes or retries a request');
+        await page.getByText('Automatic request speed', { exact: true }).click();
+        const downloadPending = page.waitForEvent('download');
+        await page.getByRole('button', { name: 'Save debug log', exact: true }).click();
+        const download = await downloadPending;
+        assert.match(download.suggestedFilename(), /^card-offer-hub-citi-offer-lite-\d+\.json$/);
+        const report = JSON.parse(readFileSync(await download.path(), 'utf8'));
+        assert.equal(report.profile.currentGapMs, limited.currentGapMs);
+        assert.ok(report.events.some(event => event.kind === 'rate-limited' && event.httpStatus === 429));
+        assert.ok(report.events.length <= 200);
+        assert.equal(JSON.stringify(report).includes('card-a'), false);
+        assert.equal(JSON.stringify(report).includes('adaptive-'), false);
+        assert.equal(requests.length, afterLimit, 'saving a diagnostic file sends no bank requests');
+        await page.locator('#hub-save-debug').scrollIntoViewIfNeeded();
+        await page.screenshot({ path: 'work/browser/citi-debug-export.png', fullPage: true });
         assert.deepEqual(test.errors, []);
         await test.context.close();
-        console.log('PASS: learned pacing accelerates, restores across reload, retreats on 429, persists cooldown, stays serial and never auto-resumes.');
+        console.log('PASS: learned pacing, reload, 429 retreat, serial requests, no auto-resume, and private-data-free debug download after reload.');
     } finally { await browser.close(); }
 }
 run().catch(error => { console.error(error); process.exitCode = 1; });

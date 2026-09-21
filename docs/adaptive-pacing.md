@@ -34,6 +34,8 @@
 
 正常请求结束时保存样本和下一次请求期限。请求前先保存超时占位，页面中断不能跳过等待。429 在读取响应头后立即保存，再消费响应正文；正文错误也不会丢掉负反馈。界面只增加默认折叠的 **Automatic request speed**，显示当前间隔、窗口样本数及最后限流时间。
 
+1.5.1 增加 **Save debug log**，从上述详情下载最近 200 条经过字段白名单处理的调速事件；日志本地保存并可跨页面刷新恢复。操作方法与记录范围见[调试日志](debug-logs.md)。
+
 ## 本地持久化
 
 每家使用自己的 `<issuer-script-id>:pacing` GM storage 键。schema 2 保存 `policyVersion`、`revision`、`currentGapMs`、`lastStableGapMs`、`successCount`、`observedActiveMs`、`lastRateLimitAt`、`consecutiveLimits`、`updatedAt`、`nextRequestAt`、`cooldownUntil`，不保存响应、账户或认证信息。

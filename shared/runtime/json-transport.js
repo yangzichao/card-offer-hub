@@ -1,10 +1,11 @@
 // Request construction and response interpretation stay with the issuer.
 // The caller must hold its scheduler slot until this promise settles.
-async function hubSendJsonRequest({ url, options, timeoutMilliseconds, label, onRateLimited }) {
+async function hubSendJsonRequest({ url, options, timeoutMilliseconds, label, onRateLimited, onResponse = () => {} }) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMilliseconds);
     try {
         const response = await fetch(url, { ...options, signal: controller.signal });
+        onResponse(response.status);
         let persistenceError;
         if (response.status === 429) {
             try { onRateLimited(response.headers.get('Retry-After')); }
@@ -40,6 +41,7 @@ function createHubJsonTransport({ state, settings, ensureRunning, savePacing, pa
             ensureRunning();
             const payload = await hubSendJsonRequest({ url, options, label: settings.name,
                 timeoutMilliseconds: settings.timeoutMilliseconds,
+                onResponse: status => observe('neutral', status),
                 onRateLimited(value) {
                     observe('limited');
                     pacing.rateLimited(value);
