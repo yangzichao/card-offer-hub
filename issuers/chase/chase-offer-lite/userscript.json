@@ -57,8 +57,11 @@
         "workflows/runner.js",
         "workflows/offers.js",
         "workflows/activation.js",
+        "workflows/refresh.js",
+        "workflows/saved-offers.js",
         "ui/styles.js",
         "ui/panel.js",
+        "ui/actions.js",
         "ui/render.js",
         "initialize.js"
     ],

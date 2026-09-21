@@ -50,7 +50,7 @@ function createHarness(respond, options = {}) {
     const probe = `globalThis.chaseTestAccess = { state, SETTINGS, restoreWorkspace, saveWorkspace, requireWorkspaceSaved, markWorkspaceOfferPending, finishWorkspaceOffer,
         recordWorkspaceScan, workspaceScopeFingerprint, normalizeAccounts, normalizeOffers,
         retryAfterMilliseconds, restorePacing, requestJson, detectCards, setCardSelected,
-        scanOffers, addAllOffers, stopRun, buildChaseClickRequest, readChaseClickParameters, offerWorkflow, captureSessionRequest, captureSessionResponse,
+        scanOffers, addAllOffers, refreshAllCardsAndOffers, refreshAndAddOffers, addSavedOffers, stopRun, buildChaseClickRequest, readChaseClickParameters, offerWorkflow, captureSessionRequest, captureSessionResponse,
         sessionHeaders, currentSession, getCapturedAccountsPayload, buildOffersRequest, installSessionObserver };})();`;
     if (!source.includes(marker)) throw new Error('Missing test initialization boundary');
     runInNewContext(source.slice(0, source.indexOf(marker)) + probe, context);

@@ -69,7 +69,7 @@ function captureSessionResponse(context, payload) {
     } catch { return false; }
 }
 function currentSession() {
-    if (!chaseCapturedSession) throw new Error('Wait for the Chase dashboard to load, then detect cards again. Open Chase Offers or refresh with the script enabled if needed. Session data stays in this tab only.');
+    if (!chaseCapturedSession) throw new Error('Wait for Chase Offers to finish loading, then try again. Open Chase Offers or reload the page if needed.');
     const { accountId, enterprisePartyIdentifier, capturedAt } = chaseCapturedSession;
     return { accountId, enterprisePartyIdentifier, capturedAt };
 }

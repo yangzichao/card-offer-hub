@@ -8,7 +8,7 @@ const state = {
     lastScanAt: 0, workspaceScope: '', restoredWorkspace: false,
     accounts: [], selected: new Set(), offers: [], busy: false, stopRequested: false,
     needsScan: true, nextRequestAt: 0, cooldownUntil: 0, storageError: '',
-    status: 'Open Chase Offers or switch its selected card, then detect cards. Scans start only when you click.',
+    status: 'Load your cards and offers to get started. Nothing runs until you click.',
     confirmed: 0, completed: 0, total: 0, panel: null, collapsed: false, search: '',
     enrollmentSupported: SETTINGS.capabilities.activation, sessionIdentity: ''
 };
@@ -17,7 +17,7 @@ function updateStatus(message) {
     renderPanel();
 }
 function ensureRunning() {
-    if (state.stopRequested) throw new Error('Stopped. Scan again before continuing.');
+    if (state.stopRequested) throw new Error('Stopped. Your progress is saved. Use Add saved offers to continue.');
     if (location.origin !== 'https://secure.chase.com') {
         throw new Error('Open the signed-in Chase Offers page and scan again.');
     }

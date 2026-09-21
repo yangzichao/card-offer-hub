@@ -3,7 +3,8 @@ const offerWorkflow = createHubWorkflow({
     readContext: () => ({ selectedCardIds: [...state.selected] }),
     readRecords: () => state.offers.map(offer => ({
         cardId: offer.accountId, offerId: offer.offerId, source: offer,
-        status: ['NEW', 'SERVED'].includes(offer.status) && offer.activationParameters ? 'available' : offer.status === 'ACTIVATED' ? 'added'
+        status: ['NEW', 'SERVED'].includes(offer.status)
+            && (offer.activationParameters || state.needsScan || state.restoredWorkspace) ? 'available' : offer.status === 'ACTIVATED' ? 'added'
             : offer.status === 'UNCONFIRMED' ? 'unconfirmed' : 'unavailable'
     }))
 });

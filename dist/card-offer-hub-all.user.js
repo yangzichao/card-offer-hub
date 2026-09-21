@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Card Offer Hub — All Banks
 // @namespace    https://github.com/yangzichao/card-offer-hub
-// @version      1.6.1
+// @version      1.6.2
 // @description  All six Card Offer Hub tools in one install; manual scanning and activation on the matching bank website
 // @author       Zichao Yang
 // @match        https://*.americanexpress.com/*
@@ -1364,14 +1364,14 @@ function dispatchIssuer(configuration, startIssuer) {
 }
 
 // --- Issuer dispatches ---
-dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://global.americanexpress.com/offers","version":"1.6.1","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*americanexpress\\.com/.*$"],"patterns":["^https://global\\.americanexpress\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://global.americanexpress.com/offers","version":"1.6.2","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*americanexpress\\.com/.*$"],"patterns":["^https://global\\.americanexpress\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: amex-offer-lite ---
 (function () {
     'use strict';
 
     // Source: core/state.js
     const SETTINGS = Object.freeze({
-        version: "1.6.1", capabilities: {"activation":true,"scope":"card"}, workflow: "amex-combination",
+        version: "1.6.2", capabilities: {"activation":true,"scope":"card"}, workflow: "amex-combination",
         requestGapMs: 500,
         rateLimitCooldownMs: 120000,
         requestTimeoutMs: 30000,
@@ -2591,7 +2591,7 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
 // --- End issuer body: amex-offer-lite ---
 });
 
-dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"https://deals.merchant-rewards.com/","version":"1.6.1","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*bankofamerica\\.com/.*$","^https://deals\\.merchant-rewards\\.com/.*$"],"patterns":["^https://deals\\.merchant-rewards\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"https://deals.merchant-rewards.com/","version":"1.6.2","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*bankofamerica\\.com/.*$","^https://deals\\.merchant-rewards\\.com/.*$"],"patterns":["^https://deals\\.merchant-rewards\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: bofa-offer-lite ---
 (function () {
     'use strict';
@@ -2599,7 +2599,7 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "bofa-offer-lite", name: "BankAmeriDeals Lite", version: "1.6.1",
+        id: "bofa-offer-lite", name: "BankAmeriDeals Lite", version: "1.6.2",
         gapMilliseconds: 500, timeoutMilliseconds: 45000, pageSize: 24,
         defaultCooldownMilliseconds: 300000
     };
@@ -2901,7 +2901,7 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
 // --- End issuer body: bofa-offer-lite ---
 });
 
-dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://secure.chase.com/web/auth/dashboard","version":"1.6.1","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*chase\\.com/.*$"],"patterns":["^https://secure\\.chase\\.com/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://secure.chase.com/web/auth/dashboard","version":"1.6.2","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*chase\\.com/.*$"],"patterns":["^https://secure\\.chase\\.com/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: chase-offer-lite ---
 (function () {
     'use strict';
@@ -2909,7 +2909,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"card"}, workflow: "per-card",
-        id: "chase-offer-lite", name: "Chase Offer Lite", version: "1.6.1",
+        id: "chase-offer-lite", name: "Chase Offer Lite", version: "1.6.2",
         gapMilliseconds: 500, timeoutMilliseconds: 45000,
         defaultCooldownMilliseconds: 300000
     };
@@ -2917,7 +2917,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
         lastScanAt: 0, workspaceScope: '', restoredWorkspace: false,
         accounts: [], selected: new Set(), offers: [], busy: false, stopRequested: false,
         needsScan: true, nextRequestAt: 0, cooldownUntil: 0, storageError: '',
-        status: 'Open Chase Offers or switch its selected card, then detect cards. Scans start only when you click.',
+        status: 'Load your cards and offers to get started. Nothing runs until you click.',
         confirmed: 0, completed: 0, total: 0, panel: null, collapsed: false, search: '',
         enrollmentSupported: SETTINGS.capabilities.activation, sessionIdentity: ''
     };
@@ -2926,7 +2926,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
         renderPanel();
     }
     function ensureRunning() {
-        if (state.stopRequested) throw new Error('Stopped. Scan again before continuing.');
+        if (state.stopRequested) throw new Error('Stopped. Your progress is saved. Use Add saved offers to continue.');
         if (location.origin !== 'https://secure.chase.com') {
             throw new Error('Open the signed-in Chase Offers page and scan again.');
         }
@@ -2942,7 +2942,8 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
         readContext: () => ({ selectedCardIds: [...state.selected] }),
         readRecords: () => state.offers.map(offer => ({
             cardId: offer.accountId, offerId: offer.offerId, source: offer,
-            status: ['NEW', 'SERVED'].includes(offer.status) && offer.activationParameters ? 'available' : offer.status === 'ACTIVATED' ? 'added'
+            status: ['NEW', 'SERVED'].includes(offer.status)
+                && (offer.activationParameters || state.needsScan || state.restoredWorkspace) ? 'available' : offer.status === 'ACTIVATED' ? 'added'
                 : offer.status === 'UNCONFIRMED' ? 'unconfirmed' : 'unavailable'
         }))
     });
@@ -3192,7 +3193,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
         } catch { return false; }
     }
     function currentSession() {
-        if (!chaseCapturedSession) throw new Error('Wait for the Chase dashboard to load, then detect cards again. Open Chase Offers or refresh with the script enabled if needed. Session data stays in this tab only.');
+        if (!chaseCapturedSession) throw new Error('Wait for Chase Offers to finish loading, then try again. Open Chase Offers or reload the page if needed.');
         const { accountId, enterprisePartyIdentifier, capturedAt } = chaseCapturedSession;
         return { accountId, enterprisePartyIdentifier, capturedAt };
     }
@@ -3273,20 +3274,33 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
     function ensureSelectedSession(accountId, { allowStopped = false } = {}) {
         if (!allowStopped) ensureRunning();
         if (!state.selected.has(accountId) || !state.accounts.some(card => card.accountId === accountId)) {
-            throw new Error('Select a detected card before scanning.');
+            throw new Error('Load your cards and choose at least one card first.');
         }
         if (currentSession().enterprisePartyIdentifier !== state.sessionIdentity) {
-            throw new Error('Chase session changed. Detect cards and select them again.');
+            throw new Error('Chase session changed. Use Refresh & add offers to reload your cards.');
         }
+    }
+    let chaseReadScope = null;
+    function ensureChaseReadSession(accountId, { allowStopped = false } = {}) {
+        if (!chaseReadScope) {
+            ensureSelectedSession(accountId, { allowStopped });
+            return state.sessionIdentity;
+        }
+        if (!allowStopped) ensureRunning();
+        if (!chaseReadScope.accountIds.has(accountId)
+            || currentSession().enterprisePartyIdentifier !== chaseReadScope.identity) {
+            throw new Error('Chase session changed. Refresh your cards and offers.');
+        }
+        return chaseReadScope.identity;
     }
     function requestJson(descriptor) {
         return sendRequest(() => {
-            // Only a freshly constructed selected-account read is accepted.
+            // Reads require selected cards or an explicit, bounded refresh scope.
             let parameters;
             try { parameters = JSON.parse(descriptor.headers['path-params']); }
-            catch { throw new Error('Invalid Chase read request. Detect cards again.'); }
+            catch { throw new Error('Invalid Chase read request. Refresh your cards and offers.'); }
             const accountId = String(parameters.primaryDigitalAccountIdentifierList?.[0] ?? '');
-            ensureSelectedSession(accountId);
+            const identity = ensureChaseReadSession(accountId);
             const expected = buildOffersRequest(accountId);
             if (descriptor.method !== 'GET' || descriptor.path !== expected.path
                 || JSON.stringify(descriptor.headers) !== JSON.stringify(expected.headers)) {
@@ -3296,8 +3310,8 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
                 method: 'GET', credentials: 'same-origin', redirect: 'error',
                 headers: { ...sessionHeaders(), ...expected.headers }
             }, validateResponse(payload) {
-                ensureSelectedSession(accountId, { allowStopped: true });
-                normalizeOffers(payload, accountId, state.sessionIdentity);
+                ensureChaseReadSession(accountId, { allowStopped: true });
+                normalizeOffers(payload, accountId, identity);
                 return true;
             } };
         });
@@ -3395,35 +3409,131 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
     function addAllOffers() {
         return runExclusive(async () => {
             if (state.needsScan || state.restoredWorkspace) throw new Error('Scan offers before adding.');
-            const planned = offerWorkflow.plan().map(record => record.source);
-            if (!planned.length && chaseUnsupportedClickCount()) throw new Error('Chase click details are missing or changed. Scan again or add these offers on Chase.');
-            // Reject incomplete runtime credentials before any clicks leave.
-            planned.forEach(buildChaseClickRequest);
-            state.confirmed = 0;
-            state.completed = 0;
-            state.total = planned.length;
-            for (const target of planned) {
-                ensureSelectedSession(target.accountId);
-                // Verification refreshes this card's records and click tokens.
-                const offer = state.offers.find(candidate => candidate.accountId === target.accountId && candidate.offerId === target.offerId);
-                if (offer?.status === 'ACTIVATED') { state.completed++; continue; }
-                if (!offer) throw new Error('Chase offer disappeared. Scan offers again before adding.');
-                updateStatus(`Adding offer ${state.completed + 1}/${state.total}…`);
-                await sendChaseOfferClick(offer);
-                ensureSelectedSession(offer.accountId);
-                const payload = await requestJson(buildOffersRequest(offer.accountId));
-                ensureSelectedSession(offer.accountId, { allowStopped: true });
-                const refreshed = normalizeOffers(payload, offer.accountId, state.sessionIdentity);
-                const confirmed = refreshed.find(candidate => candidate.offerId === offer.offerId && candidate.status === 'ACTIVATED');
-                if (!confirmed) throw new Error('Chase did not confirm this offer as added. Scan again to verify; no click was retried.');
-                state.offers = state.offers.filter(candidate => candidate.accountId !== offer.accountId).concat(refreshed);
-                finishWorkspaceOffer(confirmed);
-                state.confirmed++;
-                state.completed++;
-                renderPanel();
-                ensureRunning();
+            await enrollPlannedChaseOffers();
+        }, 'add');
+    }
+    async function enrollPlannedChaseOffers({ savedScope = false } = {}) {
+        const planned = offerWorkflow.plan().map(record => record.source);
+        if (!planned.length && chaseUnsupportedClickCount()) throw new Error('Chase click details are missing or changed. Use Refresh & add offers, or add these offers on Chase.');
+        // Reject incomplete runtime credentials before any clicks leave.
+        planned.forEach(buildChaseClickRequest);
+        state.confirmed = 0;
+        state.completed = 0;
+        state.total = planned.length;
+        for (const target of planned) {
+            ensureSelectedSession(target.accountId);
+            // Verification refreshes this card's records and click tokens.
+            const offer = state.offers.find(candidate => candidate.accountId === target.accountId && candidate.offerId === target.offerId);
+            if (offer?.status === 'ACTIVATED') { state.completed++; continue; }
+            if (!offer) throw new Error('Chase offer disappeared. Use Refresh & add offers to check current offers.');
+            updateStatus(`Adding offer ${state.completed + 1}/${state.total}…`);
+            await sendChaseOfferClick(offer);
+            ensureSelectedSession(offer.accountId);
+            const payload = await requestJson(buildOffersRequest(offer.accountId));
+            ensureSelectedSession(offer.accountId, { allowStopped: true });
+            const refreshed = normalizeOffers(payload, offer.accountId, state.sessionIdentity);
+            const confirmed = refreshed.find(candidate => candidate.offerId === offer.offerId && candidate.status === 'ACTIVATED');
+            if (!confirmed) throw new Error('Chase did not confirm this offer as added. Add saved offers can continue the remaining offers. Use Refresh & add offers to check this offer; no click was retried.');
+            state.offers = savedScope ? reconcileChaseSavedOffers(refreshed, new Set([offer.accountId]))
+                : state.offers.filter(candidate => candidate.accountId !== offer.accountId).concat(refreshed);
+            finishWorkspaceOffer(confirmed);
+            state.confirmed++;
+            state.completed++;
+            renderPanel();
+            ensureRunning();
+        }
+        updateStatus(`Finished: ${state.confirmed} offers confirmed added.${chaseUnsupportedClickNotice()}`);
+    }
+
+    // Source: workflows/refresh.js
+    async function readChaseCardOffers(accounts, identity) {
+        const offers = [];
+        chaseReadScope = { identity, accountIds: new Set(accounts.map(card => card.accountId)) };
+        state.confirmed = 0;
+        state.completed = 0;
+        state.total = 0;
+        try {
+            for (const [index, card] of accounts.entries()) {
+                ensureChaseReadSession(card.accountId);
+                updateStatus(`Loading card ${index + 1}/${accounts.length}…`);
+                const payload = await requestJson(buildOffersRequest(card.accountId));
+                ensureChaseReadSession(card.accountId);
+                offers.push(...normalizeOffers(payload, card.accountId, identity));
             }
-            updateStatus(`Finished: ${state.confirmed} offers confirmed added.${chaseUnsupportedClickNotice()}`);
+            return offers;
+        } finally {
+            chaseReadScope = null;
+        }
+    }
+    async function refreshChaseWorkspace() {
+        const accounts = normalizeAccounts(getCapturedAccountsPayload());
+        const identity = currentSession().enterprisePartyIdentifier;
+        const sameCustomer = state.workspaceScope === identity;
+        const selected = hubSelectDetectedCards(accounts, sameCustomer ? state.accounts : [],
+            sameCustomer ? state.selected : new Set());
+        // Keep the last complete workspace until every card has been read.
+        const offers = await readChaseCardOffers(accounts, identity);
+        ensureRunning();
+        bindWorkspaceScope(identity);
+        state.accounts = accounts;
+        state.selected = selected;
+        state.offers = offers;
+        state.sessionIdentity = identity;
+        state.needsScan = false;
+        recordWorkspaceScan();
+        renderPanel();
+    }
+    function refreshAllCardsAndOffers() {
+        return runExclusive(async () => {
+            await refreshChaseWorkspace();
+            updateStatus(`Loaded ${state.accounts.length} cards and ${state.offers.length} offers. Choose your cards, then add saved offers.${chaseUnsupportedClickNotice()}`);
+        });
+    }
+    function refreshAndAddOffers() {
+        return runExclusive(async () => {
+            const previousIdentity = state.workspaceScope;
+            await refreshChaseWorkspace();
+            if (previousIdentity && previousIdentity !== state.workspaceScope) {
+                updateStatus('Loaded the current Chase account. Review your cards, then use Add saved offers.');
+                return;
+            }
+            await enrollPlannedChaseOffers();
+        }, 'add');
+    }
+
+    // Source: workflows/saved-offers.js
+    async function prepareChaseSavedOffers() {
+        const identity = currentSession().enterprisePartyIdentifier;
+        const currentAccounts = normalizeAccounts(getCapturedAccountsPayload());
+        const selectedAccounts = state.accounts.filter(card => state.selected.has(card.accountId));
+        if (identity !== state.workspaceScope || selectedAccounts.some(card =>
+            !currentAccounts.some(current => current.accountId === card.accountId))) {
+            throw new Error('Saved cards do not match this login. Use Refresh & add offers to load the current cards. Your saved results are preserved.');
+        }
+        // Refresh credentials inside this explicit action, including after reload or
+        // failure. Only offers already available in the saved scope can be added.
+        const freshOffers = await readChaseCardOffers(selectedAccounts, identity);
+        state.offers = reconcileChaseSavedOffers(freshOffers, state.selected);
+        state.sessionIdentity = identity;
+        state.needsScan = false;
+        recordWorkspaceScan();
+        renderPanel();
+    }
+    function reconcileChaseSavedOffers(freshOffers, accountIds) {
+        const freshByKey = new Map(freshOffers.map(offer => [workspaceOfferKey(offer), offer]));
+        return state.offers.map(offer => {
+            if (!accountIds.has(offer.accountId)) return offer;
+            const fresh = freshByKey.get(workspaceOfferKey(offer));
+            if (fresh?.status === 'ACTIVATED') return fresh;
+            if (!['NEW', 'SERVED'].includes(offer.status)) return offer;
+            return fresh || { ...offer, status: 'UNAVAILABLE', activationParameters: null };
+        });
+    }
+    function addSavedOffers() {
+        if (!state.selected.size || !offerWorkflow.preview().length) return;
+        return runExclusive(async () => {
+            await prepareChaseSavedOffers();
+            await enrollPlannedChaseOffers({ savedScope: true });
         }, 'add');
     }
 
@@ -3435,15 +3545,51 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
         if (document.getElementById(SETTINGS.id)) return;
         const { host, panel } = createHubWorkflowPanel({
             state, settings: SETTINGS, template: offerWorkflow, bank: "Chase", styles: PANEL_STYLES,
-            scopeMarkup: "<p class=\"muted\">Open Chase Offers, then detect and choose your cards. Your choices stay saved.</p><button id=\"detect\" aria-label=\"Detect cards\">Detect cards</button><div id=\"cards\" class=\"cards\"></div>",
-            workflow: { bank: "Chase", extraReviewMarkup: "", readOnly: !SETTINGS.capabilities.activation },
-            onScan: scanOffers, onAdd: addAllOffers, onStop: stopRun,
+            scopeMarkup: '<div id="cards" class="cards"></div>',
+            workflow: { bank: 'Chase', scanLabel: 'Load cards & offers' },
+            onScan: () => state.accounts.length ? refreshAndAddOffers() : refreshAllCardsAndOffers(),
+            onAdd: addSavedOffers, onStop: stopRun,
             saveWorkspace, renderOffers, supportsActivation: SETTINGS.capabilities.activation
         });
-        panel.getElementById('detect').addEventListener('click', detectCards);
         document.body.appendChild(host);
         state.panel = panel;
+        panel.querySelector('.hub-search-rule').textContent = 'Both actions add across your selected cards, including offers hidden by search.';
         renderPanel();
+    }
+
+    // Source: ui/actions.js
+    function renderChaseActions(panel) {
+        const hasCards = state.accounts.length > 0;
+        const hasSelection = state.selected.size > 0;
+        const coolingDown = Date.now() < state.cooldownUntil;
+        const blocked = state.busy || Boolean(state.storageError) || coolingDown;
+        const savedCount = offerWorkflow.preview().length;
+        const canUseSaved = hasSelection && savedCount > 0;
+        const refresh = panel.getElementById('scan');
+        hubSetActionLabel(refresh, hasCards ? 'Refresh & add offers' : 'Load cards & offers');
+        refresh.title = hasCards ? 'Refresh every card and its offers, then add available offers to your selected cards.'
+            : 'Load your cards and offers. All cards start selected; you can uncheck any card.';
+        refresh.disabled = blocked || (hasCards && !hasSelection);
+        refresh.classList.toggle('primary', !canUseSaved);
+        const add = panel.getElementById('add');
+        hubSetActionLabel(add, 'Add saved offers', state.busy ? null : savedCount);
+        add.title = 'Check the current status of your saved offers, then add the ones still available. Previously unconfirmed offers are not retried.';
+        add.hidden = !hasCards;
+        add.disabled = blocked || !canUseSaved;
+        add.classList.toggle('primary', canUseSaved);
+        const stop = panel.getElementById('stop');
+        stop.hidden = !state.busy;
+        stop.disabled = !state.busy || state.stopRequested;
+        const unresolved = state.offers.filter(offer => state.selected.has(offer.accountId)
+            && ['UNCONFIRMED', 'CONFLICT'].includes(offer.status)).length;
+        const reason = panel.getElementById('hub-action-reason');
+        reason.textContent = state.storageError || state.busy || !hasCards ? ''
+            : coolingDown ? 'Chase is asking us to wait. Try again after the cooldown.'
+            : !hasSelection ? 'Choose at least one card above. Your choices stay saved.'
+            : unresolved ? `${unresolved} offer(s) need review and will be skipped. Other saved offers can continue. Use Refresh & add offers to check them.`
+            : !savedCount ? 'No saved offers left to add. Refresh & add offers checks for new ones.' : '';
+        reason.hidden = !reason.textContent;
+        hubRenderSearchControls(panel);
     }
 
     // Source: ui/render.js
@@ -3457,7 +3603,13 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
         container.replaceChildren();
         const search = state.search;
         const visible = state.offers.filter(offer => state.selected.has(offer.accountId)).filter(offer => hubMatchesSearch(offer, search));
-        if (!visible.length) hubShowEmptyOffers(container, search);
+        if (!visible.length) {
+            const note = document.createElement('p');
+            note.className = 'muted';
+            note.textContent = search.trim() ? 'No offers match your search.'
+                : state.selected.size ? 'No saved offers on these cards. Use Refresh & add offers.' : 'Your selected cards’ offers will appear here.';
+            container.appendChild(note);
+        }
         for (const offer of visible.slice(0, 200)) {
             const row = document.createElement('div');
             row.className = 'offer';
@@ -3466,7 +3618,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
             const detail = document.createElement('small');
             const card = state.accounts.find(account => account.accountId === offer.accountId);
             const statusLabel = !state.needsScan && ['NEW', 'SERVED'].includes(offer.status) && !offer.activationParameters
-                ? 'Add on Chase: click details unavailable' : hubOfferStatusLabel(offer.status);
+                ? 'Add on Chase: click details unavailable' : offer.status === 'SERVED' ? 'Available' : hubOfferStatusLabel(offer.status);
             detail.textContent = [card ? chaseCardDisplayName(card) : 'Card', statusLabel, offer.expires].filter(Boolean).join(' · ');
             row.append(title, detail);
             container.appendChild(row);
@@ -3483,22 +3635,23 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
         if (!state.panel) return;
         const panel = state.panel;
         renderHubPacingDetails(panel, state);
-        panel.getElementById('workspace-cache').textContent = workspaceCacheNotice();
+        panel.getElementById('workspace-cache').textContent = state.lastScanAt
+            ? `Offers last refreshed: ${new Date(state.lastScanAt).toLocaleString()}` : '';
         const blocked = state.busy || Boolean(state.storageError);
-        panel.getElementById('detect').disabled = blocked;
-        panel.getElementById('scan').disabled = blocked || !state.selected.size;
-        panel.getElementById('add').disabled = blocked || !state.enrollmentSupported || !state.selected.size || state.needsScan;
-        panel.getElementById('stop').disabled = !state.busy || state.stopRequested;
-        const enrollmentNotice = panel.getElementById('enrollment-notice');
-        if (enrollmentNotice) enrollmentNotice.hidden = Boolean(state.enrollmentSupported);
         panel.getElementById('status').textContent = state.status;
         panel.getElementById('storage-error').textContent = state.storageError;
         const scopeOffers = state.offers.filter(offer => state.selected.has(offer.accountId));
         const newCount = offerWorkflow.preview().length;
         const activatedCount = scopeOffers.filter(offer => offer.status === 'ACTIVATED').length;
-        panel.getElementById('counts').textContent = `${scopeOffers.length} offers · ${newCount} available · ${activatedCount} added`;
+        panel.getElementById('counts').textContent = `${newCount} available · ${activatedCount} added`;
         const cards = panel.getElementById('cards');
         cards.replaceChildren();
+        if (!state.accounts.length) {
+            const note = document.createElement('p');
+            note.className = 'muted';
+            note.textContent = 'Load your cards to get started.';
+            cards.appendChild(note);
+        }
         for (const card of state.accounts) {
             const label = document.createElement('label');
             label.className = 'card';
@@ -3509,13 +3662,10 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
             const cardName = chaseCardDisplayName(card);
             checkbox.setAttribute('aria-label', `Select ${cardName}`);
             checkbox.addEventListener('change', () => setCardSelected(card.accountId, checkbox.checked));
-            label.append(checkbox, document.createTextNode(`${cardName}${card.eligible === false ? ' · Detect cards to refresh' : ''}`));
+            label.append(checkbox, document.createTextNode(`${cardName}${card.eligible === false ? ' · Refresh to check' : ''}`));
             cards.appendChild(label);
         }
-        renderHubWorkflow(panel, { template: offerWorkflow, count: offerWorkflow.preview().length, hasScope: state.selected.size > 0,
-            needsScan: state.needsScan, busy: state.busy, storageError: state.storageError,
-            coolingDown: Date.now() < state.cooldownUntil, readOnly: !state.enrollmentSupported,
-            progress: state.total ? { completed: state.confirmed, total: state.total } : null });
+        renderChaseActions(panel);
         renderOffers();
     }
 
@@ -3524,13 +3674,16 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
     installSessionObserver();
     restorePacing();
     restoreWorkspace();
+    if (state.restoredWorkspace && !state.storageError) {
+        state.status = 'Saved results and selections restored. Use Add saved offers to continue, or Refresh & add offers to check for new ones.';
+    }
     if (document.body) mountPanel();
     else document.addEventListener('DOMContentLoaded', mountPanel, { once: true });
 })();
 // --- End issuer body: chase-offer-lite ---
 });
 
-dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://online.citi.com/US/nga/products-offers/merchantoffers","version":"1.6.1","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*citi\\.com/.*$"],"patterns":["^https://online\\.citi\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://online.citi.com/US/nga/products-offers/merchantoffers","version":"1.6.2","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*citi\\.com/.*$"],"patterns":["^https://online\\.citi\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: citi-offer-lite ---
 (function () {
     'use strict';
@@ -3538,7 +3691,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"card"}, workflow: "per-card",
-        id: "citi-offer-lite", name: "Citi Offer Lite", version: "1.6.1",
+        id: "citi-offer-lite", name: "Citi Offer Lite", version: "1.6.2",
         apiBase: '/gcgapi/prod/public/v1',
         retrievePath: '/digital/customers/creditCards/merchantOffers/retrieve',
         enrollmentPath: '/digital/customers/creditCards/accounts/rewards/specialOffers/enrollMerchantOffer',
@@ -4074,7 +4227,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
 // --- End issuer body: citi-offer-lite ---
 });
 
-dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://onlinebanking.usbank.com/digital/servicing/dominjection/cashback-deals","version":"1.6.1","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*usbank\\.com/.*$"],"patterns":["^https://onlinebanking\\.usbank\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://onlinebanking.usbank.com/digital/servicing/dominjection/cashback-deals","version":"1.6.2","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*usbank\\.com/.*$"],"patterns":["^https://onlinebanking\\.usbank\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: usbank-offer-lite ---
 (function () {
     'use strict';
@@ -4082,7 +4235,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "usbank-offer-lite", name: "US Bank Offer Lite", version: "1.6.1",
+        id: "usbank-offer-lite", name: "US Bank Offer Lite", version: "1.6.2",
         endpoint: '/digital/api/customer-management/graphql/v2',
         gapMilliseconds: 500, timeoutMilliseconds: 45000,
         defaultCooldownMilliseconds: 300000
@@ -4479,7 +4632,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
 // --- End issuer body: usbank-offer-lite ---
 });
 
-dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"https://web.secure.wellsfargo.com/auth/deals-portal","version":"1.6.1","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*wellsfargo\\.com/.*$"],"patterns":["^https://web\\.secure\\.wellsfargo\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"https://web.secure.wellsfargo.com/auth/deals-portal","version":"1.6.2","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*wellsfargo\\.com/.*$"],"patterns":["^https://web\\.secure\\.wellsfargo\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: wellsfargo-offer-lite ---
 (function () {
     'use strict';
@@ -4487,7 +4640,7 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "wellsfargo-offer-lite", name: "Wells Fargo Offer Lite", version: "1.6.1",
+        id: "wellsfargo-offer-lite", name: "Wells Fargo Offer Lite", version: "1.6.2",
         retrievePath: '/deals-portal/as/getDeals', enrollmentPath: '/deals-portal/as/activateCLDeal',
         gapMilliseconds: 500, timeoutMilliseconds: 45000, defaultCooldownMilliseconds: 300000
     };
