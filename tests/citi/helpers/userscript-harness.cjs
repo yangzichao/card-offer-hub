@@ -50,7 +50,7 @@ function createHarness(respond, options = {}) {
     const probe = `globalThis.citiTestAccess = { state, SETTINGS, restoreWorkspace, saveWorkspace, requireWorkspaceSaved, markWorkspaceOfferPending, finishWorkspaceOffer,
         recordWorkspaceScan, workspaceScopeFingerprint, normalizeAccounts, normalizeOffers,
         enrollmentBody, enrollmentConfirmed, sessionHeaders, retryAfterMilliseconds, restorePacing,
-        requestJson, refreshAllCardsAndOffers, canAddSavedOffers, setCardSelected, scanOffers, addSavedOffers, refreshAndAddOffers, stopRun };})();`;
+        requestJson, refreshAllCardsAndOffers, canAddSavedOffers, savedOffersBlockReason, setCardSelected, scanOffers, addSavedOffers, refreshAndAddOffers, stopRun };})();`;
     if (!source.includes(marker)) throw new Error('Missing test initialization boundary');
     runInNewContext(source.slice(0, source.indexOf(marker)) + probe, context);
     return { ...context.citiTestAccess, requests, storage, context, maximumActive: () => maximumActive,

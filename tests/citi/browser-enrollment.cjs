@@ -60,6 +60,11 @@ async function main() {
         await cancelled.page.getByRole('button', { name: 'Stop' }).click();
         await cancelled.advanceUntil(/Stopped/);
         assert.equal(cancelled.requests.length, 3, 'stop during pacing must prevent even the card ownership request');
+        assert.equal(await cancelled.page.getByRole('button', { name: 'Add saved offers' }).isEnabled(), true);
+        assert.equal(await cancelled.page.locator('#hub-action-reason').isVisible(), false);
+        await cancelled.page.getByRole('button', { name: 'Add saved offers' }).click();
+        await cancelled.advanceUntil(/Finished: 2\/2/);
+        assert.equal(cancelled.requests.length, 6, 'manual continuation verifies ownership and adds the remaining offers without scanning');
         assert.deepEqual(cancelled.errors, []);
         await cancelled.context.close();
         console.log('Citi browser regression passed: manual start, selected cards, serial pacing, success, unknown response, 429, cancellation, search, panel controls.');

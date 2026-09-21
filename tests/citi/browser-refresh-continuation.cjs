@@ -81,7 +81,7 @@ async function run() {
         await unconfirmed.advanceUntil(/not explicitly confirmed/);
         await reloadSavedWorkspace(unconfirmed);
         assert.equal(await unconfirmed.page.getByRole('button', { name: savedName, exact: true }).isEnabled(), false);
-        assert.match(await unconfirmed.page.locator('#hub-action-reason').innerText(), /Refresh & add offers/);
+        assert.match(await unconfirmed.page.locator('#hub-action-reason').innerText(), /1 saved offer\(s\) have an unconfirmed add result/);
         assert.equal(await unconfirmed.page.getByRole('button', { name: refreshName, exact: true }).isEnabled(), true);
         // An unconfirmed write may have succeeded. Refresh must resolve it before adding anything else.
         unconfirmed.bankState.enrolled.add('card-a:a');

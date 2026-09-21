@@ -84,7 +84,8 @@ test('stopping while a write is in flight records confirmation but sends no next
     assert.equal(harness.requests.length, 2);
     assert.equal(harness.state.confirmed, 1);
     assert.equal(harness.state.offers[0].status, 'ENROLLED');
-    assert.equal(harness.state.needsScan, true);
+    assert.equal(harness.state.needsScan, false);
+    assert.equal(harness.canAddSavedOffers(), true);
 });
 
 test('stop during pacing prevents the next request and concurrent clicks cannot start a second queue', async () => {

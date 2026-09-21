@@ -7,6 +7,8 @@ async function enrollPlannedOffers() {
     for (const offer of queue) {
         ensureRunning();
         updateStatus(`Adding ${state.completed + 1}/${state.total}: ${offer.merchant}…`);
+        // A stop while waiting has not sent this offer. Keep it available, not unconfirmed.
+        await waitForRequestSlot();
         try {
             offerWorkflow.assertAction(offer);
             markWorkspaceOfferPending(offer);

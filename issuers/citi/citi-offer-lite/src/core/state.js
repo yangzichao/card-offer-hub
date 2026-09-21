@@ -19,7 +19,11 @@ function updateStatus(message) {
     renderPanel();
 }
 function ensureRunning() {
-    if (state.stopRequested) throw new Error('Stopped. Use Refresh & add offers to continue.');
+    if (state.stopRequested) {
+        const error = new Error('Stopped. Use Refresh & add offers to continue.');
+        error.name = 'CitiActionStopped';
+        throw error;
+    }
     if (location.origin !== 'https://online.citi.com' || !/^\/US\/(?:ag|nga)\//.test(location.pathname)) {
         throw new Error('Open a signed-in Citi page and use Refresh & add offers.');
     }

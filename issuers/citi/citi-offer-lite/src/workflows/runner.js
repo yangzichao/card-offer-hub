@@ -1,7 +1,11 @@
 const runExclusive = createHubActionRunner({
     state, settings: SETTINGS, ensureRunning, restorePacing, saveWorkspace,
     render: () => renderPanel(), updateStatus, supportsActivation: SETTINGS.capabilities.activation,
-    onFailure: () => { state.continuationBlocked = true; }
+    onFailure: error => {
+        const canResume = error.name === 'CitiActionStopped' && error.canResumeSavedOffers === true;
+        state.continuationBlocked = !canResume;
+        if (canResume) state.needsScan = false;
+    }
 });
 
 function setCardSelected(accountId, selected) {

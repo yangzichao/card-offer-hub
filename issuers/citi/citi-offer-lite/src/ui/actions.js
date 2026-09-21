@@ -23,8 +23,7 @@ function renderCitiActions(panel) {
     reason.textContent = state.storageError || state.busy ? ''
         : coolingDown ? 'Citi is asking us to wait. Try again after the cooldown.'
         : !hasCards ? ''
-        : !hasSelection ? 'Choose at least one card above. Your choices stay saved.'
-        : !canAddSavedOffers() ? 'Use Refresh & add offers to check your offers before continuing.'
+        : savedOffersBlockReason() ? savedOffersBlockReason()
         : !savedCount ? 'No saved offers left to add. Refresh & add offers checks for new ones.'
         : '';
     reason.hidden = !reason.textContent;
