@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-function registerWorkspacePersistenceTests({ create, prepare, choose = () => {}, activate = async () => {}, secrets = [] }) {
+function registerWorkspacePersistenceTests({ create, prepare, choose = () => {}, activate = async () => {}, secrets = [], verifyRestoredActivation }) {
     function restore(harness) { harness.restorePacing(); harness.restoreWorkspace(); return harness; }
     function snapshot(harness) { return harness.storage.get(`${harness.SETTINGS.id}:workspace`); }
     test('workspace survives reload with results, choices, timestamps and no requests or credentials', async () => {
@@ -23,8 +23,11 @@ function registerWorkspacePersistenceTests({ create, prepare, choose = () => {},
         assert.deepEqual(Array.from(second.state.offers, record => JSON.parse(JSON.stringify(record))), saved.offers);
         assert.deepEqual([...(second.state.selected || [])], saved.selected);
         assert.equal(second.state.consent ?? second.state.accountConsent ?? false, saved.consent);
-        await activate(second);
-        assert.equal(second.requests.length, 0, 'a restored cache alone cannot authorize an activation');
+        if (verifyRestoredActivation) await verifyRestoredActivation(second);
+        else {
+            await activate(second);
+            assert.equal(second.requests.length, 0, 'a restored cache alone cannot authorize an activation');
+        }
         for (const secret of secrets) assert.equal(JSON.stringify(saved).includes(secret), false, secret);
     });
     test('failed rescan keeps the last complete results and scan timestamp', async () => {

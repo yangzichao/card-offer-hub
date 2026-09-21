@@ -62,8 +62,7 @@ function captureSessionResponse(context, payload) {
             digitalAccountIdentifier: chaseIdentifier(card.digitalAccountIdentifier),
             accountNickname: typeof card.accountNickname === 'string' ? card.accountNickname : '',
             accountProductClassificationName: typeof card.accountProductClassificationName === 'string' ? card.accountProductClassificationName : '',
-            maskedAccountNumber: typeof card.maskedAccountNumber === 'string' ? card.maskedAccountNumber.slice(-4) : '',
-            shoppingEligibilityIndicator: card.shoppingEligibilityIndicator
+            maskedAccountNumber: typeof card.maskedAccountNumber === 'string' ? card.maskedAccountNumber.slice(-4) : ''
         })) };
         chaseCapturedSession = { ...context, accountId, headers: { ...context.headers }, capturedAt: Date.now() };
         return true;

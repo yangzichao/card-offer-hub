@@ -9,7 +9,7 @@ Chase Offers 的 Tampermonkey 脚本，提供手动选择卡片和串行扫描�
 构建产物为 [`dist/card-offer-hub-all.user.js`](../../../dist/card-offer-hub-all.user.js)。首次发布前，在 Tampermonkey Dashboard → Utilities → Import from file 中导入本地文件；发布到 `main` 后可使用 [安装 / 更新链接](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/card-offer-hub-all.user.js)，以后由 Tampermonkey 检查版本更新。
 
 1. 安装后刷新 Chase 页面，使脚本在页面加载开始时安装被动观察器。登录并等待首页的 Chase Offers 预览加载，即可检测卡片；如果首页没有加载预览，进入 Chase Offers 或切换页面内的卡片，让 Chase 自身正常加载清单。
-2. 点击 **Detect cards**，从本标签页已观察到的 Chase 响应缓存读取卡片；此操作不会发出网络请求。再手动勾选需要扫描的卡片，不会默认选择卡片。卡片显示末四位便于区分同名卡，Chase 标记为不符合 Offer 条件的卡不可选择。
+2. 点击 **Detect cards**，从本标签页已观察到的 Chase 响应缓存读取卡片；此操作不会发出网络请求。再手动勾选需要扫描的卡片，不会默认选择卡片。卡片显示末四位便于区分同名卡；不以 `shoppingEligibilityIndicator` 判断卡片能否读取 Offers。旧缓存中被禁用的卡片会在检测后重新核对。
 3. 点击 **Scan offers**，读取已选卡片的 Offer。
 4. 需要中止时点击 **Stop**。已经发出的请求会等到响应并记录结果，然后停止后续请求。
 
@@ -31,7 +31,9 @@ Chase Offers 的 Tampermonkey 脚本，提供手动选择卡片和串行扫描�
 
 抓包中未发现添加 Offer 的请求及成功响应，因此当前版本不能激活 Offer。未来启用添加功能前，需要包含手动添加成功过程的脱敏证据，以确认登记请求和明确成功响应的契约。
 
-待现场验证：Tampermonkey 在实际 Chase 登录会话中的卡片检测、Offer 扫描、会话过期和限速提示。构建和离线回归不等于真实网站行为已验证。
+2026-09-20 已在实际登录页面确认：刷新加载 v1.3.1 后，首页可检测到全部 4 张卡。此前页面仍运行 v1.3.0；脚本更新后需要刷新已打开的银行页面。另已确认官方 Offers 页面支持选择脚本原先误禁用的卡片，本次修正该判断。
+
+待现场验证：本次修正后的 Tampermonkey 选卡与完整扫描、会话过期和限速提示。构建和离线回归不等于真实网站行为已验证。
 
 ## 本地保存与恢复
 

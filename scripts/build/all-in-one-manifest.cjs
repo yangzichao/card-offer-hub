@@ -5,6 +5,10 @@ const { projectRoot, validateSourceCoverage } = require('./script-registry.cjs')
 const allInOneDirectory = join(projectRoot, 'bundles/all');
 
 function loadAllInOneManifest(scripts) {
+    for (const script of scripts) {
+        if (!script.savedResultsSource) throw new Error(`${script.id}: declare savedResultsSource for offline search.`);
+        if (!script.capabilities) throw new Error(`${script.id}: declare issuer capabilities.`);
+    }
     const manifest = JSON.parse(readFileSync(join(allInOneDirectory, 'userscript.json'), 'utf8'));
     for (const field of ['id', 'name', 'version', 'description', 'author']) {
         if (typeof manifest[field] !== 'string' || !manifest[field].trim()) throw new Error(`All-in-one manifest needs ${field}.`);

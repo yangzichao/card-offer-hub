@@ -82,3 +82,23 @@ test('a shared module that does not exist fails the build', () => {
         assert.throws(() => readScriptManifest(toolDirectory), /shared\/nowhere\/missing\.js, which does not exist/);
     });
 });
+
+test('a repeated shared dependency fails before publication', () => {
+    withFixture({ sharedModules: ['ui/design-system.js', 'ui/design-system.js'] }, ['main.js'], toolDirectory => {
+        assert.throws(() => readScriptManifest(toolDirectory), /duplicate shared module/);
+    });
+});
+
+test('offline snapshot readers must belong to the declared source inventory', () => {
+    withFixture({ savedResultsSource: 'missing-reader.js' }, ['main.js'], toolDirectory => {
+        assert.throws(() => readScriptManifest(toolDirectory), /savedResultsSource must be listed/);
+    });
+});
+
+test('invalid issuer capabilities cannot silently enable activation or invent a scope', () => {
+    for (const capabilities of [{ activation: 'yes', scope: 'card' }, { activation: true, scope: 'all-banks' }]) {
+        withFixture({ capabilities }, ['main.js'], toolDirectory => {
+            assert.throws(() => readScriptManifest(toolDirectory), /capabilities must declare/);
+        });
+    }
+});

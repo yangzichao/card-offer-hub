@@ -22,14 +22,24 @@
         "persistence/workspace-records.js",
         "persistence/workspace-storage.js",
         "persistence/workspace-scope.js",
-        "persistence/workspace-ui.js"
+        "persistence/workspace-ui.js",
+        "runtime/request-scheduler.js",
+        "runtime/json-transport.js",
+        "runtime/action-runner.js",
+        "persistence/pacing-storage.js",
+        "offers/display-records.js",
+        "ui/workflow-panel.js",
+        "runtime/action-lifecycle.js"
     ],
     "sources": [
+        "snapshots/saved-results.js",
         "core/state.js",
         "core/storage.js",
         "core/workspace-fields.js",
+        "core/workspace.js",
         "api/contracts.js",
         "api/session.js",
+        "api/request-runtime.js",
         "api/observer.js",
         "core/transport.js",
         "workflows/runner.js",
@@ -40,5 +50,10 @@
         "initialize.js"
     ],
     "bankLabel": "Chase",
-    "offersUrl": "https://secure.chase.com/web/auth/dashboard"
+    "offersUrl": "https://secure.chase.com/web/auth/dashboard",
+    "savedResultsSource": "snapshots/saved-results.js",
+    "capabilities": {
+        "activation": false,
+        "scope": "card"
+    }
 }

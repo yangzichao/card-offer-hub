@@ -64,7 +64,7 @@ async function run() {
             const accent = await page.locator(`[id="${hostId}"]`).evaluate(element => getComputedStyle(element).getPropertyValue('--hub-accent').trim());
             assert.equal(accent, '#176653', 'all banks share the same design tokens');
             assert.deepEqual(await page.locator('.hub-step > h3').allTextContents(), ['1. Choose scope', '2. Scan offers', '3. Review & add']);
-            for (const name of ['Scan offers', 'Stop', 'Add all offers', 'Clear search']) {
+            for (const name of [script.issuer === 'citi' ? 'Refresh all cards & offers' : 'Scan offers', 'Stop', 'Add all offers', 'Clear search']) {
                 assert.equal(await page.getByRole('button', { name, exact: true }).count(), 1);
             }
             const bulkBeforeSearch = await page.getByRole('button', { name: 'Add all offers', exact: true }).innerText();

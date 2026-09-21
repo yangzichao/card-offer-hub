@@ -4,11 +4,8 @@ function hubReadSavedResults() {
     for (const bank of HUB_BANKS) {
         const prefix = `issuer:${bank.id}:`;
         try {
-            const snapshot = GM_getValue(prefix + (bank.issuer === 'amex' ? 'card_offer_hub_amex_saved_offers_v1' : `${bank.id}:workspace`), null);
-            if (snapshot === null) { coverage.push({ bank, state: 'missing', count: 0 }); continue; }
-            const offers = bank.issuer === 'amex'
-                ? hubNormalizeAmex(bank, snapshot, GM_getValue(prefix + 'card_offer_hub_amex_saved_cards_v1', null))
-                : hubNormalizeWorkspace(bank, snapshot);
+            const offers = bank.readSavedResults(bank, (key, fallback) => GM_getValue(prefix + key, fallback));
+            if (offers === null) { coverage.push({ bank, state: 'missing', count: 0 }); continue; }
             records.push(...offers);
             coverage.push({ bank, state: 'saved', count: offers.length });
         } catch {

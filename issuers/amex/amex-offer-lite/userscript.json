@@ -18,9 +18,13 @@
     "sharedModules": [
         "ui/design-system.js",
         "ui/panel-branding.js",
-        "ui/workflow-layout.js"
+        "ui/workflow-layout.js",
+        "runtime/request-scheduler.js",
+        "offers/display-records.js",
+        "runtime/action-lifecycle.js"
     ],
     "sources": [
+        "snapshots/saved-results.js",
         "core/state.js",
         "core/card-priority.js",
         "core/storage.js",
@@ -36,6 +40,7 @@
         "api/offers.js",
         "api/enrollment-contract.js",
         "api/enrollment.js",
+        "workflows/runner.js",
         "workflows/cards.js",
         "workflows/scan-results.js",
         "workflows/scan.js",
@@ -51,5 +56,10 @@
         "initialize.js"
     ],
     "bankLabel": "Amex",
-    "offersUrl": "https://global.americanexpress.com/offers"
+    "offersUrl": "https://global.americanexpress.com/offers",
+    "savedResultsSource": "snapshots/saved-results.js",
+    "capabilities": {
+        "activation": true,
+        "scope": "card"
+    }
 }

@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { createHarness } = require('./helpers/userscript-harness.cjs');
 const { account, offer, listing } = require('./fixtures/offers-response.cjs');
 
-test('Chase account normalization preserves eligibility and validates identifiers', () => {
+test('Chase account normalization permits profile-card scans and validates identifiers', () => {
     const harness = createHarness();
     const accounts = harness.normalizeAccounts(listing());
     assert.deepEqual(Array.from(accounts, card => [card.accountId, card.name, card.lastFour, card.eligible]),
@@ -12,6 +12,14 @@ test('Chase account normalization preserves eligibility and validates identifier
     assert.throws(() => harness.normalizeAccounts({ digitalProfileAccounts: [account(), account()] }), /duplicate/);
     for (const invalid of ['', '-1', '1.5', 'unsafe-value', Number.MAX_SAFE_INTEGER + 1]) {
         assert.throws(() => harness.normalizeAccounts({ digitalProfileAccounts: [{ ...account(), digitalAccountIdentifier: invalid }] }), /identifier/);
+    }
+});
+
+test('Chase shopping eligibility does not determine access to card-linked Offers', () => {
+    const harness = createHarness();
+    for (const shoppingEligibilityIndicator of [false, true, undefined, null, 'false']) {
+        const card = { ...account(), shoppingEligibilityIndicator };
+        assert.equal(harness.normalizeAccounts({ digitalProfileAccounts: [card] })[0].eligible, true);
     }
 });
 

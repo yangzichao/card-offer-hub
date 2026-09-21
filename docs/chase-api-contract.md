@@ -29,7 +29,7 @@ These are synthetic examples. The capture uses both numeric and string account i
 
 Observed request headers include `channel-identifier`, `channel-type`, `x-jpmc-channel`, `path-params`, and `x-jpmc-csrf-token`. Their runtime values come from the current page's own request, never constants copied from the HAR. The HAR does not establish a cookie or DOM source for the CSRF value, so the code does not guess one. Browser-managed cookies accompany subsequent same-origin GETs. The observer retains only a header allowlist in memory, drops tracing and all unrelated headers, and does not persist session material.
 
-A captured response is accepted only if it supplies recognizable account records, a customerOffers group for the request account, and `primaryIndividualEnterprisePartyIdentifier` matching the request's enterprise identifier. Account discovery retains only identifier, nickname, classification, last four, and explicit shopping eligibility. Offer impression tokens, customer offer session tokens, and full response bodies are not retained by the observer.
+A captured response is accepted only if it supplies recognizable account records, a customerOffers group for the request account, and `primaryIndividualEnterprisePartyIdentifier` matching the request's enterprise identifier. Account discovery retains only identifier, nickname, classification, and last four. Offer impression tokens, customer offer session tokens, and full response bodies are not retained by the observer.
 
 ### Dashboard discovery correction (2026-09-19)
 
@@ -50,9 +50,19 @@ Verification for Chase 1.3.1 / All Banks 1.2.1: `npm run build` PASS; `npm run c
 - `digitalAccountIdentifier`: request identity, normalized to a string.
 - `accountNickname` and `accountProductClassificationName`: display label.
 - `maskedAccountNumber`: only its final four digits are retained.
-- `shoppingEligibilityIndicator`: required boolean, used to determine eligible cards.
+- `shoppingEligibilityIndicator`: not a card-linked Offers eligibility signal; neither false nor its absence blocks read-only scanning of a returned profile card.
 
 Discovery does not opt cards in. Card selection is a separate explicit user action.
+
+### Live discovery and shopping-flag correction (2026-09-20)
+
+The logged-in dashboard still ran v1.3.0 until a reload loaded the published v1.3.1. Clicking Detect cards then discovered all four profile cards, verifying the document-start observer and dashboard discovery on this session. The published v1.3.1 artifact matched the local build byte for byte.
+
+Three cards were incorrectly disabled by mapping `shoppingEligibilityIndicator` directly to card-linked Offers eligibility. The native Offers account selector exposed all four cards, and a card disabled by the script displayed a populated native Offers list. This directly disproves the old eligibility interpretation; the exact meaning of the shopping flag remains unverified.
+
+Profile cards are now selectable for explicit read-only scans independently of that flag. The existing snapshot `eligible` field represents scan availability and is refreshed on Detect cards; existing selections remain opt-in. Older false values show a refresh instruction instead of an unsupported ineligibility claim. Identity validation, complete-list checks, no automatic requests/retries, and unavailable activation remain unchanged. Synthetic tests cover false/absent flags, legacy disabled cards, manual selection and browser scans. Live execution of this new correction is pending until the updated artifact is installed.
+
+Local v1.3.2 validation: `npm run build` PASS; `npm run check` PASS; `npm test` PASS (268 tests). With `PLAYWRIGHT_MODULE_PATH=/Users/zichaoyang/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright`, the initial `npm run test:browser` passed all 12 scripts. A later rebuild incorporating concurrent Citi/shared-UI edits passed build/check/unit tests, but the full browser suite failed in `tests/citi/browser-enrollment.cjs` waiting for its old `Detect cards` control. A focused rerun of `node tests/chase/browser-scanning.cjs` passed. Those unrelated edits were preserved. The browser security policy blocked extension-management access, so this session did not install the local correction or verify its full scan on Chase. No activation was performed and this change was not committed or pushed.
 
 ## Complete offer scan
 
@@ -75,7 +85,7 @@ Each offer is identified by `offerIdentifier`. Raw statuses `NEW`, `SERVED`, and
 
 ## Pending live verification
 
-- Tampermonkey document-start access to the page's fetch/XHR in the currently deployed Chase dashboard.
+- The v1.3.2 shopping-flag correction in the installed Tampermonkey script (v1.3.1 dashboard discovery was verified on 2026-09-20).
 - Native request headers and responses still following this observed contract.
 - Session refresh, sign-out/sign-in, and native card switching behavior.
 - Full-list completeness and eligibility for accounts beyond the supplied capture.

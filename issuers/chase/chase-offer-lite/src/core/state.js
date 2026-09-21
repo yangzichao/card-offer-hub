@@ -1,4 +1,5 @@
 const SETTINGS = {
+    capabilities: __USERSCRIPT_CAPABILITIES__,
     id: __USERSCRIPT_ID__, name: __USERSCRIPT_NAME__, version: __USERSCRIPT_VERSION__,
     gapMilliseconds: 500, timeoutMilliseconds: 45000,
     defaultCooldownMilliseconds: 300000
@@ -9,7 +10,7 @@ const state = {
     needsScan: true, nextRequestAt: 0, cooldownUntil: 0, storageError: '',
     status: 'Open Chase Offers or switch its selected card, then detect cards. Scans start only when you click.',
     confirmed: 0, completed: 0, total: 0, panel: null, collapsed: false, search: '',
-    enrollmentSupported: false, sessionIdentity: ''
+    enrollmentSupported: SETTINGS.capabilities.activation, sessionIdentity: ''
 };
 function updateStatus(message) {
     state.status = message;

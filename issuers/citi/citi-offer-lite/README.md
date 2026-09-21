@@ -9,11 +9,11 @@ Citi Merchant Offers 的 Tampermonkey 脚本。使用统一安装包的浮动面
 构建产物为 [`dist/card-offer-hub-all.user.js`](../../../dist/card-offer-hub-all.user.js)。首次发布前，在 Tampermonkey Dashboard → Utilities → Import from file 中导入本地文件；发布到 `main` 后可使用 [安装 / 更新链接](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/card-offer-hub-all.user.js)，以后由 Tampermonkey 检查版本更新。
 
 1. 登录 Citi，打开 [Merchant Offers](https://online.citi.com/US/nga/products-offers/merchantoffers)。
-2. 点击 **Detect cards**，然后手动勾选要处理的卡片；没有默认勾选。
-3. 点击 **Scan offers** 查看所选卡片的优惠，再点击 **Add all offers**。添加前会重新核验所选卡片，然后逐个添加状态为 `AVAILABLE` 的 Offer。
+2. 首次使用点击 **Refresh all cards & offers**：一次检测所有卡片并逐卡刷新优惠，包括未勾选的卡片。刷新只读取，不会添加；随后勾选要添加优惠的卡片，新卡没有默认勾选。
+3. 点击 **Add all offers** 添加所选卡片的优惠。再次打开时，已有卡片、勾选和结果会直接恢复；可以沿用上次选择直接点击添加，不必重新检测、勾选或单独扫描。这个点击会先核验当前登录的卡片、更新所选卡片状态，然后只添加仍为 `AVAILABLE` 的 Offer。也可以选择 **Refresh all cards & offers**，一次更新全部列表并保留仍有效的勾选和取消勾选。
 4. 可以随时点击 **Stop**。已发出的请求会等到结果返回并记录，然后停止后续请求。
 
-每次响应完成后至少等待 0.5 秒，另加服务器响应时间；300 个 Offer 的间隔等待约 2.5 分钟，实际完成时间还取决于请求耗时。Citi 会话过期后流程会停止，重新登录、检测和扫描即可。脚本不会自动续期登录。
+每次响应完成后至少等待 0.5 秒，另加服务器响应时间；300 个 Offer 的间隔等待约 2.5 分钟，实际完成时间还取决于请求耗时。Citi 会话过期后流程会停止，重新登录后点击刷新即可。脚本不会自动续期登录。
 
 同一张卡重复出现的 Offer ID 会去重；不同卡片相同 Offer 会分别登记。搜索只筛选面板显示，不改变添加范围。面板最多显示 200 条匹配项目，扫描和队列没有此上限。
 
@@ -24,7 +24,7 @@ Citi Merchant Offers 的 Tampermonkey 脚本。使用统一安装包的浮动面
 - 429 按 `Retry-After` 冷却；HTTP 错误、未知响应、超时均停止，先重新扫描再继续。没有自动重试。
 - 非空 `EnrolledOfferInfo.enrollmentId` 和非空 `MerchantOfferDetails` 是确认要求；若返回的卡片、Offer 或状态相互矛盾，也不会算成功。
 - 同一浏览器同源标签页通过 Web Locks 互斥。其他浏览器、浏览器配置文件或手动网站操作不受这个锁控制。
-- 带 schema 版本的快照保存卡片、勾选、列表和登记结果。刷新后先显示缓存；手动扫描会先核对当前登录的卡片，保留仍属于此账户的选择，再扫描服务端状态。存储错误会显示并阻止新请求。
+- 带 schema 版本的快照保存卡片、勾选、列表和登记结果。恢复后先显示缓存；继续添加会核对当前登录的卡片，若已选卡片不再属于当前登录则停止。全量刷新保留仍有效的选择，新卡不自动勾选。存储错误会显示并阻止新请求。
 - Citi 自带页面可能保留旧徽标，完成后刷新即可。脚本面板展示 API 确认结果。
 
 ## 验证边界
@@ -39,4 +39,4 @@ Citi Merchant Offers 的 Tampermonkey 脚本。使用统一安装包的浮动面
 
 扫描结果、已有选择、搜索条件和面板折叠状态保存在 Tampermonkey 本地存储，刷新或重新打开后恢复。页面显示最后完整扫描时间；恢复本身不发网络请求、不自动添加。取消勾选也会保存，不因刷新重新选中。
 
-保存失败会显示错误；未知或损坏的快照保留原数据，不静默覆盖。快照只保存展示字段和选择，Cookie、登录 token、请求头、原始响应和地理位置不写入快照。正在添加时刷新，未确认的项目保留为未确认，后续先扫描核验。详见[持久化说明](../../../docs/local-persistence.md)。
+保存失败会显示错误；未知或损坏的快照保留原数据，不静默覆盖。快照只保存展示字段和选择，Cookie、登录 token、请求头、原始响应和地理位置不写入快照。正在添加时刷新，未确认的项目保留为未确认，后续必须先点击全量刷新核验，不直接恢复写入。详见[持久化说明](../../../docs/local-persistence.md)和[继续操作与全量刷新](../../../docs/citi-refresh-continuation.md)。

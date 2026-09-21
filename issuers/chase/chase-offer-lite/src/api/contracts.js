@@ -9,14 +9,17 @@ function normalizeAccounts(payload) {
     const accounts = new Map();
     for (const card of payload.digitalProfileAccounts) {
         const accountId = chaseIdentifier(card?.digitalAccountIdentifier);
-        if (typeof card.shoppingEligibilityIndicator !== 'boolean') throw new Error('Chase returned an incomplete card record.');
         const name = typeof card.accountNickname === 'string' && card.accountNickname.trim()
             ? card.accountNickname : typeof card.accountProductClassificationName === 'string'
                 ? card.accountProductClassificationName : 'Chase card';
         const maskedNumber = typeof card.maskedAccountNumber === 'string' ? card.maskedAccountNumber : '';
         const lastFour = maskedNumber.match(/(\d{4})$/)?.[1] || '';
         if (accounts.has(accountId)) throw new Error('Chase returned duplicate card records.');
-        accounts.set(accountId, { accountId, name, lastFour, eligible: card.shoppingEligibilityIndicator });
+        // Cards returned by the Offers profile can be selected for a read-only
+        // scan. shoppingEligibilityIndicator is not an Offers eligibility flag:
+        // Chase displays card-linked offers even when that field is false.
+        // Keep the existing snapshot field; detection refreshes stale false values.
+        accounts.set(accountId, { accountId, name, lastFour, eligible: true });
     }
     return [...accounts.values()];
 }

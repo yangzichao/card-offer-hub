@@ -1,5 +1,5 @@
 const SETTINGS = Object.freeze({
-    version: __USERSCRIPT_VERSION__,
+    version: __USERSCRIPT_VERSION__, capabilities: __USERSCRIPT_CAPABILITIES__,
     requestGapMs: 500,
     rateLimitCooldownMs: 120000,
     requestTimeoutMs: 30000,

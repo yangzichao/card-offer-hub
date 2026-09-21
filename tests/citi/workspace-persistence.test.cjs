@@ -5,7 +5,15 @@ function create(options = {}) {
         : jsonResponse(request.url.endsWith('/retrieve') ? listing(undefined, [{ accountId: 'card-a', displayProductName: 'Example card' }]) : confirmation(request)), options);
 }
 registerWorkspacePersistenceTests({ create, prepare: async harness => { selectCards(harness); await harness.scanOffers(); },
-    activate: harness => harness.addAllOffers(), secrets: ['synthetic-session', 'synthetic-client'] });
+    activate: harness => harness.addAllOffers(), secrets: ['synthetic-session', 'synthetic-client'],
+    verifyRestoredActivation: async harness => {
+        assert.equal(harness.canContinueSavedOffers(), true);
+        await harness.addAllOffers();
+        assert.deepEqual(harness.requests.map(request => request.body), [
+            {}, { accountId: 'card-a' }, { accountId: 'card-a', offerId: 'offer-a', oneClickEnroll: 'true' }
+        ], 'one explicit click verifies the login and current offers before adding');
+        assert.equal(harness.state.confirmed, 1);
+    } });
 module.exports = { create };
 
 const test = require('node:test');

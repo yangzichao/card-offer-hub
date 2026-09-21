@@ -1,4 +1,5 @@
 const SETTINGS = {
+    capabilities: __USERSCRIPT_CAPABILITIES__,
     id: __USERSCRIPT_ID__, name: __USERSCRIPT_NAME__, version: __USERSCRIPT_VERSION__,
     endpoint: '/digital/api/customer-management/graphql/v2',
     gapMilliseconds: 500, timeoutMilliseconds: 45000,

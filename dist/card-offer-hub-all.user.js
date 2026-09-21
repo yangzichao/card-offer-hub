@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Card Offer Hub — All Banks
 // @namespace    https://github.com/yangzichao/card-offer-hub
-// @version      1.3.1
+// @version      1.3.3
 // @description  All six Card Offer Hub tools in one install; manual scanning and activation on the matching bank website
 // @author       Zichao Yang
 // @match        https://global.americanexpress.com/*
@@ -26,89 +26,605 @@
 
 (function () {
 'use strict';
-const HUB_BANKS = [{"id":"amex-offer-lite","issuer":"amex","label":"Amex","url":"https://global.americanexpress.com/offers"},{"id":"bofa-offer-lite","issuer":"bank-of-america","label":"BankAmeriDeals","url":"https://deals.merchant-rewards.com/"},{"id":"chase-offer-lite","issuer":"chase","label":"Chase","url":"https://secure.chase.com/web/auth/dashboard"},{"id":"citi-offer-lite","issuer":"citi","label":"Citi","url":"https://online.citi.com/US/nga/products-offers/merchantoffers"},{"id":"usbank-offer-lite","issuer":"usbank","label":"US Bank","url":"https://onlinebanking.usbank.com/digital/servicing/dominjection/cashback-deals"},{"id":"wellsfargo-offer-lite","issuer":"wellsfargo","label":"Wells Fargo","url":"https://web.secure.wellsfargo.com/auth/deals-portal"}];
-const HUB_DESIGN_STYLES = `
-:host{all:initial;--hub-ink:#20322f;--hub-muted:#64746e;--hub-accent:#176653;--hub-tint:#edf6f1;--hub-line:#dce5df;--hub-canvas:#f5f7f4;--hub-radius:16px;position:fixed;right:16px;bottom:16px;z-index:2147483646;color:var(--hub-ink);font:13px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:light}
-*,*::before,*::after{box-sizing:border-box}[hidden]{display:none!important}
-.panel{width:min(464px,calc(100vw - 24px));max-height:88vh;max-height:88dvh;overflow:auto;background:#fff;border:1px solid var(--hub-line);border-radius:var(--hub-radius);box-shadow:0 16px 60px #21392d20}
-header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;border-bottom:1px solid var(--hub-line);background:#fff}
-.hub-heading{min-width:0;flex:1}.hub-eyebrow{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--hub-accent);font-weight:750;margin-bottom:3px}.hub-version{font-size:10px;color:var(--hub-muted);font-variant-numeric:tabular-nums}
-h2{font-size:18px;line-height:1.3;letter-spacing:-.035em;margin:0;font-weight:650}h3{font-size:12px;margin:0 0 8px;font-weight:650}p{margin:6px 0}
-section,main{padding:16px 20px;border-bottom:1px solid var(--hub-line)}footer,.status{padding:14px 20px;background:var(--hub-canvas);overflow-wrap:anywhere}.muted,.card-report,.logs{color:var(--hub-muted);font-size:12px}.error,.storage-error{color:#a33232}.notice{border-left:3px solid #a2b9ac;background:var(--hub-canvas);padding:10px 12px}
-button,input,select{font:inherit}button,select{border:1px solid var(--hub-line);border-radius:9px;color:var(--hub-ink);background:#fff;padding:8px 12px;min-height:36px}button{cursor:pointer;font-weight:550}button:not(:disabled):hover{background:var(--hub-tint);border-color:#a8c6b9}button.primary{background:var(--hub-accent);color:#fff;border-color:var(--hub-accent)}button.primary:not(:disabled):hover{background:#10523f}button:disabled{opacity:.45;cursor:not-allowed}button.stop{color:#a33232}button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #79ad99;outline-offset:3px}
-input[type=search]{width:100%;padding:11px 13px;border:1px solid var(--hub-line);border-radius:10px;background:var(--hub-canvas);color:var(--hub-ink)}input[type=checkbox]{accent-color:var(--hub-accent);flex:none;width:15px;height:15px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}.cards{max-height:180px;overflow:auto}.card{display:flex;align-items:flex-start;gap:9px;padding:9px 0;overflow-wrap:anywhere}.card input{margin-top:3px}.card-info{min-width:0;flex:1}
-.offers{max-height:260px;overflow:auto;margin-top:10px}.offer{display:block;padding:13px 0;border-bottom:1px solid var(--hub-line);overflow-wrap:anywhere}.offer:last-child{border-bottom:0}.offer small{display:block;color:var(--hub-muted);margin-top:5px}.offer-title{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.offer-title button{flex-shrink:0}.badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.badge{border-radius:5px;background:var(--hub-canvas);padding:3px 7px;font-size:11px}.badge.enrolled{background:var(--hub-tint);color:var(--hub-accent)}.badge.unconfirmed,.badge.failed{background:#fff1da;color:#865711}.card-counts,.offer-counts,.offer-target{color:var(--hub-accent);font-size:12px}.logs{max-height:90px;overflow:auto}a{color:var(--hub-accent);text-underline-offset:3px}
-.hub-search-launcher{display:flex;align-items:center;justify-content:space-between;width:100%;border:0;border-bottom:1px solid var(--hub-line);border-radius:0;background:var(--hub-tint);padding:11px 20px;color:var(--hub-accent);text-align:left}.hub-search-launcher span:last-child{font-size:11px;font-weight:400}
-.hub-step h3{font-size:12px;letter-spacing:.03em;margin-bottom:10px;color:var(--hub-accent)}.hub-action-reason{font-size:12px;color:var(--hub-muted);margin-top:10px}.hub-clear-search{font-size:11px;min-height:28px;padding:4px 8px;margin-top:6px}.hub-search-rule{font-size:11px}.hub-step .actions{margin-bottom:8px}
-@media(max-width:500px){:host{right:12px;bottom:12px}header{padding:16px}section,main,footer,.status{padding:14px 16px}}
-`;
-function hubText(value) { return typeof value === 'string' ? value : ''; }
-function hubTimestamp(value) { return Number.isFinite(value) && value > 0 ? value : 0; }
-function hubStatus(value) {
-    if (['AVAILABLE', 'ELIGIBLE'].includes(value)) return 'available';
-    if (['ENROLLED', 'ACTIVATED'].includes(value)) return 'added';
-    if (['UNCONFIRMED', 'UNKNOWN', 'FAILED', 'CONFLICT'].includes(value)) return 'review';
-    return 'other';
-}
-function hubOfferRecord(bank, offer, context) {
-    if (!offer || typeof offer !== 'object' || Array.isArray(offer)) throw new Error('Invalid saved offer');
-    const merchant = hubText(offer.merchant || offer.name);
-    const description = hubText(offer.title || offer.description || offer.headline);
-    if (!merchant && !description) throw new Error('Missing saved offer text');
-    let status = hubStatus(offer.status);
-    if (bank.issuer === 'amex' && status === 'available' && offer.enrollable !== true) status = 'other';
-    if (bank.issuer === 'bank-of-america') {
-        status = offer.result === 'Unconfirmed' ? 'review' : offer.activated === true ? 'added' : offer.eligible === true ? 'available' : 'other';
-    }
-    return { bankId: bank.id, bankName: bank.label, merchant, description,
-        card: context.card || 'Account-wide', scannedAt: hubTimestamp(context.scannedAt),
-        incomplete: Boolean(context.incomplete), status, expires: hubText(offer.expires || offer.expiry),
-        category: hubText(offer.category), url: bank.url };
-}
-function hubNormalizeWorkspace(bank, snapshot) {
-    if (snapshot.schemaVersion !== 1 || !Array.isArray(snapshot.offers) || !Array.isArray(snapshot.accounts)) {
-        throw new Error('Unsupported saved results');
-    }
-    const accounts = new Map(snapshot.accounts.map(account => {
-        if (!account || typeof account.accountId !== 'string' || typeof account.name !== 'string') throw new Error('Invalid saved card');
-        return [account.accountId, account.name];
-    }));
-    return snapshot.offers.map(offer => hubOfferRecord(bank, offer, {
-        card: accounts.get(offer?.accountId) || (['chase', 'citi'].includes(bank.issuer) ? 'Saved card' : 'Account-wide'),
-        scannedAt: snapshot.lastScanAt
-    }));
-}
-function hubNormalizeAmex(bank, snapshot, savedCards) {
-    if (snapshot.schemaVersion !== 1 || !Array.isArray(snapshot.cards)) throw new Error('Unsupported saved results');
-    const accounts = new Map();
-    if (savedCards) {
-        if (![1, 2].includes(savedCards.schemaVersion) || !Array.isArray(savedCards.accounts)) throw new Error('Unsupported saved cards');
-        for (const account of savedCards.accounts) {
-            if (!account || typeof account.token !== 'string' || typeof account.cardName !== 'string') throw new Error('Invalid saved card');
-            accounts.set(account.token, account.cardName);
-        }
-    }
-    return snapshot.cards.flatMap(card => {
-        if (!card || typeof card.accountToken !== 'string' || !Array.isArray(card.offers) || typeof card.complete !== 'boolean') {
-            throw new Error('Invalid saved card results');
-        }
-        return card.offers.map(offer => hubOfferRecord(bank, offer, {
-            card: accounts.get(card.accountToken) || 'Saved card', scannedAt: card.scannedAt, incomplete: !card.complete
-        }));
-    });
-}
+// --- Shared runtime ---
+    // Source: shared/ui/design-system.js
+    const HUB_DESIGN_STYLES = `
+    :host{all:initial;--hub-ink:#20322f;--hub-muted:#64746e;--hub-accent:#176653;--hub-tint:#edf6f1;--hub-line:#dce5df;--hub-canvas:#f5f7f4;--hub-radius:16px;position:fixed;right:16px;bottom:16px;z-index:2147483646;color:var(--hub-ink);font:13px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:light}
+    *,*::before,*::after{box-sizing:border-box}[hidden]{display:none!important}
+    .panel{width:min(464px,calc(100vw - 24px));max-height:88vh;max-height:88dvh;overflow:auto;background:#fff;border:1px solid var(--hub-line);border-radius:var(--hub-radius);box-shadow:0 16px 60px #21392d20}
+    header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;border-bottom:1px solid var(--hub-line);background:#fff}
+    .hub-heading{min-width:0;flex:1}.hub-eyebrow{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--hub-accent);font-weight:750;margin-bottom:3px}.hub-version{font-size:10px;color:var(--hub-muted);font-variant-numeric:tabular-nums}
+    h2{font-size:18px;line-height:1.3;letter-spacing:-.035em;margin:0;font-weight:650}h3{font-size:12px;margin:0 0 8px;font-weight:650}p{margin:6px 0}
+    section,main{padding:16px 20px;border-bottom:1px solid var(--hub-line)}footer,.status{padding:14px 20px;background:var(--hub-canvas);overflow-wrap:anywhere}.muted,.card-report,.logs{color:var(--hub-muted);font-size:12px}.error,.storage-error{color:#a33232}.notice{border-left:3px solid #a2b9ac;background:var(--hub-canvas);padding:10px 12px}
+    button,input,select{font:inherit}button,select{border:1px solid var(--hub-line);border-radius:9px;color:var(--hub-ink);background:#fff;padding:8px 12px;min-height:36px}button{cursor:pointer;font-weight:550}button:not(:disabled):hover{background:var(--hub-tint);border-color:#a8c6b9}button.primary{background:var(--hub-accent);color:#fff;border-color:var(--hub-accent)}button.primary:not(:disabled):hover{background:#10523f}button:disabled{opacity:.45;cursor:not-allowed}button.stop{color:#a33232}button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #79ad99;outline-offset:3px}
+    input[type=search]{width:100%;padding:11px 13px;border:1px solid var(--hub-line);border-radius:10px;background:var(--hub-canvas);color:var(--hub-ink)}input[type=checkbox]{accent-color:var(--hub-accent);flex:none;width:15px;height:15px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}.cards{max-height:180px;overflow:auto}.card{display:flex;align-items:flex-start;gap:9px;padding:9px 0;overflow-wrap:anywhere}.card input{margin-top:3px}.card-info{min-width:0;flex:1}
+    .offers{max-height:260px;overflow:auto;margin-top:10px}.offer{display:block;padding:13px 0;border-bottom:1px solid var(--hub-line);overflow-wrap:anywhere}.offer:last-child{border-bottom:0}.offer small{display:block;color:var(--hub-muted);margin-top:5px}.offer-title{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.offer-title button{flex-shrink:0}.badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.badge{border-radius:5px;background:var(--hub-canvas);padding:3px 7px;font-size:11px}.badge.enrolled{background:var(--hub-tint);color:var(--hub-accent)}.badge.unconfirmed,.badge.failed{background:#fff1da;color:#865711}.card-counts,.offer-counts,.offer-target{color:var(--hub-accent);font-size:12px}.logs{max-height:90px;overflow:auto}a{color:var(--hub-accent);text-underline-offset:3px}
+    .hub-search-launcher{display:flex;align-items:center;justify-content:space-between;width:100%;border:0;border-bottom:1px solid var(--hub-line);border-radius:0;background:var(--hub-tint);padding:11px 20px;color:var(--hub-accent);text-align:left}.hub-search-launcher span:last-child{font-size:11px;font-weight:400}
+    .hub-step h3{font-size:12px;letter-spacing:.03em;margin-bottom:10px;color:var(--hub-accent)}.hub-action-reason{font-size:12px;color:var(--hub-muted);margin-top:10px}.hub-clear-search{font-size:11px;min-height:28px;padding:4px 8px;margin-top:6px}.hub-search-rule{font-size:11px}.hub-step .actions{margin-bottom:8px}
+    @media(max-width:500px){:host{right:12px;bottom:12px}header{padding:16px}section,main,footer,.status{padding:14px 16px}}
+    `;
 
+    // Source: shared/ui/panel-branding.js
+    function decorateHubPanel(shadowRoot, version) {
+        const header = shadowRoot.querySelector('header');
+        const title = header.querySelector('h2');
+        const heading = document.createElement('div');
+        heading.className = 'hub-heading';
+        const eyebrow = document.createElement('div');
+        eyebrow.className = 'hub-eyebrow';
+        eyebrow.textContent = 'Card Offer Hub';
+        header.insertBefore(heading, title);
+        heading.append(eyebrow, title);
+        const release = document.createElement('span');
+        release.className = 'hub-version';
+        release.textContent = `v${version}`;
+        heading.append(release);
+    }
+
+    // Source: shared/ui/workflow-layout.js
+    function hubWorkflowMarkup(scopeMarkup, { bank, extraReviewMarkup = '', readOnly = false,
+        scanLabel = 'Scan offers', scanDescription = 'Scan to refresh saved offers. Nothing runs until you click.' } = {}) {
+        return `<div class="panel">
+          <header><h2></h2><button id="collapse" aria-label="Minimize ${bank} panel" aria-expanded="true">−</button></header>
+          <div id="body">
+            <section class="hub-step" data-step="scope"><h3>1. Choose scope</h3>${scopeMarkup}</section>
+            <section class="hub-step" data-step="scan"><h3>2. Scan offers</h3>
+              <p class="muted">${scanDescription}</p>
+              <div class="actions"><button id="scan" aria-label="${scanLabel}">${scanLabel}</button><button id="stop" class="stop" aria-label="Stop">Stop</button></div>
+            </section>
+            <section class="hub-step" data-step="review"><h3>3. Review & add</h3>
+              <input id="search" type="search" aria-label="Search saved offers" placeholder="Search saved offers">
+              <button id="hub-clear-search" class="hub-clear-search" aria-label="Clear search">Clear search</button>
+              <p class="muted hub-search-rule">Search changes the list only. Add all includes offers hidden by search within your chosen scope.</p>
+              <p id="counts" class="muted"></p><div class="actions"><button id="add" class="primary" aria-label="Add all offers" aria-describedby="hub-action-reason">Add all offers</button>${extraReviewMarkup}</div>
+              <p id="hub-action-reason" class="hub-action-reason" role="note"></p>
+              ${readOnly ? `<p id="enrollment-notice" class="notice">${bank} is read-only here. Add offers on the bank website.</p>` : ''}
+              <div id="offers" class="offers"></div>
+            </section>
+            <footer><p id="workspace-cache" class="muted"></p><div id="status" role="status" aria-live="polite"></div><div id="storage-error" class="error" role="alert"></div></footer>
+          </div></div>`;
+    }
+    function hubMatchesSearch(offer, query) {
+        return [offer.merchant, offer.name, offer.title, offer.description, offer.headline, offer.category]
+            .filter(value => typeof value === 'string').join(' ').toLocaleLowerCase().includes(query.trim().toLocaleLowerCase());
+    }
+    function hubOfferStatusLabel(status) {
+        if (['AVAILABLE', 'ELIGIBLE', 'NEW'].includes(status)) return 'Available';
+        if (['ENROLLED', 'ACTIVATED'].includes(status)) return 'Added';
+        if (['UNCONFIRMED', 'UNKNOWN', 'FAILED', 'CONFLICT'].includes(status)) return 'Needs review';
+        return 'Skipped';
+    }
+    function hubShowEmptyOffers(container, query) {
+        const note = document.createElement('p');
+        note.className = 'muted';
+        note.textContent = query.trim() ? 'No offers match your search. Clear search to view all saved offers in this scope.' : 'No offers in this scope yet. Choose your scope and scan to refresh.';
+        container.append(note);
+    }
+    function hubSetActionLabel(control, label, count = null) {
+        if (!control) return;
+        control.textContent = count === null ? label : `${label} (${count})`;
+        control.setAttribute('aria-label', label);
+    }
+    function renderHubWorkflow(root, { count, hasScope = true, needsScan = false, busy = false,
+        storageError = '', readOnly = false, coolingDown = false, progress = null } = {}) {
+        const add = root.getElementById('add') || root.getElementById('btn-enroll-all');
+        hubSetActionLabel(add, 'Add all offers', busy ? null : count);
+        add.disabled = Boolean(busy || storageError || readOnly || coolingDown || !hasScope || needsScan || !count);
+        const reason = root.getElementById('hub-action-reason');
+        reason.textContent = storageError ? 'Resolve the storage error before continuing.'
+            : busy ? progress ? `Adding ${progress.completed} of ${progress.total}. The task keeps its original scope while you search or switch tabs.` : 'Working. Use Stop to end the current task.'
+            : readOnly ? 'Adding is unavailable for this bank. You can still scan and search.'
+            : coolingDown ? 'Waiting for the bank cooldown. Start again manually when it ends.'
+            : !hasScope ? 'Choose or confirm your scope in step 1.'
+            : needsScan ? 'Scan offers in step 2 before adding.'
+            : !count ? 'No available offers in this scope. Scan again to refresh.'
+            : `Ready to add ${count} available ${count === 1 ? 'offer' : 'offers'} in your chosen scope. Search does not change this total.`;
+    }
+
+    // Source: shared/runtime/request-scheduler.js
+    function hubRetryAfterMilliseconds(value, fallback, now = Date.now(), minimum = 0) {
+        const numeric = typeof value === 'string' && /^\d+(?:\.\d+)?$/.test(value.trim());
+        const delay = numeric ? Number(value) * 1000 : typeof value === 'string' ? Date.parse(value) - now : NaN;
+        return Number.isFinite(delay) ? Math.max(minimum, 0, delay) : fallback;
+    }
+
+    // An instance belongs to one issuer. The shared definition has no startup effects.
+    function createHubRequestScheduler({ state, gapMilliseconds, ensureRunning, checkStorage = () => {},
+        persist = () => {}, reservationMilliseconds = 0, onWait = () => {},
+        cooldownError = () => new Error('Rate limited. Wait for the cooldown, then scan again.') }) {
+        async function waitForRequestSlot() {
+            ensureRunning();
+            checkStorage();
+            if (Date.now() < state.cooldownUntil) throw cooldownError();
+            while (Date.now() < state.nextRequestAt) {
+                ensureRunning();
+                const remaining = state.nextRequestAt - Date.now();
+                onWait(remaining);
+                await new Promise(resolve => setTimeout(resolve, Math.min(250, remaining)));
+            }
+            ensureRunning();
+            checkStorage();
+            if (Date.now() < state.cooldownUntil) throw cooldownError();
+        }
+        async function withRequestSlot(operation) {
+            if (state.requestInFlight) throw new Error('Another request is still active.');
+            state.requestInFlight = true;
+            let reserved = false;
+            try {
+                await waitForRequestSlot();
+                if (reservationMilliseconds) {
+                    state.nextRequestAt = Date.now() + reservationMilliseconds + gapMilliseconds;
+                    persist();
+                    checkStorage();
+                }
+                reserved = true;
+                return await operation();
+            } finally {
+                try {
+                    if (reserved) {
+                        state.nextRequestAt = Date.now() + gapMilliseconds;
+                        persist();
+                        checkStorage();
+                    }
+                } finally {
+                    state.requestInFlight = false;
+                }
+            }
+        }
+        return { waitForRequestSlot, withRequestSlot };
+    }
+
+    // Source: shared/offers/display-records.js
+    function hubText(value) { return typeof value === 'string' ? value : ''; }
+    function hubTimestamp(value) { return Number.isFinite(value) && value > 0 ? value : 0; }
+    function hubStatus(value) {
+        if (['AVAILABLE', 'ELIGIBLE'].includes(value)) return 'available';
+        if (['ENROLLED', 'ACTIVATED'].includes(value)) return 'added';
+        if (['UNCONFIRMED', 'UNKNOWN', 'FAILED', 'CONFLICT'].includes(value)) return 'review';
+        return 'other';
+    }
+    // Display records never authorize a request or contain request/session credentials.
+    function hubOfferRecord(bank, offer, context) {
+        if (!offer || typeof offer !== 'object' || Array.isArray(offer)) throw new Error('Invalid saved offer');
+        const merchant = hubText(offer.merchant), description = hubText(offer.description);
+        if (!merchant && !description) throw new Error('Missing saved offer text');
+        return { bankId: bank.id, bankName: bank.label, merchant, description,
+            card: context.card || 'Account-wide', scannedAt: hubTimestamp(context.scannedAt),
+            incomplete: Boolean(context.incomplete), status: offer.displayStatus,
+            expires: hubText(offer.expires), category: hubText(offer.category), url: bank.url };
+    }
+    function hubWorkspaceDisplayRecords(bank, snapshot, normalizeOffer, cardScoped = false) {
+        if (snapshot.schemaVersion !== 1 || !Array.isArray(snapshot.offers) || !Array.isArray(snapshot.accounts)) {
+            throw new Error('Unsupported saved results');
+        }
+        const accounts = new Map(snapshot.accounts.map(account => {
+            if (!account || typeof account.accountId !== 'string' || typeof account.name !== 'string') throw new Error('Invalid saved card');
+            return [account.accountId, account.name];
+        }));
+        return snapshot.offers.map(offer => hubOfferRecord(bank, normalizeOffer(offer), {
+            card: accounts.get(offer?.accountId) || (cardScoped ? 'Saved card' : 'Account-wide'),
+            scannedAt: snapshot.lastScanAt
+        }));
+    }
+
+    // Source: shared/runtime/action-lifecycle.js
+    // The bank owns its start/finish state and error presentation. Cleanup is guaranteed
+    // even if a request, confirmation, persistence operation, or initial render fails.
+    async function runHubActionLifecycle({ isBusy, begin, execute, fail, finish }) {
+        if (isBusy()) return;
+        try {
+            begin();
+            return await execute();
+        } catch (error) {
+            return fail(error);
+        } finally {
+            finish();
+        }
+    }
+
+    // Source: shared/persistence/workspace-records.js
+    function serializeWorkspaceRecord(record, fields) {
+        const normalized = {};
+        for (const [field, type] of Object.entries(fields)) {
+            normalized[field] = type === 'text' && typeof record[field] !== 'string' ? '' : record[field];
+        }
+        return workspaceRecord(normalized, fields);
+    }
+    // Only adapter-declared display fields enter persistent storage. Request tokens,
+    // raw responses, headers, locations and runtime locks never cross this boundary.
+    function workspaceRecord(record, fields) {
+        if (!record || typeof record !== 'object' || Array.isArray(record)) throw new Error('Invalid saved record');
+        const result = {};
+        for (const [field, type] of Object.entries(fields)) {
+            const value = record[field];
+            if (type === 'boolean') {
+                if (typeof value !== 'boolean') throw new Error('Invalid saved flag');
+                result[field] = value;
+            } else {
+                if (typeof value !== 'string' || (type === 'id' && !value.trim())) throw new Error('Invalid saved text');
+                result[field] = value;
+            }
+        }
+        return result;
+    }
+    function workspaceOfferKey(offer) {
+        return JSON.stringify([offer.accountId || '', offer.offerId || offer.id]);
+    }
+    function validateWorkspaceSnapshot(saved, fields) {
+        if (!saved || saved.schemaVersion !== 1 || !Number.isFinite(saved.savedAt) || saved.savedAt < 0
+            || !Number.isFinite(saved.lastScanAt) || saved.lastScanAt < 0
+            || typeof saved.scopeIdentity !== 'string' || typeof saved.consent !== 'boolean'
+            || typeof saved.search !== 'string' || typeof saved.collapsed !== 'boolean'
+            || !Array.isArray(saved.accounts) || !Array.isArray(saved.offers) || !Array.isArray(saved.selected)) {
+            throw new Error('Unsupported or incomplete workspace snapshot');
+        }
+        const accounts = saved.accounts.map(record => workspaceRecord(record, fields.accounts));
+        const offers = saved.offers.map(record => workspaceRecord(record, fields.offers));
+        const accountIds = new Set(accounts.map(account => account.accountId));
+        const offerIds = new Set(offers.map(workspaceOfferKey));
+        if (accountIds.size !== accounts.length || offerIds.size !== offers.length
+            || (!fields.accounts && accounts.length)
+            || (fields.accounts && offers.some(offer => !accountIds.has(offer.accountId)))) {
+            throw new Error('Conflicting saved records');
+        }
+        const allowedSelections = fields.accounts ? accountIds : new Set(offers.map(offer => offer.offerId));
+        if (saved.selected.some(id => typeof id !== 'string' || !allowedSelections.has(id))
+            || new Set(saved.selected).size !== saved.selected.length) throw new Error('Invalid saved selections');
+        return { ...saved, accounts, offers };
+    }
+
+    // Source: shared/persistence/workspace-storage.js
+    function createHubWorkspaceStore({ state, fields, storage, storageKey, onError = () => {},
+        readConsent = () => false, writeConsent = () => {},
+        markPendingRecord = record => { record.status = 'UNCONFIRMED'; } }) {
+        const pendingWorkspaceOffers = new Set();
+        function saveWorkspace() {
+            if (state.storageError) return false;
+            try {
+                const offers = state.offers.map(offer => {
+                    const record = serializeWorkspaceRecord(offer, fields.offers);
+                    if (pendingWorkspaceOffers.has(workspaceOfferKey(offer))) {
+                        markPendingRecord(record);
+                    }
+                    return record;
+                });
+                const snapshot = validateWorkspaceSnapshot({
+                    schemaVersion: 1, savedAt: Date.now(), lastScanAt: state.lastScanAt,
+                    scopeIdentity: state.workspaceScope, accounts: (state.accounts || []).map(account => serializeWorkspaceRecord(account, fields.accounts)),
+                    offers, selected: [...(state.selected || [])], consent: readConsent(),
+                    search: state.search || '', collapsed: state.collapsed
+                }, fields);
+                storage.set(storageKey, snapshot);
+                return true;
+            } catch {
+                state.storageError = 'Cannot save scan results and selections. Further requests are blocked; fix Tampermonkey storage and reload.';
+                onError(state.storageError);
+                return false;
+            }
+        }
+        function requireWorkspaceSaved() {
+            if (!saveWorkspace()) throw new Error(state.storageError);
+        }
+        function restoreWorkspace() {
+            try {
+                const saved = storage.get(storageKey, null);
+                if (saved === null) return; // Older releases only saved pacing; keep it intact.
+                const snapshot = validateWorkspaceSnapshot(saved, fields);
+                if (fields.accounts) state.accounts = snapshot.accounts;
+                state.offers = snapshot.offers;
+                if (state.selected) state.selected = new Set(snapshot.selected);
+                writeConsent(snapshot.consent);
+                state.search = snapshot.search;
+                state.collapsed = snapshot.collapsed;
+                state.lastScanAt = snapshot.lastScanAt;
+                state.workspaceScope = snapshot.scopeIdentity;
+                state.restoredWorkspace = true;
+                state.needsScan = true;
+                state.status = 'Saved results and selections restored. Scan manually to verify the current account before adding.';
+            } catch {
+                state.storageError = 'Cannot read saved results and selections. Stored data was preserved; resolve Tampermonkey storage before running.';
+            }
+        }
+        function recordWorkspaceScan() {
+            state.lastScanAt = Date.now();
+            state.restoredWorkspace = false;
+            pendingWorkspaceOffers.clear();
+            requireWorkspaceSaved();
+        }
+        function markWorkspaceOfferPending(offer) {
+            pendingWorkspaceOffers.add(workspaceOfferKey(offer));
+            requireWorkspaceSaved(); // Must succeed before a write request can leave.
+        }
+        function finishWorkspaceOffer(offer) {
+            pendingWorkspaceOffers.delete(workspaceOfferKey(offer));
+            requireWorkspaceSaved();
+        }
+
+        function bindWorkspaceScope(scope) {
+            if (state.workspaceScope && state.workspaceScope !== scope) {
+                if (state.selected) state.selected.clear();
+                writeConsent(false);
+                state.offers = [];
+                state.lastScanAt = 0;
+                pendingWorkspaceOffers.clear();
+            }
+            state.workspaceScope = scope;
+        }
+
+        return { saveWorkspace, requireWorkspaceSaved, restoreWorkspace, recordWorkspaceScan, markWorkspaceOfferPending, finishWorkspaceOffer, bindWorkspaceScope };
+    }
+
+    // Source: shared/persistence/workspace-scope.js
+    async function workspaceScopeFingerprint(value) {
+        // A one-way scope marker can detect a changed opaque session without storing
+        // the credential itself. It cannot be used to authenticate any request.
+        const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+        return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+    }
+
+    // Source: shared/persistence/workspace-ui.js
+    function hubWorkspaceCacheNotice(state) {
+        if (!state.lastScanAt) return 'Results and selections are saved locally. Nothing runs automatically.';
+        return `Last complete scan: ${new Date(state.lastScanAt).toLocaleString()}. ${state.restoredWorkspace || state.needsScan
+            ? 'Saved results; scan again before adding.' : 'Results and selections saved locally.'}`;
+    }
+    function hubRestoreWorkspacePanel(panel, bankName, state) {
+        const search = panel.getElementById('search');
+        if (search) search.value = state.search || '';
+        panel.getElementById('body').hidden = state.collapsed;
+        const toggle = panel.getElementById('collapse');
+        toggle.textContent = state.collapsed ? '+' : '−';
+        toggle.setAttribute('aria-expanded', String(!state.collapsed));
+        toggle.setAttribute('aria-label', `${state.collapsed ? 'Expand' : 'Minimize'} ${bankName} panel`);
+    }
+
+    // Source: shared/runtime/json-transport.js
+    // Request construction and response interpretation stay with the issuer.
+    // The caller must hold its scheduler slot until this promise settles.
+    async function hubSendJsonRequest({ url, options, timeoutMilliseconds, label, onRateLimited }) {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), timeoutMilliseconds);
+        try {
+            const response = await fetch(url, { ...options, signal: controller.signal });
+            if (response.status === 429) onRateLimited(response.headers.get('Retry-After'));
+            // Body consumption is part of the request, including HTTP error bodies.
+            const responseText = await response.text();
+            if (response.status === 429) throw new Error(`${label} returned HTTP 429. Cooling down; scan again later.`);
+            if (!response.ok) throw new Error(`${label} returned HTTP ${response.status}. Sign in and scan again.`);
+            try { return JSON.parse(responseText); }
+            catch { throw new Error(`${label} returned a non-JSON response. Sign in and scan again.`); }
+        } catch (error) {
+            // Browser network errors can include URLs or credentials. Never display them.
+            if (error.name === 'AbortError') throw new Error('Request timed out; result is unconfirmed. Scan again.');
+            if (error instanceof TypeError) throw new Error('Network request failed; result is unconfirmed. Scan again.');
+            throw error;
+        } finally {
+            clearTimeout(timeout);
+        }
+    }
+
+    function createHubJsonTransport({ state, settings, ensureRunning, savePacing }) {
+        const scheduler = createHubRequestScheduler({ state, gapMilliseconds: settings.gapMilliseconds,
+            reservationMilliseconds: settings.timeoutMilliseconds, ensureRunning, persist: savePacing,
+            checkStorage() { if (state.storageError) throw new Error(state.storageError); } });
+        function retryAfterMilliseconds(value, now = Date.now()) {
+            return hubRetryAfterMilliseconds(value, settings.defaultCooldownMilliseconds, now);
+        }
+        function sendRequest(prepareRequest) {
+            return scheduler.withRequestSlot(async () => {
+                const { url, options, validateResponse = () => {} } = await prepareRequest();
+                ensureRunning();
+                const payload = await hubSendJsonRequest({ url, options, label: settings.name,
+                    timeoutMilliseconds: settings.timeoutMilliseconds,
+                    onRateLimited(value) {
+                        state.cooldownUntil = Math.max(state.cooldownUntil, Date.now() + retryAfterMilliseconds(value));
+                        savePacing();
+                    } });
+                validateResponse(payload);
+                return payload;
+            });
+        }
+        return { sendRequest, retryAfterMilliseconds, waitForRequestSlot: scheduler.waitForRequestSlot };
+    }
+
+    // Source: shared/runtime/action-runner.js
+    // This owns task lifecycle only; the action owns its immutable scope and bank protocol.
+    function createHubActionRunner({ state, settings, ensureRunning, restorePacing, saveWorkspace,
+        render, updateStatus, onFailure = () => {}, supportsActivation = false }) {
+        return async function runExclusive(action, actionKind = 'scan') {
+            if (actionKind === 'add' && !supportsActivation) return;
+            let workspaceActionStarted = false;
+            return runHubActionLifecycle({ isBusy: () => Boolean(state.busy),
+                begin() {
+                    state.busy = true;
+                    state.activeAction = actionKind;
+                    if (actionKind === 'add') state.total = 0;
+                    state.stopRequested = false;
+                    render();
+                },
+                async execute() {
+                    if (!navigator.locks?.request) throw new Error('This browser does not support the required tab lock. Use current Chrome.');
+                    await navigator.locks.request(settings.id, { ifAvailable: true }, async lock => {
+                        if (!lock) throw new Error(`${settings.name} is running in another tab. Wait for it to finish.`);
+                        restorePacing();
+                        if (state.storageError) throw new Error(state.storageError);
+                        ensureRunning();
+                        workspaceActionStarted = true;
+                        await action();
+                    });
+                },
+                fail(error) {
+                    state.needsScan = true;
+                    onFailure(error);
+                    updateStatus(error.message);
+                },
+                finish() {
+                    state.busy = false;
+                    state.activeAction = null;
+                    if (workspaceActionStarted) saveWorkspace();
+                    render();
+                }
+            });
+        };
+    }
+
+    // Source: shared/persistence/pacing-storage.js
+    function createHubPacingStorage({ state, storage, storageKey, onError = () => {} }) {
+        function restorePacing() {
+            try {
+                const saved = storage.get(storageKey, null);
+                if (saved === null) return;
+                if (saved.schemaVersion !== 1 || !Number.isFinite(saved.cooldownUntil)
+                    || !Number.isFinite(saved.nextRequestAt)) throw new Error('Unsupported pacing snapshot');
+                state.cooldownUntil = Math.max(state.cooldownUntil, saved.cooldownUntil);
+                state.nextRequestAt = Math.max(state.nextRequestAt, saved.nextRequestAt);
+            } catch {
+                state.storageError = 'Cannot read pacing storage. Stored data was preserved; resolve storage before running.';
+            }
+        }
+        function savePacing() {
+            if (state.storageError) return false;
+            try {
+                storage.set(storageKey, {
+                    schemaVersion: 1, cooldownUntil: state.cooldownUntil, nextRequestAt: state.nextRequestAt
+                });
+                return true;
+            } catch {
+                state.storageError = 'Cannot save pacing storage. Further requests are blocked; reload after fixing storage.';
+                onError(state.storageError);
+                return false;
+            }
+        }
+        return { restorePacing, savePacing };
+    }
+
+    // Source: shared/ui/workflow-panel.js
+    function createHubWorkflowPanel({ state, settings, bank, styles, scopeMarkup, workflow = {},
+        onScan, onAdd, onStop, saveWorkspace, renderOffers, supportsActivation = false }) {
+        const host = document.createElement('div');
+        host.id = settings.id;
+        const panel = host.attachShadow({ mode: 'open' });
+        panel.innerHTML = `<style>${styles}</style>` + hubWorkflowMarkup(scopeMarkup,
+            { ...workflow, bank, readOnly: !supportsActivation });
+        panel.querySelector('h2').textContent = settings.name;
+        panel.getElementById('scan').addEventListener('click', onScan);
+        if (supportsActivation) panel.getElementById('add').addEventListener('click', onAdd);
+        panel.getElementById('stop').addEventListener('click', onStop);
+        const search = panel.getElementById('search');
+        search.addEventListener('input', event => { state.search = event.target.value; saveWorkspace(); renderOffers(); });
+        panel.getElementById('hub-clear-search').addEventListener('click', () => {
+            state.search = ''; search.value = ''; saveWorkspace(); renderOffers(); search.focus();
+        });
+        panel.getElementById('collapse').addEventListener('click', () => {
+            state.collapsed = !state.collapsed;
+            saveWorkspace();
+            hubRestoreWorkspacePanel(panel, bank, state);
+        });
+        decorateHubPanel(panel, settings.version);
+        hubRestoreWorkspacePanel(panel, bank, state);
+        return { host, panel };
+    }
+// --- End shared runtime ---
+const HUB_BANKS = [{ ...{"id":"amex-offer-lite","issuer":"amex","label":"Amex","url":"https://global.americanexpress.com/offers"}, readSavedResults: (function () {
+    // Source: amex/snapshots/saved-results.js
+    function readIssuerSavedResults(bank, readValue) {
+        const snapshot = readValue('card_offer_hub_amex_saved_offers_v1', null);
+        if (snapshot === null) return null;
+        return amexSavedDisplayRecords(bank, snapshot, readValue('card_offer_hub_amex_saved_cards_v1', null));
+    }
+    function amexSavedDisplayRecords(bank, snapshot, savedCards) {
+        if (snapshot.schemaVersion !== 1 || !Array.isArray(snapshot.cards)) throw new Error('Unsupported saved results');
+        const accounts = new Map();
+        if (savedCards) {
+            if (![1, 2].includes(savedCards.schemaVersion) || !Array.isArray(savedCards.accounts)) throw new Error('Unsupported saved cards');
+            for (const account of savedCards.accounts) {
+                if (!account || typeof account.token !== 'string' || typeof account.cardName !== 'string') throw new Error('Invalid saved card');
+                accounts.set(account.token, account.cardName);
+            }
+        }
+        return snapshot.cards.flatMap(card => {
+            if (!card || typeof card.accountToken !== 'string' || !Array.isArray(card.offers) || typeof card.complete !== 'boolean') {
+                throw new Error('Invalid saved card results');
+            }
+            return card.offers.map(offer => hubOfferRecord(bank, {
+                merchant: offer.name, description: offer.description || offer.title,
+                displayStatus: hubStatus(offer.status) === 'available' && offer.enrollable !== true ? 'other' : hubStatus(offer.status),
+                expires: offer.expires || offer.expiry, category: offer.category
+            }, {
+                card: accounts.get(card.accountToken) || 'Saved card', scannedAt: card.scannedAt, incomplete: !card.complete
+            }));
+        });
+    }
+return readIssuerSavedResults;
+})() },
+{ ...{"id":"bofa-offer-lite","issuer":"bank-of-america","label":"BankAmeriDeals","url":"https://deals.merchant-rewards.com/"}, readSavedResults: (function () {
+    // Source: bank-of-america/snapshots/saved-results.js
+    function readIssuerSavedResults(bank, readValue) {
+        const snapshot = readValue(`${"bofa-offer-lite"}:workspace`, null);
+        if (snapshot === null) return null;
+        return hubWorkspaceDisplayRecords(bank, snapshot, offer => ({
+            merchant: offer.name, description: offer.headline,
+            displayStatus: offer.result === 'Unconfirmed' ? 'review' : offer.activated === true ? 'added' : offer.eligible === true ? 'available' : 'other'
+        }), {"activation":true,"scope":"account"}.scope === 'card');
+    }
+return readIssuerSavedResults;
+})() },
+{ ...{"id":"chase-offer-lite","issuer":"chase","label":"Chase","url":"https://secure.chase.com/web/auth/dashboard"}, readSavedResults: (function () {
+    // Source: chase/snapshots/saved-results.js
+    function readIssuerSavedResults(bank, readValue) {
+        const snapshot = readValue(`${"chase-offer-lite"}:workspace`, null);
+        if (snapshot === null) return null;
+        return hubWorkspaceDisplayRecords(bank, snapshot, offer => ({
+            merchant: offer.merchant, description: offer.title, displayStatus: hubStatus(offer.status),
+            expires: offer.expires, category: offer.category
+        }), {"activation":false,"scope":"card"}.scope === 'card');
+    }
+return readIssuerSavedResults;
+})() },
+{ ...{"id":"citi-offer-lite","issuer":"citi","label":"Citi","url":"https://online.citi.com/US/nga/products-offers/merchantoffers"}, readSavedResults: (function () {
+    // Source: citi/snapshots/saved-results.js
+    function readIssuerSavedResults(bank, readValue) {
+        const snapshot = readValue(`${"citi-offer-lite"}:workspace`, null);
+        if (snapshot === null) return null;
+        return hubWorkspaceDisplayRecords(bank, snapshot, offer => ({
+            merchant: offer.merchant, description: offer.title, displayStatus: hubStatus(offer.status),
+            expires: offer.expires, category: offer.category
+        }), {"activation":true,"scope":"card"}.scope === 'card');
+    }
+return readIssuerSavedResults;
+})() },
+{ ...{"id":"usbank-offer-lite","issuer":"usbank","label":"US Bank","url":"https://onlinebanking.usbank.com/digital/servicing/dominjection/cashback-deals"}, readSavedResults: (function () {
+    // Source: usbank/snapshots/saved-results.js
+    function readIssuerSavedResults(bank, readValue) {
+        const snapshot = readValue(`${"usbank-offer-lite"}:workspace`, null);
+        if (snapshot === null) return null;
+        return hubWorkspaceDisplayRecords(bank, snapshot, offer => ({
+            merchant: offer.merchant, description: offer.title, displayStatus: hubStatus(offer.status),
+            expires: offer.expires, category: offer.category
+        }), {"activation":true,"scope":"account"}.scope === 'card');
+    }
+return readIssuerSavedResults;
+})() },
+{ ...{"id":"wellsfargo-offer-lite","issuer":"wellsfargo","label":"Wells Fargo","url":"https://web.secure.wellsfargo.com/auth/deals-portal"}, readSavedResults: (function () {
+    // Source: wellsfargo/snapshots/saved-results.js
+    function readIssuerSavedResults(bank, readValue) {
+        const snapshot = readValue(`${"wellsfargo-offer-lite"}:workspace`, null);
+        if (snapshot === null) return null;
+        return hubWorkspaceDisplayRecords(bank, snapshot, offer => ({
+            merchant: offer.merchant, description: offer.title, displayStatus: hubStatus(offer.status),
+            expires: offer.expires, category: offer.category
+        }), {"activation":true,"scope":"account"}.scope === 'card');
+    }
+return readIssuerSavedResults;
+})() }];
 // Read the existing snapshots directly; search never copies them into another store.
 function hubReadSavedResults() {
     const records = [], coverage = [];
     for (const bank of HUB_BANKS) {
         const prefix = `issuer:${bank.id}:`;
         try {
-            const snapshot = GM_getValue(prefix + (bank.issuer === 'amex' ? 'card_offer_hub_amex_saved_offers_v1' : `${bank.id}:workspace`), null);
-            if (snapshot === null) { coverage.push({ bank, state: 'missing', count: 0 }); continue; }
-            const offers = bank.issuer === 'amex'
-                ? hubNormalizeAmex(bank, snapshot, GM_getValue(prefix + 'card_offer_hub_amex_saved_cards_v1', null))
-                : hubNormalizeWorkspace(bank, snapshot);
+            const offers = bank.readSavedResults(bank, (key, fallback) => GM_getValue(prefix + key, fallback));
+            if (offers === null) { coverage.push({ bank, state: 'missing', count: 0 }); continue; }
             records.push(...offers);
             coverage.push({ bank, state: 'saved', count: offers.length });
         } catch {
@@ -317,102 +833,9 @@ dispatchIssuer({"id":"amex-offer-lite","patterns":["^https://global\\.americanex
 (function () {
     'use strict';
 
-    // Source: shared/ui/design-system.js
-    const HUB_DESIGN_STYLES = `
-    :host{all:initial;--hub-ink:#20322f;--hub-muted:#64746e;--hub-accent:#176653;--hub-tint:#edf6f1;--hub-line:#dce5df;--hub-canvas:#f5f7f4;--hub-radius:16px;position:fixed;right:16px;bottom:16px;z-index:2147483646;color:var(--hub-ink);font:13px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:light}
-    *,*::before,*::after{box-sizing:border-box}[hidden]{display:none!important}
-    .panel{width:min(464px,calc(100vw - 24px));max-height:88vh;max-height:88dvh;overflow:auto;background:#fff;border:1px solid var(--hub-line);border-radius:var(--hub-radius);box-shadow:0 16px 60px #21392d20}
-    header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;border-bottom:1px solid var(--hub-line);background:#fff}
-    .hub-heading{min-width:0;flex:1}.hub-eyebrow{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--hub-accent);font-weight:750;margin-bottom:3px}.hub-version{font-size:10px;color:var(--hub-muted);font-variant-numeric:tabular-nums}
-    h2{font-size:18px;line-height:1.3;letter-spacing:-.035em;margin:0;font-weight:650}h3{font-size:12px;margin:0 0 8px;font-weight:650}p{margin:6px 0}
-    section,main{padding:16px 20px;border-bottom:1px solid var(--hub-line)}footer,.status{padding:14px 20px;background:var(--hub-canvas);overflow-wrap:anywhere}.muted,.card-report,.logs{color:var(--hub-muted);font-size:12px}.error,.storage-error{color:#a33232}.notice{border-left:3px solid #a2b9ac;background:var(--hub-canvas);padding:10px 12px}
-    button,input,select{font:inherit}button,select{border:1px solid var(--hub-line);border-radius:9px;color:var(--hub-ink);background:#fff;padding:8px 12px;min-height:36px}button{cursor:pointer;font-weight:550}button:not(:disabled):hover{background:var(--hub-tint);border-color:#a8c6b9}button.primary{background:var(--hub-accent);color:#fff;border-color:var(--hub-accent)}button.primary:not(:disabled):hover{background:#10523f}button:disabled{opacity:.45;cursor:not-allowed}button.stop{color:#a33232}button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #79ad99;outline-offset:3px}
-    input[type=search]{width:100%;padding:11px 13px;border:1px solid var(--hub-line);border-radius:10px;background:var(--hub-canvas);color:var(--hub-ink)}input[type=checkbox]{accent-color:var(--hub-accent);flex:none;width:15px;height:15px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}.cards{max-height:180px;overflow:auto}.card{display:flex;align-items:flex-start;gap:9px;padding:9px 0;overflow-wrap:anywhere}.card input{margin-top:3px}.card-info{min-width:0;flex:1}
-    .offers{max-height:260px;overflow:auto;margin-top:10px}.offer{display:block;padding:13px 0;border-bottom:1px solid var(--hub-line);overflow-wrap:anywhere}.offer:last-child{border-bottom:0}.offer small{display:block;color:var(--hub-muted);margin-top:5px}.offer-title{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.offer-title button{flex-shrink:0}.badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.badge{border-radius:5px;background:var(--hub-canvas);padding:3px 7px;font-size:11px}.badge.enrolled{background:var(--hub-tint);color:var(--hub-accent)}.badge.unconfirmed,.badge.failed{background:#fff1da;color:#865711}.card-counts,.offer-counts,.offer-target{color:var(--hub-accent);font-size:12px}.logs{max-height:90px;overflow:auto}a{color:var(--hub-accent);text-underline-offset:3px}
-    .hub-search-launcher{display:flex;align-items:center;justify-content:space-between;width:100%;border:0;border-bottom:1px solid var(--hub-line);border-radius:0;background:var(--hub-tint);padding:11px 20px;color:var(--hub-accent);text-align:left}.hub-search-launcher span:last-child{font-size:11px;font-weight:400}
-    .hub-step h3{font-size:12px;letter-spacing:.03em;margin-bottom:10px;color:var(--hub-accent)}.hub-action-reason{font-size:12px;color:var(--hub-muted);margin-top:10px}.hub-clear-search{font-size:11px;min-height:28px;padding:4px 8px;margin-top:6px}.hub-search-rule{font-size:11px}.hub-step .actions{margin-bottom:8px}
-    @media(max-width:500px){:host{right:12px;bottom:12px}header{padding:16px}section,main,footer,.status{padding:14px 16px}}
-    `;
-
-    // Source: shared/ui/panel-branding.js
-    function decorateHubPanel(shadowRoot, version) {
-        const header = shadowRoot.querySelector('header');
-        const title = header.querySelector('h2');
-        const heading = document.createElement('div');
-        heading.className = 'hub-heading';
-        const eyebrow = document.createElement('div');
-        eyebrow.className = 'hub-eyebrow';
-        eyebrow.textContent = 'Card Offer Hub';
-        header.insertBefore(heading, title);
-        heading.append(eyebrow, title);
-        const release = document.createElement('span');
-        release.className = 'hub-version';
-        release.textContent = `v${version}`;
-        heading.append(release);
-    }
-
-    // Source: shared/ui/workflow-layout.js
-    function hubWorkflowMarkup(scopeMarkup, { bank, extraReviewMarkup = '', readOnly = false } = {}) {
-        return `<div class="panel">
-          <header><h2></h2><button id="collapse" aria-label="Minimize ${bank} panel" aria-expanded="true">−</button></header>
-          <div id="body">
-            <section class="hub-step" data-step="scope"><h3>1. Choose scope</h3>${scopeMarkup}</section>
-            <section class="hub-step" data-step="scan"><h3>2. Scan offers</h3>
-              <p class="muted">Scan to refresh saved offers. Nothing runs until you click.</p>
-              <div class="actions"><button id="scan" aria-label="Scan offers">Scan offers</button><button id="stop" class="stop" aria-label="Stop">Stop</button></div>
-            </section>
-            <section class="hub-step" data-step="review"><h3>3. Review & add</h3>
-              <input id="search" type="search" aria-label="Search saved offers" placeholder="Search saved offers">
-              <button id="hub-clear-search" class="hub-clear-search" aria-label="Clear search">Clear search</button>
-              <p class="muted hub-search-rule">Search changes the list only. Add all includes offers hidden by search within your chosen scope.</p>
-              <p id="counts" class="muted"></p><div class="actions"><button id="add" class="primary" aria-label="Add all offers" aria-describedby="hub-action-reason">Add all offers</button>${extraReviewMarkup}</div>
-              <p id="hub-action-reason" class="hub-action-reason" role="note"></p>
-              ${readOnly ? '<p id="enrollment-notice" class="notice">Chase is read-only here. Add offers on the Chase website.</p>' : ''}
-              <div id="offers" class="offers"></div>
-            </section>
-            <footer><p id="workspace-cache" class="muted"></p><div id="status" role="status" aria-live="polite"></div><div id="storage-error" class="error" role="alert"></div></footer>
-          </div></div>`;
-    }
-    function hubMatchesSearch(offer, query) {
-        return [offer.merchant, offer.name, offer.title, offer.description, offer.headline, offer.category]
-            .filter(value => typeof value === 'string').join(' ').toLocaleLowerCase().includes(query.trim().toLocaleLowerCase());
-    }
-    function hubOfferStatusLabel(status) {
-        if (['AVAILABLE', 'ELIGIBLE', 'NEW'].includes(status)) return 'Available';
-        if (['ENROLLED', 'ACTIVATED'].includes(status)) return 'Added';
-        if (['UNCONFIRMED', 'UNKNOWN', 'FAILED', 'CONFLICT'].includes(status)) return 'Needs review';
-        return 'Skipped';
-    }
-    function hubShowEmptyOffers(container, query) {
-        const note = document.createElement('p');
-        note.className = 'muted';
-        note.textContent = query.trim() ? 'No offers match your search. Clear search to view all saved offers in this scope.' : 'No offers in this scope yet. Choose your scope and scan to refresh.';
-        container.append(note);
-    }
-    function hubSetActionLabel(control, label, count = null) {
-        if (!control) return;
-        control.textContent = count === null ? label : `${label} (${count})`;
-        control.setAttribute('aria-label', label);
-    }
-    function renderHubWorkflow(root, { count, hasScope = true, needsScan = false, busy = false,
-        storageError = '', readOnly = false, coolingDown = false, progress = null } = {}) {
-        const add = root.getElementById('add') || root.getElementById('btn-enroll-all');
-        hubSetActionLabel(add, 'Add all offers', busy ? null : count);
-        add.disabled = Boolean(busy || storageError || readOnly || coolingDown || !hasScope || needsScan || !count);
-        const reason = root.getElementById('hub-action-reason');
-        reason.textContent = storageError ? 'Resolve the storage error before continuing.'
-            : busy ? progress ? `Adding ${progress.completed} of ${progress.total}. The task keeps its original scope while you search or switch tabs.` : 'Working. Use Stop to end the current task.'
-            : readOnly ? 'Adding is unavailable for this bank. You can still scan and search.'
-            : coolingDown ? 'Waiting for the bank cooldown. Start again manually when it ends.'
-            : !hasScope ? 'Choose or confirm your scope in step 1.'
-            : needsScan ? 'Scan offers in step 2 before adding.'
-            : !count ? 'No available offers in this scope. Scan again to refresh.'
-            : `Ready to add ${count} available ${count === 1 ? 'offer' : 'offers'} in your chosen scope. Search does not change this total.`;
-    }
-
     // Source: core/state.js
     const SETTINGS = Object.freeze({
-        version: "1.3.1",
+        version: "1.3.3", capabilities: {"activation":true,"scope":"card"},
         requestGapMs: 500,
         rateLimitCooldownMs: 120000,
         requestTimeoutMs: 30000,
@@ -807,37 +1230,13 @@ dispatchIssuer({"id":"amex-offer-lite","patterns":["^https://global\\.americanex
         if (state.cancelRequested) throw new RequestStopped('Stopped. No further requests will be sent.');
     }
 
-    async function waitForRequestSlot() {
-        requireActiveRequest();
-        if (Date.now() < state.cooldownUntil) throw new RateLimited('Cooling down after HTTP 429. Start again manually when the timer ends.');
-        while (Date.now() < state.nextRequestAt) {
-            requireActiveRequest();
-            const remainingMs = state.nextRequestAt - Date.now();
-            setStatus(`Waiting ${Math.ceil(remainingMs / 1000)}s before the next request. Stop is available.`);
-            await new Promise((resolve) => setTimeout(resolve, Math.min(250, remainingMs)));
-        }
-        requireActiveRequest();
-    }
-
-    function retryAfterMilliseconds(headerValue) {
-        if (!headerValue) return SETTINGS.rateLimitCooldownMs;
-        const seconds = Number(headerValue);
-        const delay = Number.isFinite(seconds) ? seconds * 1000 : Date.parse(headerValue) - Date.now();
-        return Number.isFinite(delay) ? Math.max(SETTINGS.rateLimitCooldownMs, delay) : SETTINGS.rateLimitCooldownMs;
-    }
-
-    async function withRequestSlot(operation) {
-        if (state.requestInFlight) throw new Error('Another request is still active.');
-        state.requestInFlight = true;
-        try {
-            await waitForRequestSlot();
-            return await operation();
-        } finally {
-            // A slot holds one scan request or one complete concurrent offer batch.
-            // The next slot waits from the last response, including failures.
-            state.nextRequestAt = Math.max(state.nextRequestAt, Date.now() + SETTINGS.requestGapMs);
-            state.requestInFlight = false;
-        }
+    const { waitForRequestSlot, withRequestSlot } = createHubRequestScheduler({
+        state, gapMilliseconds: SETTINGS.requestGapMs, ensureRunning: requireActiveRequest,
+        cooldownError: () => new RateLimited('Cooling down after HTTP 429. Start again manually when the timer ends.'),
+        onWait: remaining => setStatus(`Waiting ${Math.ceil(remaining / 1000)}s before the next request. Stop is available.`)
+    });
+    function retryAfterMilliseconds(value) {
+        return hubRetryAfterMilliseconds(value, SETTINGS.rateLimitCooldownMs, Date.now(), SETTINGS.rateLimitCooldownMs);
     }
 
     function requestJson(url, options = {}) {
@@ -1061,14 +1460,21 @@ dispatchIssuer({"id":"amex-offer-lite","patterns":["^https://global\\.americanex
         return status;
     }
 
+    // Source: workflows/runner.js
+    function runAmexAction(actionKind, execute, fail) {
+        return runHubActionLifecycle({
+            isBusy: () => Boolean(state.busy),
+            begin() { state.busy = actionKind; state.cancelRequested = false; render(); },
+            execute, fail,
+            finish() { state.busy = null; state.cancelRequested = false; render(); }
+        });
+    }
+
     // Source: workflows/cards.js
     async function detectCards({ forceRefresh = false } = {}) {
         if (state.busy || (state.detected && !forceRefresh) || Date.now() < state.discoveryRetryAt || Date.now() < state.cooldownUntil) return;
-        state.busy = 'detect';
-        state.cancelRequested = false;
-        render();
         setStatus(forceRefresh ? 'Refreshing the card list. Your whitelist will be kept.' : 'Detecting card list once. Offers will not be scanned.');
-        try {
+        return runAmexAction('detect', async () => {
             const snapshot = await detectAccountSnapshot({ forceRefresh });
             requireActiveRequest();
             state.accounts = snapshot.accounts;
@@ -1080,13 +1486,10 @@ dispatchIssuer({"id":"amex-offer-lite","patterns":["^https://global\\.americanex
             setStatus(forceRefresh
                 ? `Refreshed ${state.accounts.length} cards. Existing whitelist selections kept; new cards are unchecked.`
                 : `Detected ${state.accounts.length} cards. Add cards to the whitelist, then scan manually.`);
-        } catch (error) {
+        }, error => {
             state.discoveryRetryAt = Date.now() + SETTINGS.requestGapMs;
             setStatus(`${forceRefresh ? 'Card refresh failed; previous cards and whitelist kept' : 'Card detection failed'}: ${error.message}`);
-        } finally {
-            state.busy = null;
-            render();
-        }
+        });
     }
 
     function setCardWhitelisted(accountToken, allowed) {
@@ -1154,16 +1557,13 @@ dispatchIssuer({"id":"amex-offer-lite","patterns":["^https://global\\.americanex
             setStatus('Scan is cooling down. Start it manually after the timer ends.');
             return;
         }
-        state.busy = 'scan';
-        state.cancelRequested = false;
         for (const account of accounts) {
             if (!state.offersByAccount.has(account.token)) state.scanReports.set(account.token, 'Pending');
         }
-        render();
         let completedCards = 0;
         let incompleteCards = 0;
         let attemptedCards = 0;
-        try {
+        return runAmexAction('scan', async () => {
             for (const account of accounts) {
                 requireActiveRequest();
                 assertWhitelisted(account.token);
@@ -1181,14 +1581,10 @@ dispatchIssuer({"id":"amex-offer-lite","patterns":["^https://global\\.americanex
             setStatus(incompleteCards
                 ? `Scan finished: ${accounts.length}/${accounts.length} cards attempted; ${completedCards} complete, ${incompleteCards} incomplete. Counts for incomplete cards are partial.`
                 : `Scan complete: ${completedCards}/${accounts.length} whitelist cards. Enrollment remains manual.`);
-        } catch (error) {
+        }, error => {
             setStatus(`${error.message} Completed ${completedCards}/${accounts.length} cards; remaining results are incomplete.`);
             log('The scan stopped. No card was automatically removed from the whitelist.');
-        } finally {
-            state.busy = null;
-            state.cancelRequested = false;
-            render();
-        }
+        });
     }
 
     // Source: workflows/enrollment-plan.js
@@ -1296,15 +1692,12 @@ dispatchIssuer({"id":"amex-offer-lite","patterns":["^https://global\\.americanex
     // Adds every planned offer in one unattended run: one request at a time, the
     // minimum gap between them, no retries, and a stop that takes effect immediately.
     async function startEnrollment(groupKey = null) {
-        if (state.busy || Date.now() < state.cooldownUntil) return;
+        if (!SETTINGS.capabilities.activation || state.busy || Date.now() < state.cooldownUntil) return;
         const plan = enrollmentPlan(groupKey);
         if (!plan.length) return;
-        state.busy = 'enroll';
         state.enrollmentProgress = { total: plan.length, completed: 0 };
-        state.cancelRequested = false;
-        render();
         let addedCount = 0;
-        try {
+        return runAmexAction('enroll', async () => {
             log(`Adding ${plan.length} offers one at a time via ${CARD_ENROLLMENT_ENDPOINT}, `
                 + `${SETTINGS.requestGapMs / 1000}s apart, across ${new Set(plan.map(({ account }) => account.token)).size} cards.`);
             for (const plannedOffer of plan) {
@@ -1314,13 +1707,9 @@ dispatchIssuer({"id":"amex-offer-lite","patterns":["^https://global\\.americanex
                 renderControls();
             }
             setStatus(`Enrollment complete. ${addedCount} offers added.`);
-        } catch (error) {
+        }, error => {
             setStatus(`${error.message} ${addedCount} offers added.`);
-        } finally {
-            state.busy = null;
-            state.cancelRequested = false;
-            render();
-        }
+        });
     }
 
     // Source: ui/styles.js
@@ -1588,7 +1977,7 @@ dispatchIssuer({"id":"amex-offer-lite","patterns":["^https://global\\.americanex
         const scan = uiElement('btn-scan');
         scan.disabled = Boolean(state.busy) || !state.detected || !selectedAccounts().length || coolingDown;
         hubSetActionLabel(scan, 'Scan offers');
-        renderHubWorkflow(panelRoot.shadowRoot, { count: enrollmentPlan().length,
+        renderHubWorkflow(panelRoot.shadowRoot, { readOnly: !SETTINGS.capabilities.activation, count: enrollmentPlan().length,
             hasScope: selectedAccounts().length > 0, busy: Boolean(state.busy), coolingDown,
             storageError: state.savedCardsError || state.savedOffersError,
             needsScan: selectedAccounts().length > 0 && !selectedAccounts().some(account => state.scanReports.get(account.token)?.startsWith('Complete')),
@@ -1649,254 +2038,10 @@ dispatchIssuer({"id":"bofa-offer-lite","patterns":["^https://deals\\.merchant-re
 (function () {
     'use strict';
 
-    // Source: shared/ui/design-system.js
-    const HUB_DESIGN_STYLES = `
-    :host{all:initial;--hub-ink:#20322f;--hub-muted:#64746e;--hub-accent:#176653;--hub-tint:#edf6f1;--hub-line:#dce5df;--hub-canvas:#f5f7f4;--hub-radius:16px;position:fixed;right:16px;bottom:16px;z-index:2147483646;color:var(--hub-ink);font:13px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:light}
-    *,*::before,*::after{box-sizing:border-box}[hidden]{display:none!important}
-    .panel{width:min(464px,calc(100vw - 24px));max-height:88vh;max-height:88dvh;overflow:auto;background:#fff;border:1px solid var(--hub-line);border-radius:var(--hub-radius);box-shadow:0 16px 60px #21392d20}
-    header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;border-bottom:1px solid var(--hub-line);background:#fff}
-    .hub-heading{min-width:0;flex:1}.hub-eyebrow{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--hub-accent);font-weight:750;margin-bottom:3px}.hub-version{font-size:10px;color:var(--hub-muted);font-variant-numeric:tabular-nums}
-    h2{font-size:18px;line-height:1.3;letter-spacing:-.035em;margin:0;font-weight:650}h3{font-size:12px;margin:0 0 8px;font-weight:650}p{margin:6px 0}
-    section,main{padding:16px 20px;border-bottom:1px solid var(--hub-line)}footer,.status{padding:14px 20px;background:var(--hub-canvas);overflow-wrap:anywhere}.muted,.card-report,.logs{color:var(--hub-muted);font-size:12px}.error,.storage-error{color:#a33232}.notice{border-left:3px solid #a2b9ac;background:var(--hub-canvas);padding:10px 12px}
-    button,input,select{font:inherit}button,select{border:1px solid var(--hub-line);border-radius:9px;color:var(--hub-ink);background:#fff;padding:8px 12px;min-height:36px}button{cursor:pointer;font-weight:550}button:not(:disabled):hover{background:var(--hub-tint);border-color:#a8c6b9}button.primary{background:var(--hub-accent);color:#fff;border-color:var(--hub-accent)}button.primary:not(:disabled):hover{background:#10523f}button:disabled{opacity:.45;cursor:not-allowed}button.stop{color:#a33232}button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #79ad99;outline-offset:3px}
-    input[type=search]{width:100%;padding:11px 13px;border:1px solid var(--hub-line);border-radius:10px;background:var(--hub-canvas);color:var(--hub-ink)}input[type=checkbox]{accent-color:var(--hub-accent);flex:none;width:15px;height:15px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}.cards{max-height:180px;overflow:auto}.card{display:flex;align-items:flex-start;gap:9px;padding:9px 0;overflow-wrap:anywhere}.card input{margin-top:3px}.card-info{min-width:0;flex:1}
-    .offers{max-height:260px;overflow:auto;margin-top:10px}.offer{display:block;padding:13px 0;border-bottom:1px solid var(--hub-line);overflow-wrap:anywhere}.offer:last-child{border-bottom:0}.offer small{display:block;color:var(--hub-muted);margin-top:5px}.offer-title{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.offer-title button{flex-shrink:0}.badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.badge{border-radius:5px;background:var(--hub-canvas);padding:3px 7px;font-size:11px}.badge.enrolled{background:var(--hub-tint);color:var(--hub-accent)}.badge.unconfirmed,.badge.failed{background:#fff1da;color:#865711}.card-counts,.offer-counts,.offer-target{color:var(--hub-accent);font-size:12px}.logs{max-height:90px;overflow:auto}a{color:var(--hub-accent);text-underline-offset:3px}
-    .hub-search-launcher{display:flex;align-items:center;justify-content:space-between;width:100%;border:0;border-bottom:1px solid var(--hub-line);border-radius:0;background:var(--hub-tint);padding:11px 20px;color:var(--hub-accent);text-align:left}.hub-search-launcher span:last-child{font-size:11px;font-weight:400}
-    .hub-step h3{font-size:12px;letter-spacing:.03em;margin-bottom:10px;color:var(--hub-accent)}.hub-action-reason{font-size:12px;color:var(--hub-muted);margin-top:10px}.hub-clear-search{font-size:11px;min-height:28px;padding:4px 8px;margin-top:6px}.hub-search-rule{font-size:11px}.hub-step .actions{margin-bottom:8px}
-    @media(max-width:500px){:host{right:12px;bottom:12px}header{padding:16px}section,main,footer,.status{padding:14px 16px}}
-    `;
-
-    // Source: shared/ui/panel-branding.js
-    function decorateHubPanel(shadowRoot, version) {
-        const header = shadowRoot.querySelector('header');
-        const title = header.querySelector('h2');
-        const heading = document.createElement('div');
-        heading.className = 'hub-heading';
-        const eyebrow = document.createElement('div');
-        eyebrow.className = 'hub-eyebrow';
-        eyebrow.textContent = 'Card Offer Hub';
-        header.insertBefore(heading, title);
-        heading.append(eyebrow, title);
-        const release = document.createElement('span');
-        release.className = 'hub-version';
-        release.textContent = `v${version}`;
-        heading.append(release);
-    }
-
-    // Source: shared/ui/workflow-layout.js
-    function hubWorkflowMarkup(scopeMarkup, { bank, extraReviewMarkup = '', readOnly = false } = {}) {
-        return `<div class="panel">
-          <header><h2></h2><button id="collapse" aria-label="Minimize ${bank} panel" aria-expanded="true">−</button></header>
-          <div id="body">
-            <section class="hub-step" data-step="scope"><h3>1. Choose scope</h3>${scopeMarkup}</section>
-            <section class="hub-step" data-step="scan"><h3>2. Scan offers</h3>
-              <p class="muted">Scan to refresh saved offers. Nothing runs until you click.</p>
-              <div class="actions"><button id="scan" aria-label="Scan offers">Scan offers</button><button id="stop" class="stop" aria-label="Stop">Stop</button></div>
-            </section>
-            <section class="hub-step" data-step="review"><h3>3. Review & add</h3>
-              <input id="search" type="search" aria-label="Search saved offers" placeholder="Search saved offers">
-              <button id="hub-clear-search" class="hub-clear-search" aria-label="Clear search">Clear search</button>
-              <p class="muted hub-search-rule">Search changes the list only. Add all includes offers hidden by search within your chosen scope.</p>
-              <p id="counts" class="muted"></p><div class="actions"><button id="add" class="primary" aria-label="Add all offers" aria-describedby="hub-action-reason">Add all offers</button>${extraReviewMarkup}</div>
-              <p id="hub-action-reason" class="hub-action-reason" role="note"></p>
-              ${readOnly ? '<p id="enrollment-notice" class="notice">Chase is read-only here. Add offers on the Chase website.</p>' : ''}
-              <div id="offers" class="offers"></div>
-            </section>
-            <footer><p id="workspace-cache" class="muted"></p><div id="status" role="status" aria-live="polite"></div><div id="storage-error" class="error" role="alert"></div></footer>
-          </div></div>`;
-    }
-    function hubMatchesSearch(offer, query) {
-        return [offer.merchant, offer.name, offer.title, offer.description, offer.headline, offer.category]
-            .filter(value => typeof value === 'string').join(' ').toLocaleLowerCase().includes(query.trim().toLocaleLowerCase());
-    }
-    function hubOfferStatusLabel(status) {
-        if (['AVAILABLE', 'ELIGIBLE', 'NEW'].includes(status)) return 'Available';
-        if (['ENROLLED', 'ACTIVATED'].includes(status)) return 'Added';
-        if (['UNCONFIRMED', 'UNKNOWN', 'FAILED', 'CONFLICT'].includes(status)) return 'Needs review';
-        return 'Skipped';
-    }
-    function hubShowEmptyOffers(container, query) {
-        const note = document.createElement('p');
-        note.className = 'muted';
-        note.textContent = query.trim() ? 'No offers match your search. Clear search to view all saved offers in this scope.' : 'No offers in this scope yet. Choose your scope and scan to refresh.';
-        container.append(note);
-    }
-    function hubSetActionLabel(control, label, count = null) {
-        if (!control) return;
-        control.textContent = count === null ? label : `${label} (${count})`;
-        control.setAttribute('aria-label', label);
-    }
-    function renderHubWorkflow(root, { count, hasScope = true, needsScan = false, busy = false,
-        storageError = '', readOnly = false, coolingDown = false, progress = null } = {}) {
-        const add = root.getElementById('add') || root.getElementById('btn-enroll-all');
-        hubSetActionLabel(add, 'Add all offers', busy ? null : count);
-        add.disabled = Boolean(busy || storageError || readOnly || coolingDown || !hasScope || needsScan || !count);
-        const reason = root.getElementById('hub-action-reason');
-        reason.textContent = storageError ? 'Resolve the storage error before continuing.'
-            : busy ? progress ? `Adding ${progress.completed} of ${progress.total}. The task keeps its original scope while you search or switch tabs.` : 'Working. Use Stop to end the current task.'
-            : readOnly ? 'Adding is unavailable for this bank. You can still scan and search.'
-            : coolingDown ? 'Waiting for the bank cooldown. Start again manually when it ends.'
-            : !hasScope ? 'Choose or confirm your scope in step 1.'
-            : needsScan ? 'Scan offers in step 2 before adding.'
-            : !count ? 'No available offers in this scope. Scan again to refresh.'
-            : `Ready to add ${count} available ${count === 1 ? 'offer' : 'offers'} in your chosen scope. Search does not change this total.`;
-    }
-
-    // Source: shared/persistence/workspace-records.js
-    function serializeWorkspaceRecord(record, fields) {
-        const normalized = {};
-        for (const [field, type] of Object.entries(fields)) {
-            normalized[field] = type === 'text' && typeof record[field] !== 'string' ? '' : record[field];
-        }
-        return workspaceRecord(normalized, fields);
-    }
-    // Only adapter-declared display fields enter persistent storage. Request tokens,
-    // raw responses, headers, locations and runtime locks never cross this boundary.
-    function workspaceRecord(record, fields) {
-        if (!record || typeof record !== 'object' || Array.isArray(record)) throw new Error('Invalid saved record');
-        const result = {};
-        for (const [field, type] of Object.entries(fields)) {
-            const value = record[field];
-            if (type === 'boolean') {
-                if (typeof value !== 'boolean') throw new Error('Invalid saved flag');
-                result[field] = value;
-            } else {
-                if (typeof value !== 'string' || (type === 'id' && !value.trim())) throw new Error('Invalid saved text');
-                result[field] = value;
-            }
-        }
-        return result;
-    }
-    function workspaceOfferKey(offer) {
-        return JSON.stringify([offer.accountId || '', offer.offerId || offer.id]);
-    }
-    function validateWorkspaceSnapshot(saved) {
-        if (!saved || saved.schemaVersion !== 1 || !Number.isFinite(saved.savedAt) || saved.savedAt < 0
-            || !Number.isFinite(saved.lastScanAt) || saved.lastScanAt < 0
-            || typeof saved.scopeIdentity !== 'string' || typeof saved.consent !== 'boolean'
-            || typeof saved.search !== 'string' || typeof saved.collapsed !== 'boolean'
-            || !Array.isArray(saved.accounts) || !Array.isArray(saved.offers) || !Array.isArray(saved.selected)) {
-            throw new Error('Unsupported or incomplete workspace snapshot');
-        }
-        const accounts = saved.accounts.map(record => workspaceRecord(record, WORKSPACE_FIELDS.accounts));
-        const offers = saved.offers.map(record => workspaceRecord(record, WORKSPACE_FIELDS.offers));
-        const accountIds = new Set(accounts.map(account => account.accountId));
-        const offerIds = new Set(offers.map(workspaceOfferKey));
-        if (accountIds.size !== accounts.length || offerIds.size !== offers.length
-            || (!WORKSPACE_FIELDS.accounts && accounts.length)
-            || (WORKSPACE_FIELDS.accounts && offers.some(offer => !accountIds.has(offer.accountId)))) {
-            throw new Error('Conflicting saved records');
-        }
-        const allowedSelections = WORKSPACE_FIELDS.accounts ? accountIds : new Set(offers.map(offer => offer.offerId));
-        if (saved.selected.some(id => typeof id !== 'string' || !allowedSelections.has(id))
-            || new Set(saved.selected).size !== saved.selected.length) throw new Error('Invalid saved selections');
-        return { ...saved, accounts, offers };
-    }
-
-    // Source: shared/persistence/workspace-storage.js
-    const pendingWorkspaceOffers = new Set();
-    function saveWorkspace() {
-        if (state.storageError) return false;
-        try {
-            const offers = state.offers.map(offer => {
-                const record = serializeWorkspaceRecord(offer, WORKSPACE_FIELDS.offers);
-                if (pendingWorkspaceOffers.has(workspaceOfferKey(offer))) {
-                    if ('status' in record) record.status = 'UNCONFIRMED';
-                    else { record.result = 'Unconfirmed'; record.eligible = false; }
-                }
-                return record;
-            });
-            const snapshot = validateWorkspaceSnapshot({
-                schemaVersion: 1, savedAt: Date.now(), lastScanAt: state.lastScanAt,
-                scopeIdentity: state.workspaceScope, accounts: (state.accounts || []).map(account => serializeWorkspaceRecord(account, WORKSPACE_FIELDS.accounts)),
-                offers, selected: [...(state.selected || [])], consent: state.consent ?? state.accountConsent ?? false,
-                search: state.search || '', collapsed: state.collapsed
-            });
-            GM_setValue(`${SETTINGS.id}:workspace`, snapshot);
-            return true;
-        } catch {
-            state.storageError = 'Cannot save scan results and selections. Further requests are blocked; fix Tampermonkey storage and reload.';
-            renderPanel();
-            return false;
-        }
-    }
-    function requireWorkspaceSaved() {
-        if (!saveWorkspace()) throw new Error(state.storageError);
-    }
-    function restoreWorkspace() {
-        try {
-            const saved = GM_getValue(`${SETTINGS.id}:workspace`, null);
-            if (saved === null) return; // Older releases only saved pacing; keep it intact.
-            const snapshot = validateWorkspaceSnapshot(saved);
-            if (WORKSPACE_FIELDS.accounts) state.accounts = snapshot.accounts;
-            state.offers = snapshot.offers;
-            if (state.selected) state.selected = new Set(snapshot.selected);
-            if ('consent' in state) state.consent = snapshot.consent;
-            if ('accountConsent' in state) state.accountConsent = snapshot.consent;
-            state.search = snapshot.search;
-            state.collapsed = snapshot.collapsed;
-            state.lastScanAt = snapshot.lastScanAt;
-            state.workspaceScope = snapshot.scopeIdentity;
-            state.restoredWorkspace = true;
-            state.needsScan = true;
-            state.status = 'Saved results and selections restored. Scan manually to verify the current account before adding.';
-        } catch {
-            state.storageError = 'Cannot read saved results and selections. Stored data was preserved; resolve Tampermonkey storage before running.';
-        }
-    }
-    function recordWorkspaceScan() {
-        state.lastScanAt = Date.now();
-        state.restoredWorkspace = false;
-        pendingWorkspaceOffers.clear();
-        requireWorkspaceSaved();
-    }
-    function markWorkspaceOfferPending(offer) {
-        pendingWorkspaceOffers.add(workspaceOfferKey(offer));
-        requireWorkspaceSaved(); // Must succeed before a write request can leave.
-    }
-    function finishWorkspaceOffer(offer) {
-        pendingWorkspaceOffers.delete(workspaceOfferKey(offer));
-        requireWorkspaceSaved();
-    }
-
-    // Source: shared/persistence/workspace-scope.js
-    async function workspaceScopeFingerprint(value) {
-        // A one-way scope marker can detect a changed opaque session without storing
-        // the credential itself. It cannot be used to authenticate any request.
-        const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
-        return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
-    }
-    function bindWorkspaceScope(scope) {
-        if (state.workspaceScope && state.workspaceScope !== scope) {
-            if (state.selected) state.selected.clear();
-            if ('consent' in state) state.consent = false;
-            if ('accountConsent' in state) state.accountConsent = false;
-            state.offers = [];
-            state.lastScanAt = 0;
-            pendingWorkspaceOffers.clear();
-        }
-        state.workspaceScope = scope;
-    }
-
-    // Source: shared/persistence/workspace-ui.js
-    function workspaceCacheNotice() {
-        if (!state.lastScanAt) return 'Results and selections are saved locally. Nothing runs automatically.';
-        return `Last complete scan: ${new Date(state.lastScanAt).toLocaleString()}. ${state.restoredWorkspace || state.needsScan
-            ? 'Saved results; scan again before adding.' : 'Results and selections saved locally.'}`;
-    }
-    function restoreWorkspacePanel(panel, bankName) {
-        const search = panel.getElementById('search');
-        if (search) search.value = state.search || '';
-        panel.getElementById('body').hidden = state.collapsed;
-        const toggle = panel.getElementById('collapse');
-        toggle.textContent = state.collapsed ? '+' : '−';
-        toggle.setAttribute('aria-expanded', String(!state.collapsed));
-        toggle.setAttribute('aria-label', `${state.collapsed ? 'Expand' : 'Minimize'} ${bankName} panel`);
-    }
-
     // Source: core/state.js
     const SETTINGS = {
-        id: "bofa-offer-lite", name: "BankAmeriDeals Lite", version: "1.3.1",
+        capabilities: {"activation":true,"scope":"account"},
+        id: "bofa-offer-lite", name: "BankAmeriDeals Lite", version: "1.3.3",
         gapMilliseconds: 500, timeoutMilliseconds: 45000, pageSize: 24,
         defaultCooldownMilliseconds: 300000
     };
@@ -1909,9 +2054,12 @@ dispatchIssuer({"id":"bofa-offer-lite","patterns":["^https://deals\\.merchant-re
         panel: null, collapsed: false
     };
     function updateStatus(message) { state.status = message; renderPanel(); }
-    function ensureRunning() {
+    function ensurePageReady() {
         if (state.stopRequested) throw new Error('Stopped. Scan again before activating more offers.');
         if (location.origin !== 'https://deals.merchant-rewards.com') throw new Error('Open the official Deals website.');
+    }
+    function ensureRunning() {
+        ensurePageReady();
         if (!state.sessionToken || currentSessionToken() !== state.sessionToken) {
             throw new Error('The signed-in session changed. Scan again.');
         }
@@ -1922,30 +2070,11 @@ dispatchIssuer({"id":"bofa-offer-lite","patterns":["^https://deals\\.merchant-re
     }
 
     // Source: core/storage.js
-    // Keep the original pacing schema/key; result snapshots use a separate versioned key.
-    function restorePacing() {
-        try {
-            const saved = GM_getValue(`${SETTINGS.id}:pacing`, null);
-            if (saved === null) return;
-            if (saved.schemaVersion !== 1 || !Number.isFinite(saved.nextRequestAt)
-                || !Number.isFinite(saved.cooldownUntil)) throw new Error('Unsupported snapshot');
-            state.nextRequestAt = Math.max(state.nextRequestAt, saved.nextRequestAt);
-            state.cooldownUntil = Math.max(state.cooldownUntil, saved.cooldownUntil);
-        } catch {
-            state.storageError = 'Cannot read pacing storage. Stored data was preserved; fix storage before running.';
-        }
-    }
-    function savePacing() {
-        if (state.storageError) throw new Error(state.storageError);
-        try {
-            GM_setValue(`${SETTINGS.id}:pacing`, {
-                schemaVersion: 1, nextRequestAt: state.nextRequestAt, cooldownUntil: state.cooldownUntil
-            });
-        } catch {
-            state.storageError = 'Cannot save pacing storage. Further requests are blocked; fix storage and reload.';
-            throw new Error(state.storageError);
-        }
-    }
+    // Existing keys and schema remain readable after the runtime refactor.
+    const issuerStorage = { get: (key, fallback) => GM_getValue(key, fallback), set: (key, value) => GM_setValue(key, value) };
+    const { restorePacing, savePacing } = createHubPacingStorage({
+        state, storage: issuerStorage, storageKey: `${SETTINGS.id}:pacing`, onError: () => renderPanel()
+    });
 
     // Source: core/workspace-fields.js
     const WORKSPACE_FIELDS = {
@@ -1960,6 +2089,17 @@ dispatchIssuer({"id":"bofa-offer-lite","patterns":["^https://deals\\.merchant-re
             "result": "text"
         }
     };
+
+    // Source: core/workspace.js
+    const { saveWorkspace, requireWorkspaceSaved, restoreWorkspace, recordWorkspaceScan,
+        markWorkspaceOfferPending, finishWorkspaceOffer, bindWorkspaceScope } = createHubWorkspaceStore({
+        state, fields: WORKSPACE_FIELDS, storage: issuerStorage, storageKey: `${SETTINGS.id}:workspace`,
+        onError: () => renderPanel(),
+        readConsent: () => state.consent, writeConsent: value => { state.consent = value; },
+        markPendingRecord: record => { record.result = 'Unconfirmed'; record.eligible = false; }
+    });
+    function workspaceCacheNotice() { return hubWorkspaceCacheNotice(state); }
+    function restoreWorkspacePanel(panel, bankName) { hubRestoreWorkspacePanel(panel, bankName, state); }
 
     // Source: api/session.js
     function currentSessionToken() {
@@ -1979,53 +2119,25 @@ dispatchIssuer({"id":"bofa-offer-lite","patterns":["^https://deals\\.merchant-re
         return token;
     }
 
+    // Source: api/request-runtime.js
+    const { sendRequest, retryAfterMilliseconds, waitForRequestSlot } = createHubJsonTransport({
+        state, settings: SETTINGS, ensureRunning, savePacing
+    });
+
     // Source: api/transport.js
-    function retryAfterMilliseconds(value) {
-        if (typeof value === 'string' && /^\d+(?:\.\d+)?$/.test(value.trim())) return Number(value) * 1000;
-        const deadline = typeof value === 'string' ? Date.parse(value) : NaN;
-        return Number.isFinite(deadline) ? Math.max(0, deadline - Date.now()) : SETTINGS.defaultCooldownMilliseconds;
-    }
     async function requestJson(path, method = 'POST', body) {
         const allowed = (path === '/geo' && method === 'GET')
             || (['/api/offers-search', '/api/offers-details'].includes(path) && method === 'POST')
             || (/^\/api\/activate-offer\/\d+$/.test(path) && method === 'PUT' && body === undefined);
         if (!allowed) throw new Error('Unsupported Deals request.');
-        if (state.storageError) throw new Error(state.storageError);
-        if (Date.now() < state.cooldownUntil) throw new Error('Rate limited. Wait for the saved cooldown to end before scanning.');
-        while (Date.now() < state.nextRequestAt) {
-            ensureRunning();
-            await new Promise(resolve => setTimeout(resolve, Math.min(250, state.nextRequestAt - Date.now())));
-        }
-        ensureRunning();
-        state.nextRequestAt = Date.now() + SETTINGS.timeoutMilliseconds + SETTINGS.gapMilliseconds;
-        savePacing();
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), SETTINGS.timeoutMilliseconds);
-        try {
+        return sendRequest(() => {
             const headers = path === '/geo' ? {} : { 'X-Cardholder-Token': state.sessionToken };
             if (body !== undefined) headers['Content-Type'] = 'application/json';
-            const response = await fetch(path, {
+            return { url: path, options: {
                 method, headers, body: body === undefined ? undefined : JSON.stringify(body),
-                credentials: 'same-origin', redirect: 'error', signal: controller.signal
-            });
-            if (response.status === 429) {
-                state.cooldownUntil = Math.max(state.cooldownUntil,
-                    Date.now() + retryAfterMilliseconds(response.headers.get('Retry-After')));
-            }
-            const responseText = await response.text();
-            if (response.status === 429) throw new Error('HTTP 429. Cooling down; no automatic retry.');
-            if (!response.ok) throw new Error(`Deals returned HTTP ${response.status}. Scan again after resolving the error.`);
-            try { return JSON.parse(responseText); }
-            catch { throw new Error('Unexpected Deals response. Sign in and scan again.'); }
-        } catch (error) {
-            if (error.name === 'AbortError') throw new Error('Request timed out. Activation may be unconfirmed; scan again.');
-            if (error instanceof TypeError) throw new Error('Network failure. Activation may be unconfirmed; scan again.');
-            throw error;
-        } finally {
-            clearTimeout(timeout);
-            state.nextRequestAt = Date.now() + SETTINGS.gapMilliseconds;
-            savePacing();
-        }
+                credentials: 'same-origin', redirect: 'error'
+            } };
+        });
     }
 
     // Source: api/contracts.js
@@ -2066,33 +2178,10 @@ dispatchIssuer({"id":"bofa-offer-lite","patterns":["^https://deals\\.merchant-re
     }
 
     // Source: workflows/runner.js
-    async function runExclusive(action, actionKind = 'scan') {
-        if (state.busy) return;
-        let workspaceActionStarted = false;
-        state.busy = true;
-        state.activeAction = actionKind;
-        if (actionKind === 'add') state.total = 0;
-        state.stopRequested = false;
-        renderPanel();
-        try {
-            if (!navigator.locks?.request) throw new Error('A browser with Web Locks is required. Use current Chrome.');
-            await navigator.locks.request(SETTINGS.id, { ifAvailable: true }, async lock => {
-                if (!lock) throw new Error('This script is running in another tab.');
-                restorePacing();
-                if (state.storageError) throw new Error(state.storageError);
-                workspaceActionStarted = true;
-                await action();
-            });
-        } catch (error) {
-            state.needsScan = true;
-            updateStatus(error.message);
-        } finally {
-            state.busy = false;
-            state.activeAction = null;
-            if (workspaceActionStarted) saveWorkspace();
-            renderPanel();
-        }
-    }
+    const runExclusive = createHubActionRunner({
+        state, settings: SETTINGS, ensureRunning: ensurePageReady, restorePacing, saveWorkspace,
+        render: () => renderPanel(), updateStatus, supportsActivation: SETTINGS.capabilities.activation
+    });
 
     // Source: workflows/offers.js
     async function scanOffers() {
@@ -2172,38 +2261,19 @@ dispatchIssuer({"id":"bofa-offer-lite","patterns":["^https://deals\\.merchant-re
     // Source: ui/panel.js
     function mountPanel() {
         if (document.getElementById(SETTINGS.id)) return;
-        const host = document.createElement('div');
-        host.id = SETTINGS.id;
-        const panel = host.attachShadow({ mode: 'open' });
-        panel.innerHTML = `<style>${HUB_DESIGN_STYLES}</style>` + hubWorkflowMarkup(
-            "<p class=\"muted\">Current signed-in Deals profile. Activation can start an expiry window; review terms first.</p><label class=\"card\"><input id=\"consent\" type=\"checkbox\" aria-label=\"Confirm activation for current Deals profile\">Allow adding offers to this profile</label>",
-            { bank: "Deals", extraReviewMarkup: "", readOnly: false });
-        panel.querySelector('h2').textContent = SETTINGS.name;
+        const { host, panel } = createHubWorkflowPanel({
+            state, settings: SETTINGS, bank: "Deals", styles: HUB_DESIGN_STYLES,
+            scopeMarkup: "<p class=\"muted\">Current signed-in Deals profile. Activation can start an expiry window; review terms first.</p><label class=\"card\"><input id=\"consent\" type=\"checkbox\" aria-label=\"Confirm activation for current Deals profile\">Allow adding offers to this profile</label>",
+            workflow: { bank: "Deals", extraReviewMarkup: "", readOnly: !SETTINGS.capabilities.activation },
+            onScan: scanOffers, onAdd: activateOffers, onStop: stopRun,
+            saveWorkspace, renderOffers, supportsActivation: SETTINGS.capabilities.activation
+        });
         panel.getElementById('consent').addEventListener('change', event => {
             if (state.busy) return;
             state.consent = event.target.checked; saveWorkspace(); renderPanel();
         });
-        panel.getElementById('scan').addEventListener('click', scanOffers);
-        panel.getElementById('add').addEventListener('click', activateOffers);
-        panel.getElementById('stop').addEventListener('click', stopRun);
-        const search = panel.getElementById('search');
-        search.addEventListener('input', event => { state.search = event.target.value; saveWorkspace(); renderOffers(); });
-        panel.getElementById('hub-clear-search').onclick = () => {
-            state.search = ''; search.value = ''; saveWorkspace(); renderOffers(); search.focus();
-        };
-        panel.getElementById('collapse').addEventListener('click', () => {
-            state.collapsed = !state.collapsed;
-            saveWorkspace();
-            panel.getElementById('body').hidden = state.collapsed;
-            const button = panel.getElementById('collapse');
-            button.textContent = state.collapsed ? '+' : '−';
-            button.setAttribute('aria-label', state.collapsed ? 'Expand Deals panel' : 'Minimize Deals panel');
-            button.setAttribute('aria-expanded', String(!state.collapsed));
-        });
-        decorateHubPanel(panel, SETTINGS.version);
         document.body.appendChild(host);
         state.panel = panel;
-        restoreWorkspacePanel(panel, "Deals");
         renderPanel();
     }
 
@@ -2238,7 +2308,7 @@ dispatchIssuer({"id":"bofa-offer-lite","patterns":["^https://deals\\.merchant-re
         panel.getElementById('stop').disabled = !state.busy || state.stopRequested;
         const available = state.offers.filter(offer => offer.eligible && !offer.activated).length;
         panel.getElementById('counts').textContent = `${state.offers.length} offers · ${available} available · ${state.confirmed}/${state.total} added this run`;
-        renderHubWorkflow(panel, { count: available, hasScope: state.consent, needsScan: state.needsScan,
+        renderHubWorkflow(panel, { readOnly: !SETTINGS.capabilities.activation, count: available, hasScope: state.consent, needsScan: state.needsScan,
             busy: state.busy, storageError: state.storageError, coolingDown: Date.now() < state.cooldownUntil,
             progress: state.activeAction === 'add' && state.total ? { completed: state.confirmed, total: state.total } : null });
         renderOffers();
@@ -2258,254 +2328,10 @@ dispatchIssuer({"id":"chase-offer-lite","patterns":["^https://secure\\.chase\\.c
 (function () {
     'use strict';
 
-    // Source: shared/ui/design-system.js
-    const HUB_DESIGN_STYLES = `
-    :host{all:initial;--hub-ink:#20322f;--hub-muted:#64746e;--hub-accent:#176653;--hub-tint:#edf6f1;--hub-line:#dce5df;--hub-canvas:#f5f7f4;--hub-radius:16px;position:fixed;right:16px;bottom:16px;z-index:2147483646;color:var(--hub-ink);font:13px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:light}
-    *,*::before,*::after{box-sizing:border-box}[hidden]{display:none!important}
-    .panel{width:min(464px,calc(100vw - 24px));max-height:88vh;max-height:88dvh;overflow:auto;background:#fff;border:1px solid var(--hub-line);border-radius:var(--hub-radius);box-shadow:0 16px 60px #21392d20}
-    header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;border-bottom:1px solid var(--hub-line);background:#fff}
-    .hub-heading{min-width:0;flex:1}.hub-eyebrow{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--hub-accent);font-weight:750;margin-bottom:3px}.hub-version{font-size:10px;color:var(--hub-muted);font-variant-numeric:tabular-nums}
-    h2{font-size:18px;line-height:1.3;letter-spacing:-.035em;margin:0;font-weight:650}h3{font-size:12px;margin:0 0 8px;font-weight:650}p{margin:6px 0}
-    section,main{padding:16px 20px;border-bottom:1px solid var(--hub-line)}footer,.status{padding:14px 20px;background:var(--hub-canvas);overflow-wrap:anywhere}.muted,.card-report,.logs{color:var(--hub-muted);font-size:12px}.error,.storage-error{color:#a33232}.notice{border-left:3px solid #a2b9ac;background:var(--hub-canvas);padding:10px 12px}
-    button,input,select{font:inherit}button,select{border:1px solid var(--hub-line);border-radius:9px;color:var(--hub-ink);background:#fff;padding:8px 12px;min-height:36px}button{cursor:pointer;font-weight:550}button:not(:disabled):hover{background:var(--hub-tint);border-color:#a8c6b9}button.primary{background:var(--hub-accent);color:#fff;border-color:var(--hub-accent)}button.primary:not(:disabled):hover{background:#10523f}button:disabled{opacity:.45;cursor:not-allowed}button.stop{color:#a33232}button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #79ad99;outline-offset:3px}
-    input[type=search]{width:100%;padding:11px 13px;border:1px solid var(--hub-line);border-radius:10px;background:var(--hub-canvas);color:var(--hub-ink)}input[type=checkbox]{accent-color:var(--hub-accent);flex:none;width:15px;height:15px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}.cards{max-height:180px;overflow:auto}.card{display:flex;align-items:flex-start;gap:9px;padding:9px 0;overflow-wrap:anywhere}.card input{margin-top:3px}.card-info{min-width:0;flex:1}
-    .offers{max-height:260px;overflow:auto;margin-top:10px}.offer{display:block;padding:13px 0;border-bottom:1px solid var(--hub-line);overflow-wrap:anywhere}.offer:last-child{border-bottom:0}.offer small{display:block;color:var(--hub-muted);margin-top:5px}.offer-title{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.offer-title button{flex-shrink:0}.badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.badge{border-radius:5px;background:var(--hub-canvas);padding:3px 7px;font-size:11px}.badge.enrolled{background:var(--hub-tint);color:var(--hub-accent)}.badge.unconfirmed,.badge.failed{background:#fff1da;color:#865711}.card-counts,.offer-counts,.offer-target{color:var(--hub-accent);font-size:12px}.logs{max-height:90px;overflow:auto}a{color:var(--hub-accent);text-underline-offset:3px}
-    .hub-search-launcher{display:flex;align-items:center;justify-content:space-between;width:100%;border:0;border-bottom:1px solid var(--hub-line);border-radius:0;background:var(--hub-tint);padding:11px 20px;color:var(--hub-accent);text-align:left}.hub-search-launcher span:last-child{font-size:11px;font-weight:400}
-    .hub-step h3{font-size:12px;letter-spacing:.03em;margin-bottom:10px;color:var(--hub-accent)}.hub-action-reason{font-size:12px;color:var(--hub-muted);margin-top:10px}.hub-clear-search{font-size:11px;min-height:28px;padding:4px 8px;margin-top:6px}.hub-search-rule{font-size:11px}.hub-step .actions{margin-bottom:8px}
-    @media(max-width:500px){:host{right:12px;bottom:12px}header{padding:16px}section,main,footer,.status{padding:14px 16px}}
-    `;
-
-    // Source: shared/ui/panel-branding.js
-    function decorateHubPanel(shadowRoot, version) {
-        const header = shadowRoot.querySelector('header');
-        const title = header.querySelector('h2');
-        const heading = document.createElement('div');
-        heading.className = 'hub-heading';
-        const eyebrow = document.createElement('div');
-        eyebrow.className = 'hub-eyebrow';
-        eyebrow.textContent = 'Card Offer Hub';
-        header.insertBefore(heading, title);
-        heading.append(eyebrow, title);
-        const release = document.createElement('span');
-        release.className = 'hub-version';
-        release.textContent = `v${version}`;
-        heading.append(release);
-    }
-
-    // Source: shared/ui/workflow-layout.js
-    function hubWorkflowMarkup(scopeMarkup, { bank, extraReviewMarkup = '', readOnly = false } = {}) {
-        return `<div class="panel">
-          <header><h2></h2><button id="collapse" aria-label="Minimize ${bank} panel" aria-expanded="true">−</button></header>
-          <div id="body">
-            <section class="hub-step" data-step="scope"><h3>1. Choose scope</h3>${scopeMarkup}</section>
-            <section class="hub-step" data-step="scan"><h3>2. Scan offers</h3>
-              <p class="muted">Scan to refresh saved offers. Nothing runs until you click.</p>
-              <div class="actions"><button id="scan" aria-label="Scan offers">Scan offers</button><button id="stop" class="stop" aria-label="Stop">Stop</button></div>
-            </section>
-            <section class="hub-step" data-step="review"><h3>3. Review & add</h3>
-              <input id="search" type="search" aria-label="Search saved offers" placeholder="Search saved offers">
-              <button id="hub-clear-search" class="hub-clear-search" aria-label="Clear search">Clear search</button>
-              <p class="muted hub-search-rule">Search changes the list only. Add all includes offers hidden by search within your chosen scope.</p>
-              <p id="counts" class="muted"></p><div class="actions"><button id="add" class="primary" aria-label="Add all offers" aria-describedby="hub-action-reason">Add all offers</button>${extraReviewMarkup}</div>
-              <p id="hub-action-reason" class="hub-action-reason" role="note"></p>
-              ${readOnly ? '<p id="enrollment-notice" class="notice">Chase is read-only here. Add offers on the Chase website.</p>' : ''}
-              <div id="offers" class="offers"></div>
-            </section>
-            <footer><p id="workspace-cache" class="muted"></p><div id="status" role="status" aria-live="polite"></div><div id="storage-error" class="error" role="alert"></div></footer>
-          </div></div>`;
-    }
-    function hubMatchesSearch(offer, query) {
-        return [offer.merchant, offer.name, offer.title, offer.description, offer.headline, offer.category]
-            .filter(value => typeof value === 'string').join(' ').toLocaleLowerCase().includes(query.trim().toLocaleLowerCase());
-    }
-    function hubOfferStatusLabel(status) {
-        if (['AVAILABLE', 'ELIGIBLE', 'NEW'].includes(status)) return 'Available';
-        if (['ENROLLED', 'ACTIVATED'].includes(status)) return 'Added';
-        if (['UNCONFIRMED', 'UNKNOWN', 'FAILED', 'CONFLICT'].includes(status)) return 'Needs review';
-        return 'Skipped';
-    }
-    function hubShowEmptyOffers(container, query) {
-        const note = document.createElement('p');
-        note.className = 'muted';
-        note.textContent = query.trim() ? 'No offers match your search. Clear search to view all saved offers in this scope.' : 'No offers in this scope yet. Choose your scope and scan to refresh.';
-        container.append(note);
-    }
-    function hubSetActionLabel(control, label, count = null) {
-        if (!control) return;
-        control.textContent = count === null ? label : `${label} (${count})`;
-        control.setAttribute('aria-label', label);
-    }
-    function renderHubWorkflow(root, { count, hasScope = true, needsScan = false, busy = false,
-        storageError = '', readOnly = false, coolingDown = false, progress = null } = {}) {
-        const add = root.getElementById('add') || root.getElementById('btn-enroll-all');
-        hubSetActionLabel(add, 'Add all offers', busy ? null : count);
-        add.disabled = Boolean(busy || storageError || readOnly || coolingDown || !hasScope || needsScan || !count);
-        const reason = root.getElementById('hub-action-reason');
-        reason.textContent = storageError ? 'Resolve the storage error before continuing.'
-            : busy ? progress ? `Adding ${progress.completed} of ${progress.total}. The task keeps its original scope while you search or switch tabs.` : 'Working. Use Stop to end the current task.'
-            : readOnly ? 'Adding is unavailable for this bank. You can still scan and search.'
-            : coolingDown ? 'Waiting for the bank cooldown. Start again manually when it ends.'
-            : !hasScope ? 'Choose or confirm your scope in step 1.'
-            : needsScan ? 'Scan offers in step 2 before adding.'
-            : !count ? 'No available offers in this scope. Scan again to refresh.'
-            : `Ready to add ${count} available ${count === 1 ? 'offer' : 'offers'} in your chosen scope. Search does not change this total.`;
-    }
-
-    // Source: shared/persistence/workspace-records.js
-    function serializeWorkspaceRecord(record, fields) {
-        const normalized = {};
-        for (const [field, type] of Object.entries(fields)) {
-            normalized[field] = type === 'text' && typeof record[field] !== 'string' ? '' : record[field];
-        }
-        return workspaceRecord(normalized, fields);
-    }
-    // Only adapter-declared display fields enter persistent storage. Request tokens,
-    // raw responses, headers, locations and runtime locks never cross this boundary.
-    function workspaceRecord(record, fields) {
-        if (!record || typeof record !== 'object' || Array.isArray(record)) throw new Error('Invalid saved record');
-        const result = {};
-        for (const [field, type] of Object.entries(fields)) {
-            const value = record[field];
-            if (type === 'boolean') {
-                if (typeof value !== 'boolean') throw new Error('Invalid saved flag');
-                result[field] = value;
-            } else {
-                if (typeof value !== 'string' || (type === 'id' && !value.trim())) throw new Error('Invalid saved text');
-                result[field] = value;
-            }
-        }
-        return result;
-    }
-    function workspaceOfferKey(offer) {
-        return JSON.stringify([offer.accountId || '', offer.offerId || offer.id]);
-    }
-    function validateWorkspaceSnapshot(saved) {
-        if (!saved || saved.schemaVersion !== 1 || !Number.isFinite(saved.savedAt) || saved.savedAt < 0
-            || !Number.isFinite(saved.lastScanAt) || saved.lastScanAt < 0
-            || typeof saved.scopeIdentity !== 'string' || typeof saved.consent !== 'boolean'
-            || typeof saved.search !== 'string' || typeof saved.collapsed !== 'boolean'
-            || !Array.isArray(saved.accounts) || !Array.isArray(saved.offers) || !Array.isArray(saved.selected)) {
-            throw new Error('Unsupported or incomplete workspace snapshot');
-        }
-        const accounts = saved.accounts.map(record => workspaceRecord(record, WORKSPACE_FIELDS.accounts));
-        const offers = saved.offers.map(record => workspaceRecord(record, WORKSPACE_FIELDS.offers));
-        const accountIds = new Set(accounts.map(account => account.accountId));
-        const offerIds = new Set(offers.map(workspaceOfferKey));
-        if (accountIds.size !== accounts.length || offerIds.size !== offers.length
-            || (!WORKSPACE_FIELDS.accounts && accounts.length)
-            || (WORKSPACE_FIELDS.accounts && offers.some(offer => !accountIds.has(offer.accountId)))) {
-            throw new Error('Conflicting saved records');
-        }
-        const allowedSelections = WORKSPACE_FIELDS.accounts ? accountIds : new Set(offers.map(offer => offer.offerId));
-        if (saved.selected.some(id => typeof id !== 'string' || !allowedSelections.has(id))
-            || new Set(saved.selected).size !== saved.selected.length) throw new Error('Invalid saved selections');
-        return { ...saved, accounts, offers };
-    }
-
-    // Source: shared/persistence/workspace-storage.js
-    const pendingWorkspaceOffers = new Set();
-    function saveWorkspace() {
-        if (state.storageError) return false;
-        try {
-            const offers = state.offers.map(offer => {
-                const record = serializeWorkspaceRecord(offer, WORKSPACE_FIELDS.offers);
-                if (pendingWorkspaceOffers.has(workspaceOfferKey(offer))) {
-                    if ('status' in record) record.status = 'UNCONFIRMED';
-                    else { record.result = 'Unconfirmed'; record.eligible = false; }
-                }
-                return record;
-            });
-            const snapshot = validateWorkspaceSnapshot({
-                schemaVersion: 1, savedAt: Date.now(), lastScanAt: state.lastScanAt,
-                scopeIdentity: state.workspaceScope, accounts: (state.accounts || []).map(account => serializeWorkspaceRecord(account, WORKSPACE_FIELDS.accounts)),
-                offers, selected: [...(state.selected || [])], consent: state.consent ?? state.accountConsent ?? false,
-                search: state.search || '', collapsed: state.collapsed
-            });
-            GM_setValue(`${SETTINGS.id}:workspace`, snapshot);
-            return true;
-        } catch {
-            state.storageError = 'Cannot save scan results and selections. Further requests are blocked; fix Tampermonkey storage and reload.';
-            renderPanel();
-            return false;
-        }
-    }
-    function requireWorkspaceSaved() {
-        if (!saveWorkspace()) throw new Error(state.storageError);
-    }
-    function restoreWorkspace() {
-        try {
-            const saved = GM_getValue(`${SETTINGS.id}:workspace`, null);
-            if (saved === null) return; // Older releases only saved pacing; keep it intact.
-            const snapshot = validateWorkspaceSnapshot(saved);
-            if (WORKSPACE_FIELDS.accounts) state.accounts = snapshot.accounts;
-            state.offers = snapshot.offers;
-            if (state.selected) state.selected = new Set(snapshot.selected);
-            if ('consent' in state) state.consent = snapshot.consent;
-            if ('accountConsent' in state) state.accountConsent = snapshot.consent;
-            state.search = snapshot.search;
-            state.collapsed = snapshot.collapsed;
-            state.lastScanAt = snapshot.lastScanAt;
-            state.workspaceScope = snapshot.scopeIdentity;
-            state.restoredWorkspace = true;
-            state.needsScan = true;
-            state.status = 'Saved results and selections restored. Scan manually to verify the current account before adding.';
-        } catch {
-            state.storageError = 'Cannot read saved results and selections. Stored data was preserved; resolve Tampermonkey storage before running.';
-        }
-    }
-    function recordWorkspaceScan() {
-        state.lastScanAt = Date.now();
-        state.restoredWorkspace = false;
-        pendingWorkspaceOffers.clear();
-        requireWorkspaceSaved();
-    }
-    function markWorkspaceOfferPending(offer) {
-        pendingWorkspaceOffers.add(workspaceOfferKey(offer));
-        requireWorkspaceSaved(); // Must succeed before a write request can leave.
-    }
-    function finishWorkspaceOffer(offer) {
-        pendingWorkspaceOffers.delete(workspaceOfferKey(offer));
-        requireWorkspaceSaved();
-    }
-
-    // Source: shared/persistence/workspace-scope.js
-    async function workspaceScopeFingerprint(value) {
-        // A one-way scope marker can detect a changed opaque session without storing
-        // the credential itself. It cannot be used to authenticate any request.
-        const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
-        return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
-    }
-    function bindWorkspaceScope(scope) {
-        if (state.workspaceScope && state.workspaceScope !== scope) {
-            if (state.selected) state.selected.clear();
-            if ('consent' in state) state.consent = false;
-            if ('accountConsent' in state) state.accountConsent = false;
-            state.offers = [];
-            state.lastScanAt = 0;
-            pendingWorkspaceOffers.clear();
-        }
-        state.workspaceScope = scope;
-    }
-
-    // Source: shared/persistence/workspace-ui.js
-    function workspaceCacheNotice() {
-        if (!state.lastScanAt) return 'Results and selections are saved locally. Nothing runs automatically.';
-        return `Last complete scan: ${new Date(state.lastScanAt).toLocaleString()}. ${state.restoredWorkspace || state.needsScan
-            ? 'Saved results; scan again before adding.' : 'Results and selections saved locally.'}`;
-    }
-    function restoreWorkspacePanel(panel, bankName) {
-        const search = panel.getElementById('search');
-        if (search) search.value = state.search || '';
-        panel.getElementById('body').hidden = state.collapsed;
-        const toggle = panel.getElementById('collapse');
-        toggle.textContent = state.collapsed ? '+' : '−';
-        toggle.setAttribute('aria-expanded', String(!state.collapsed));
-        toggle.setAttribute('aria-label', `${state.collapsed ? 'Expand' : 'Minimize'} ${bankName} panel`);
-    }
-
     // Source: core/state.js
     const SETTINGS = {
-        id: "chase-offer-lite", name: "Chase Offer Lite", version: "1.3.1",
+        capabilities: {"activation":false,"scope":"card"},
+        id: "chase-offer-lite", name: "Chase Offer Lite", version: "1.3.3",
         gapMilliseconds: 500, timeoutMilliseconds: 45000,
         defaultCooldownMilliseconds: 300000
     };
@@ -2515,7 +2341,7 @@ dispatchIssuer({"id":"chase-offer-lite","patterns":["^https://secure\\.chase\\.c
         needsScan: true, nextRequestAt: 0, cooldownUntil: 0, storageError: '',
         status: 'Open Chase Offers or switch its selected card, then detect cards. Scans start only when you click.',
         confirmed: 0, completed: 0, total: 0, panel: null, collapsed: false, search: '',
-        enrollmentSupported: false, sessionIdentity: ''
+        enrollmentSupported: SETTINGS.capabilities.activation, sessionIdentity: ''
     };
     function updateStatus(message) {
         state.status = message;
@@ -2533,31 +2359,11 @@ dispatchIssuer({"id":"chase-offer-lite","patterns":["^https://secure\\.chase\\.c
     }
 
     // Source: core/storage.js
-    // Keep the original pacing schema/key; result snapshots use a separate versioned key.
-    function restorePacing() {
-        try {
-            const saved = GM_getValue(`${SETTINGS.id}:pacing`, null);
-            if (saved === null) return;
-            if (saved.schemaVersion !== 1 || !Number.isFinite(saved.cooldownUntil)
-                || !Number.isFinite(saved.nextRequestAt)) {
-                throw new Error('Unsupported pacing snapshot; stored data was preserved.');
-            }
-            state.cooldownUntil = Math.max(state.cooldownUntil, saved.cooldownUntil);
-            state.nextRequestAt = Math.max(state.nextRequestAt, saved.nextRequestAt);
-        } catch {
-            state.storageError = 'Cannot read pacing storage. Resolve Tampermonkey storage before running.';
-        }
-    }
-    function savePacing() {
-        try {
-            GM_setValue(`${SETTINGS.id}:pacing`, {
-                schemaVersion: 1, cooldownUntil: state.cooldownUntil, nextRequestAt: state.nextRequestAt
-            });
-        } catch {
-            state.storageError = 'Cannot save pacing storage. Further requests are blocked; reload after fixing storage.';
-            renderPanel();
-        }
-    }
+    // Existing keys and schema remain readable after the runtime refactor.
+    const issuerStorage = { get: (key, fallback) => GM_getValue(key, fallback), set: (key, value) => GM_setValue(key, value) };
+    const { restorePacing, savePacing } = createHubPacingStorage({
+        state, storage: issuerStorage, storageKey: `${SETTINGS.id}:pacing`, onError: () => renderPanel()
+    });
 
     // Source: core/workspace-fields.js
     const WORKSPACE_FIELDS = {
@@ -2578,6 +2384,15 @@ dispatchIssuer({"id":"chase-offer-lite","patterns":["^https://secure\\.chase\\.c
         }
     };
 
+    // Source: core/workspace.js
+    const { saveWorkspace, requireWorkspaceSaved, restoreWorkspace, recordWorkspaceScan,
+        markWorkspaceOfferPending, finishWorkspaceOffer, bindWorkspaceScope } = createHubWorkspaceStore({
+        state, fields: WORKSPACE_FIELDS, storage: issuerStorage, storageKey: `${SETTINGS.id}:workspace`,
+        onError: () => renderPanel()
+    });
+    function workspaceCacheNotice() { return hubWorkspaceCacheNotice(state); }
+    function restoreWorkspacePanel(panel, bankName) { hubRestoreWorkspacePanel(panel, bankName, state); }
+
     // Source: api/contracts.js
     const CHASE_OFFERS_PATH = '/svc/wr/profile/secure/gateway/ccb/marketing/offer-management/digital-customer-targeted-offers/v3/customer-offers';
     function chaseIdentifier(value) {
@@ -2590,14 +2405,17 @@ dispatchIssuer({"id":"chase-offer-lite","patterns":["^https://secure\\.chase\\.c
         const accounts = new Map();
         for (const card of payload.digitalProfileAccounts) {
             const accountId = chaseIdentifier(card?.digitalAccountIdentifier);
-            if (typeof card.shoppingEligibilityIndicator !== 'boolean') throw new Error('Chase returned an incomplete card record.');
             const name = typeof card.accountNickname === 'string' && card.accountNickname.trim()
                 ? card.accountNickname : typeof card.accountProductClassificationName === 'string'
                     ? card.accountProductClassificationName : 'Chase card';
             const maskedNumber = typeof card.maskedAccountNumber === 'string' ? card.maskedAccountNumber : '';
             const lastFour = maskedNumber.match(/(\d{4})$/)?.[1] || '';
             if (accounts.has(accountId)) throw new Error('Chase returned duplicate card records.');
-            accounts.set(accountId, { accountId, name, lastFour, eligible: card.shoppingEligibilityIndicator });
+            // Cards returned by the Offers profile can be selected for a read-only
+            // scan. shoppingEligibilityIndicator is not an Offers eligibility flag:
+            // Chase displays card-linked offers even when that field is false.
+            // Keep the existing snapshot field; detection refreshes stale false values.
+            accounts.set(accountId, { accountId, name, lastFour, eligible: true });
         }
         return [...accounts.values()];
     }
@@ -2717,8 +2535,7 @@ dispatchIssuer({"id":"chase-offer-lite","patterns":["^https://secure\\.chase\\.c
                 digitalAccountIdentifier: chaseIdentifier(card.digitalAccountIdentifier),
                 accountNickname: typeof card.accountNickname === 'string' ? card.accountNickname : '',
                 accountProductClassificationName: typeof card.accountProductClassificationName === 'string' ? card.accountProductClassificationName : '',
-                maskedAccountNumber: typeof card.maskedAccountNumber === 'string' ? card.maskedAccountNumber.slice(-4) : '',
-                shoppingEligibilityIndicator: card.shoppingEligibilityIndicator
+                maskedAccountNumber: typeof card.maskedAccountNumber === 'string' ? card.maskedAccountNumber.slice(-4) : ''
             })) };
             chaseCapturedSession = { ...context, accountId, headers: { ...context.headers }, capturedAt: Date.now() };
             return true;
@@ -2737,6 +2554,11 @@ dispatchIssuer({"id":"chase-offer-lite","patterns":["^https://secure\\.chase\\.c
         currentSession();
         return { digitalProfileAccounts: chaseCapturedAccounts.digitalProfileAccounts.map(card => ({ ...card })) };
     }
+
+    // Source: api/request-runtime.js
+    const { sendRequest, retryAfterMilliseconds, waitForRequestSlot } = createHubJsonTransport({
+        state, settings: SETTINGS, ensureRunning, savePacing
+    });
 
     // Source: api/observer.js
     let chaseSessionObserverInstalled = false;
@@ -2798,14 +2620,6 @@ dispatchIssuer({"id":"chase-offer-lite","patterns":["^https://secure\\.chase\\.c
     }
 
     // Source: core/transport.js
-    function retryAfterMilliseconds(value, now = Date.now()) {
-        if (typeof value === 'string' && /^\d+(?:\.\d+)?$/.test(value.trim())) {
-            const milliseconds = Number(value) * 1000;
-            if (Number.isFinite(milliseconds)) return milliseconds;
-        }
-        const deadline = typeof value === 'string' ? Date.parse(value) : NaN;
-        return Number.isFinite(deadline) ? Math.max(0, deadline - now) : SETTINGS.defaultCooldownMilliseconds;
-    }
     function ensureSelectedSession(accountId, { allowStopped = false } = {}) {
         if (!allowStopped) ensureRunning();
         if (!state.selected.has(accountId) || !state.accounts.some(card => card.accountId === accountId)) {
@@ -2815,91 +2629,32 @@ dispatchIssuer({"id":"chase-offer-lite","patterns":["^https://secure\\.chase\\.c
             throw new Error('Chase session changed. Detect cards and select them again.');
         }
     }
-    async function waitForRequestSlot() {
-        while (Date.now() < state.nextRequestAt) {
-            ensureRunning();
-            await new Promise(resolve => setTimeout(resolve, Math.min(250, state.nextRequestAt - Date.now())));
-        }
-        ensureRunning();
-        if (state.storageError) throw new Error(state.storageError);
-        if (Date.now() < state.cooldownUntil) {
-            throw new Error(`Rate limited. Try a new scan after ${new Date(state.cooldownUntil).toLocaleTimeString()}.`);
-        }
-    }
-    async function requestJson(descriptor) {
-        await waitForRequestSlot();
-        // Request descriptors must exactly match a fresh, selected-account read.
-        // No arbitrary URL, method, or captured account-default request is replayed.
-        let parameters;
-        try { parameters = JSON.parse(descriptor.headers['path-params']); }
-        catch { throw new Error('Invalid Chase read request. Detect cards again.'); }
-        const accountId = String(parameters.primaryDigitalAccountIdentifierList?.[0] ?? '');
-        ensureSelectedSession(accountId);
-        const expected = buildOffersRequest(accountId);
-        if (descriptor.method !== 'GET' || descriptor.path !== expected.path
-            || JSON.stringify(descriptor.headers) !== JSON.stringify(expected.headers)) {
-            throw new Error('Unsupported Chase read request.');
-        }
-        const headers = { ...sessionHeaders(), ...expected.headers };
-        state.nextRequestAt = Date.now() + SETTINGS.timeoutMilliseconds + SETTINGS.gapMilliseconds;
-        savePacing();
-        if (state.storageError) throw new Error(state.storageError);
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), SETTINGS.timeoutMilliseconds);
-        try {
-            const response = await fetch(expected.path, {
-                method: 'GET', credentials: 'same-origin', redirect: 'error',
-                headers, signal: controller.signal
-            });
-            if (response.status === 429) {
-                state.cooldownUntil = Math.max(state.cooldownUntil,
-                    Date.now() + retryAfterMilliseconds(response.headers.get('Retry-After')));
+    function requestJson(descriptor) {
+        return sendRequest(() => {
+            // Only a freshly constructed selected-account read is accepted.
+            let parameters;
+            try { parameters = JSON.parse(descriptor.headers['path-params']); }
+            catch { throw new Error('Invalid Chase read request. Detect cards again.'); }
+            const accountId = String(parameters.primaryDigitalAccountIdentifierList?.[0] ?? '');
+            ensureSelectedSession(accountId);
+            const expected = buildOffersRequest(accountId);
+            if (descriptor.method !== 'GET' || descriptor.path !== expected.path
+                || JSON.stringify(descriptor.headers) !== JSON.stringify(expected.headers)) {
+                throw new Error('Unsupported Chase read request.');
             }
-            const responseText = await response.text();
-            if (response.status === 429) throw new Error('Chase returned HTTP 429. Cooling down; scan again later.');
-            if (!response.ok) throw new Error(`Chase returned HTTP ${response.status}. Sign in and scan again.`);
-            let payload;
-            try { payload = JSON.parse(responseText); }
-            catch { throw new Error('Chase returned a non-JSON response. Sign in and scan again.'); }
-            ensureSelectedSession(accountId, { allowStopped: true });
-            return payload;
-        } catch (error) {
-            if (error.name === 'AbortError') throw new Error('Request timed out. Scan again; no automatic retry was made.');
-            if (error instanceof TypeError) throw new Error('Network request failed. Sign in and scan again.');
-            throw error;
-        } finally {
-            clearTimeout(timeout);
-            state.nextRequestAt = Date.now() + SETTINGS.gapMilliseconds;
-            savePacing();
-        }
+            return { url: expected.path, options: {
+                method: 'GET', credentials: 'same-origin', redirect: 'error',
+                headers: { ...sessionHeaders(), ...expected.headers }
+            }, validateResponse: () => ensureSelectedSession(accountId, { allowStopped: true }) };
+        });
     }
 
     // Source: workflows/runner.js
-    async function runExclusive(action) {
-        if (state.busy) return;
-        let workspaceActionStarted = false;
-        state.busy = true;
-        state.stopRequested = false;
-        renderPanel();
-        try {
-            if (!navigator.locks?.request) throw new Error('This browser does not support the required tab lock. Use current Chrome.');
-            await navigator.locks.request(SETTINGS.id, { ifAvailable: true }, async lock => {
-                if (!lock) throw new Error('A scan is running in another tab. Wait for it to finish.');
-                restorePacing();
-                if (state.storageError) throw new Error(state.storageError);
-                ensureRunning();
-                workspaceActionStarted = true;
-                await action();
-            });
-        } catch (error) {
-            state.needsScan = true;
-            updateStatus(error.message);
-        } finally {
-            state.busy = false;
-            if (workspaceActionStarted) saveWorkspace();
-            renderPanel();
-        }
-    }
+    const runExclusive = createHubActionRunner({
+        state, settings: SETTINGS, ensureRunning, restorePacing, saveWorkspace,
+        render: () => renderPanel(), updateStatus,
+        supportsActivation: SETTINGS.capabilities.activation
+    });
 
     // Source: workflows/offers.js
     function setCardSelected(accountId, selected) {
@@ -2971,35 +2726,16 @@ dispatchIssuer({"id":"chase-offer-lite","patterns":["^https://secure\\.chase\\.c
     // Source: ui/panel.js
     function mountPanel() {
         if (document.getElementById(SETTINGS.id)) return;
-        const host = document.createElement('div');
-        host.id = SETTINGS.id;
-        const panel = host.attachShadow({ mode: 'open' });
-        panel.innerHTML = `<style>${PANEL_STYLES}</style>` + hubWorkflowMarkup(
-            "<p class=\"muted\">Open Chase Offers, then detect and choose your cards. Your choices stay saved.</p><button id=\"detect\" aria-label=\"Detect cards\">Detect cards</button><div id=\"cards\" class=\"cards\"></div>",
-            { bank: "Chase", extraReviewMarkup: "", readOnly: true });
-        panel.querySelector('h2').textContent = SETTINGS.name;
-        panel.getElementById('detect').addEventListener('click', detectCards);
-        panel.getElementById('scan').addEventListener('click', scanOffers);
-        panel.getElementById('add').addEventListener('click', addAllOffers);
-        panel.getElementById('stop').addEventListener('click', stopRun);
-        const search = panel.getElementById('search');
-        search.addEventListener('input', event => { state.search = event.target.value; saveWorkspace(); renderOffers(); });
-        panel.getElementById('hub-clear-search').onclick = () => {
-            state.search = ''; search.value = ''; saveWorkspace(); renderOffers(); search.focus();
-        };
-        panel.getElementById('collapse').addEventListener('click', () => {
-            state.collapsed = !state.collapsed;
-            saveWorkspace();
-            panel.getElementById('body').hidden = state.collapsed;
-            const button = panel.getElementById('collapse');
-            button.textContent = state.collapsed ? '+' : '−';
-            button.setAttribute('aria-label', state.collapsed ? 'Expand Chase panel' : 'Minimize Chase panel');
-            button.setAttribute('aria-expanded', String(!state.collapsed));
+        const { host, panel } = createHubWorkflowPanel({
+            state, settings: SETTINGS, bank: "Chase", styles: PANEL_STYLES,
+            scopeMarkup: "<p class=\"muted\">Open Chase Offers, then detect and choose your cards. Your choices stay saved.</p><button id=\"detect\" aria-label=\"Detect cards\">Detect cards</button><div id=\"cards\" class=\"cards\"></div>",
+            workflow: { bank: "Chase", extraReviewMarkup: "", readOnly: !SETTINGS.capabilities.activation },
+            onScan: scanOffers, onAdd: addAllOffers, onStop: stopRun,
+            saveWorkspace, renderOffers, supportsActivation: SETTINGS.capabilities.activation
         });
-        decorateHubPanel(panel, SETTINGS.version);
+        panel.getElementById('detect').addEventListener('click', detectCards);
         document.body.appendChild(host);
         state.panel = panel;
-        restoreWorkspacePanel(panel, "Chase");
         renderPanel();
     }
 
@@ -3062,7 +2798,7 @@ dispatchIssuer({"id":"chase-offer-lite","patterns":["^https://secure\\.chase\\.c
             const cardName = chaseCardDisplayName(card);
             checkbox.setAttribute('aria-label', `Select ${cardName}`);
             checkbox.addEventListener('change', () => setCardSelected(card.accountId, checkbox.checked));
-            label.append(checkbox, document.createTextNode(`${cardName}${card.eligible === false ? ' · Not eligible for Offers' : ''}`));
+            label.append(checkbox, document.createTextNode(`${cardName}${card.eligible === false ? ' · Detect cards to refresh' : ''}`));
             cards.appendChild(label);
         }
         renderHubWorkflow(panel, { count: state.offers.filter(offer => state.selected.has(offer.accountId) && offer.status === 'NEW').length, hasScope: state.selected.size > 0,
@@ -3088,254 +2824,10 @@ dispatchIssuer({"id":"citi-offer-lite","patterns":["^https://online\\.citi\\.com
 (function () {
     'use strict';
 
-    // Source: shared/ui/design-system.js
-    const HUB_DESIGN_STYLES = `
-    :host{all:initial;--hub-ink:#20322f;--hub-muted:#64746e;--hub-accent:#176653;--hub-tint:#edf6f1;--hub-line:#dce5df;--hub-canvas:#f5f7f4;--hub-radius:16px;position:fixed;right:16px;bottom:16px;z-index:2147483646;color:var(--hub-ink);font:13px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:light}
-    *,*::before,*::after{box-sizing:border-box}[hidden]{display:none!important}
-    .panel{width:min(464px,calc(100vw - 24px));max-height:88vh;max-height:88dvh;overflow:auto;background:#fff;border:1px solid var(--hub-line);border-radius:var(--hub-radius);box-shadow:0 16px 60px #21392d20}
-    header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;border-bottom:1px solid var(--hub-line);background:#fff}
-    .hub-heading{min-width:0;flex:1}.hub-eyebrow{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--hub-accent);font-weight:750;margin-bottom:3px}.hub-version{font-size:10px;color:var(--hub-muted);font-variant-numeric:tabular-nums}
-    h2{font-size:18px;line-height:1.3;letter-spacing:-.035em;margin:0;font-weight:650}h3{font-size:12px;margin:0 0 8px;font-weight:650}p{margin:6px 0}
-    section,main{padding:16px 20px;border-bottom:1px solid var(--hub-line)}footer,.status{padding:14px 20px;background:var(--hub-canvas);overflow-wrap:anywhere}.muted,.card-report,.logs{color:var(--hub-muted);font-size:12px}.error,.storage-error{color:#a33232}.notice{border-left:3px solid #a2b9ac;background:var(--hub-canvas);padding:10px 12px}
-    button,input,select{font:inherit}button,select{border:1px solid var(--hub-line);border-radius:9px;color:var(--hub-ink);background:#fff;padding:8px 12px;min-height:36px}button{cursor:pointer;font-weight:550}button:not(:disabled):hover{background:var(--hub-tint);border-color:#a8c6b9}button.primary{background:var(--hub-accent);color:#fff;border-color:var(--hub-accent)}button.primary:not(:disabled):hover{background:#10523f}button:disabled{opacity:.45;cursor:not-allowed}button.stop{color:#a33232}button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #79ad99;outline-offset:3px}
-    input[type=search]{width:100%;padding:11px 13px;border:1px solid var(--hub-line);border-radius:10px;background:var(--hub-canvas);color:var(--hub-ink)}input[type=checkbox]{accent-color:var(--hub-accent);flex:none;width:15px;height:15px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}.cards{max-height:180px;overflow:auto}.card{display:flex;align-items:flex-start;gap:9px;padding:9px 0;overflow-wrap:anywhere}.card input{margin-top:3px}.card-info{min-width:0;flex:1}
-    .offers{max-height:260px;overflow:auto;margin-top:10px}.offer{display:block;padding:13px 0;border-bottom:1px solid var(--hub-line);overflow-wrap:anywhere}.offer:last-child{border-bottom:0}.offer small{display:block;color:var(--hub-muted);margin-top:5px}.offer-title{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.offer-title button{flex-shrink:0}.badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.badge{border-radius:5px;background:var(--hub-canvas);padding:3px 7px;font-size:11px}.badge.enrolled{background:var(--hub-tint);color:var(--hub-accent)}.badge.unconfirmed,.badge.failed{background:#fff1da;color:#865711}.card-counts,.offer-counts,.offer-target{color:var(--hub-accent);font-size:12px}.logs{max-height:90px;overflow:auto}a{color:var(--hub-accent);text-underline-offset:3px}
-    .hub-search-launcher{display:flex;align-items:center;justify-content:space-between;width:100%;border:0;border-bottom:1px solid var(--hub-line);border-radius:0;background:var(--hub-tint);padding:11px 20px;color:var(--hub-accent);text-align:left}.hub-search-launcher span:last-child{font-size:11px;font-weight:400}
-    .hub-step h3{font-size:12px;letter-spacing:.03em;margin-bottom:10px;color:var(--hub-accent)}.hub-action-reason{font-size:12px;color:var(--hub-muted);margin-top:10px}.hub-clear-search{font-size:11px;min-height:28px;padding:4px 8px;margin-top:6px}.hub-search-rule{font-size:11px}.hub-step .actions{margin-bottom:8px}
-    @media(max-width:500px){:host{right:12px;bottom:12px}header{padding:16px}section,main,footer,.status{padding:14px 16px}}
-    `;
-
-    // Source: shared/ui/panel-branding.js
-    function decorateHubPanel(shadowRoot, version) {
-        const header = shadowRoot.querySelector('header');
-        const title = header.querySelector('h2');
-        const heading = document.createElement('div');
-        heading.className = 'hub-heading';
-        const eyebrow = document.createElement('div');
-        eyebrow.className = 'hub-eyebrow';
-        eyebrow.textContent = 'Card Offer Hub';
-        header.insertBefore(heading, title);
-        heading.append(eyebrow, title);
-        const release = document.createElement('span');
-        release.className = 'hub-version';
-        release.textContent = `v${version}`;
-        heading.append(release);
-    }
-
-    // Source: shared/ui/workflow-layout.js
-    function hubWorkflowMarkup(scopeMarkup, { bank, extraReviewMarkup = '', readOnly = false } = {}) {
-        return `<div class="panel">
-          <header><h2></h2><button id="collapse" aria-label="Minimize ${bank} panel" aria-expanded="true">−</button></header>
-          <div id="body">
-            <section class="hub-step" data-step="scope"><h3>1. Choose scope</h3>${scopeMarkup}</section>
-            <section class="hub-step" data-step="scan"><h3>2. Scan offers</h3>
-              <p class="muted">Scan to refresh saved offers. Nothing runs until you click.</p>
-              <div class="actions"><button id="scan" aria-label="Scan offers">Scan offers</button><button id="stop" class="stop" aria-label="Stop">Stop</button></div>
-            </section>
-            <section class="hub-step" data-step="review"><h3>3. Review & add</h3>
-              <input id="search" type="search" aria-label="Search saved offers" placeholder="Search saved offers">
-              <button id="hub-clear-search" class="hub-clear-search" aria-label="Clear search">Clear search</button>
-              <p class="muted hub-search-rule">Search changes the list only. Add all includes offers hidden by search within your chosen scope.</p>
-              <p id="counts" class="muted"></p><div class="actions"><button id="add" class="primary" aria-label="Add all offers" aria-describedby="hub-action-reason">Add all offers</button>${extraReviewMarkup}</div>
-              <p id="hub-action-reason" class="hub-action-reason" role="note"></p>
-              ${readOnly ? '<p id="enrollment-notice" class="notice">Chase is read-only here. Add offers on the Chase website.</p>' : ''}
-              <div id="offers" class="offers"></div>
-            </section>
-            <footer><p id="workspace-cache" class="muted"></p><div id="status" role="status" aria-live="polite"></div><div id="storage-error" class="error" role="alert"></div></footer>
-          </div></div>`;
-    }
-    function hubMatchesSearch(offer, query) {
-        return [offer.merchant, offer.name, offer.title, offer.description, offer.headline, offer.category]
-            .filter(value => typeof value === 'string').join(' ').toLocaleLowerCase().includes(query.trim().toLocaleLowerCase());
-    }
-    function hubOfferStatusLabel(status) {
-        if (['AVAILABLE', 'ELIGIBLE', 'NEW'].includes(status)) return 'Available';
-        if (['ENROLLED', 'ACTIVATED'].includes(status)) return 'Added';
-        if (['UNCONFIRMED', 'UNKNOWN', 'FAILED', 'CONFLICT'].includes(status)) return 'Needs review';
-        return 'Skipped';
-    }
-    function hubShowEmptyOffers(container, query) {
-        const note = document.createElement('p');
-        note.className = 'muted';
-        note.textContent = query.trim() ? 'No offers match your search. Clear search to view all saved offers in this scope.' : 'No offers in this scope yet. Choose your scope and scan to refresh.';
-        container.append(note);
-    }
-    function hubSetActionLabel(control, label, count = null) {
-        if (!control) return;
-        control.textContent = count === null ? label : `${label} (${count})`;
-        control.setAttribute('aria-label', label);
-    }
-    function renderHubWorkflow(root, { count, hasScope = true, needsScan = false, busy = false,
-        storageError = '', readOnly = false, coolingDown = false, progress = null } = {}) {
-        const add = root.getElementById('add') || root.getElementById('btn-enroll-all');
-        hubSetActionLabel(add, 'Add all offers', busy ? null : count);
-        add.disabled = Boolean(busy || storageError || readOnly || coolingDown || !hasScope || needsScan || !count);
-        const reason = root.getElementById('hub-action-reason');
-        reason.textContent = storageError ? 'Resolve the storage error before continuing.'
-            : busy ? progress ? `Adding ${progress.completed} of ${progress.total}. The task keeps its original scope while you search or switch tabs.` : 'Working. Use Stop to end the current task.'
-            : readOnly ? 'Adding is unavailable for this bank. You can still scan and search.'
-            : coolingDown ? 'Waiting for the bank cooldown. Start again manually when it ends.'
-            : !hasScope ? 'Choose or confirm your scope in step 1.'
-            : needsScan ? 'Scan offers in step 2 before adding.'
-            : !count ? 'No available offers in this scope. Scan again to refresh.'
-            : `Ready to add ${count} available ${count === 1 ? 'offer' : 'offers'} in your chosen scope. Search does not change this total.`;
-    }
-
-    // Source: shared/persistence/workspace-records.js
-    function serializeWorkspaceRecord(record, fields) {
-        const normalized = {};
-        for (const [field, type] of Object.entries(fields)) {
-            normalized[field] = type === 'text' && typeof record[field] !== 'string' ? '' : record[field];
-        }
-        return workspaceRecord(normalized, fields);
-    }
-    // Only adapter-declared display fields enter persistent storage. Request tokens,
-    // raw responses, headers, locations and runtime locks never cross this boundary.
-    function workspaceRecord(record, fields) {
-        if (!record || typeof record !== 'object' || Array.isArray(record)) throw new Error('Invalid saved record');
-        const result = {};
-        for (const [field, type] of Object.entries(fields)) {
-            const value = record[field];
-            if (type === 'boolean') {
-                if (typeof value !== 'boolean') throw new Error('Invalid saved flag');
-                result[field] = value;
-            } else {
-                if (typeof value !== 'string' || (type === 'id' && !value.trim())) throw new Error('Invalid saved text');
-                result[field] = value;
-            }
-        }
-        return result;
-    }
-    function workspaceOfferKey(offer) {
-        return JSON.stringify([offer.accountId || '', offer.offerId || offer.id]);
-    }
-    function validateWorkspaceSnapshot(saved) {
-        if (!saved || saved.schemaVersion !== 1 || !Number.isFinite(saved.savedAt) || saved.savedAt < 0
-            || !Number.isFinite(saved.lastScanAt) || saved.lastScanAt < 0
-            || typeof saved.scopeIdentity !== 'string' || typeof saved.consent !== 'boolean'
-            || typeof saved.search !== 'string' || typeof saved.collapsed !== 'boolean'
-            || !Array.isArray(saved.accounts) || !Array.isArray(saved.offers) || !Array.isArray(saved.selected)) {
-            throw new Error('Unsupported or incomplete workspace snapshot');
-        }
-        const accounts = saved.accounts.map(record => workspaceRecord(record, WORKSPACE_FIELDS.accounts));
-        const offers = saved.offers.map(record => workspaceRecord(record, WORKSPACE_FIELDS.offers));
-        const accountIds = new Set(accounts.map(account => account.accountId));
-        const offerIds = new Set(offers.map(workspaceOfferKey));
-        if (accountIds.size !== accounts.length || offerIds.size !== offers.length
-            || (!WORKSPACE_FIELDS.accounts && accounts.length)
-            || (WORKSPACE_FIELDS.accounts && offers.some(offer => !accountIds.has(offer.accountId)))) {
-            throw new Error('Conflicting saved records');
-        }
-        const allowedSelections = WORKSPACE_FIELDS.accounts ? accountIds : new Set(offers.map(offer => offer.offerId));
-        if (saved.selected.some(id => typeof id !== 'string' || !allowedSelections.has(id))
-            || new Set(saved.selected).size !== saved.selected.length) throw new Error('Invalid saved selections');
-        return { ...saved, accounts, offers };
-    }
-
-    // Source: shared/persistence/workspace-storage.js
-    const pendingWorkspaceOffers = new Set();
-    function saveWorkspace() {
-        if (state.storageError) return false;
-        try {
-            const offers = state.offers.map(offer => {
-                const record = serializeWorkspaceRecord(offer, WORKSPACE_FIELDS.offers);
-                if (pendingWorkspaceOffers.has(workspaceOfferKey(offer))) {
-                    if ('status' in record) record.status = 'UNCONFIRMED';
-                    else { record.result = 'Unconfirmed'; record.eligible = false; }
-                }
-                return record;
-            });
-            const snapshot = validateWorkspaceSnapshot({
-                schemaVersion: 1, savedAt: Date.now(), lastScanAt: state.lastScanAt,
-                scopeIdentity: state.workspaceScope, accounts: (state.accounts || []).map(account => serializeWorkspaceRecord(account, WORKSPACE_FIELDS.accounts)),
-                offers, selected: [...(state.selected || [])], consent: state.consent ?? state.accountConsent ?? false,
-                search: state.search || '', collapsed: state.collapsed
-            });
-            GM_setValue(`${SETTINGS.id}:workspace`, snapshot);
-            return true;
-        } catch {
-            state.storageError = 'Cannot save scan results and selections. Further requests are blocked; fix Tampermonkey storage and reload.';
-            renderPanel();
-            return false;
-        }
-    }
-    function requireWorkspaceSaved() {
-        if (!saveWorkspace()) throw new Error(state.storageError);
-    }
-    function restoreWorkspace() {
-        try {
-            const saved = GM_getValue(`${SETTINGS.id}:workspace`, null);
-            if (saved === null) return; // Older releases only saved pacing; keep it intact.
-            const snapshot = validateWorkspaceSnapshot(saved);
-            if (WORKSPACE_FIELDS.accounts) state.accounts = snapshot.accounts;
-            state.offers = snapshot.offers;
-            if (state.selected) state.selected = new Set(snapshot.selected);
-            if ('consent' in state) state.consent = snapshot.consent;
-            if ('accountConsent' in state) state.accountConsent = snapshot.consent;
-            state.search = snapshot.search;
-            state.collapsed = snapshot.collapsed;
-            state.lastScanAt = snapshot.lastScanAt;
-            state.workspaceScope = snapshot.scopeIdentity;
-            state.restoredWorkspace = true;
-            state.needsScan = true;
-            state.status = 'Saved results and selections restored. Scan manually to verify the current account before adding.';
-        } catch {
-            state.storageError = 'Cannot read saved results and selections. Stored data was preserved; resolve Tampermonkey storage before running.';
-        }
-    }
-    function recordWorkspaceScan() {
-        state.lastScanAt = Date.now();
-        state.restoredWorkspace = false;
-        pendingWorkspaceOffers.clear();
-        requireWorkspaceSaved();
-    }
-    function markWorkspaceOfferPending(offer) {
-        pendingWorkspaceOffers.add(workspaceOfferKey(offer));
-        requireWorkspaceSaved(); // Must succeed before a write request can leave.
-    }
-    function finishWorkspaceOffer(offer) {
-        pendingWorkspaceOffers.delete(workspaceOfferKey(offer));
-        requireWorkspaceSaved();
-    }
-
-    // Source: shared/persistence/workspace-scope.js
-    async function workspaceScopeFingerprint(value) {
-        // A one-way scope marker can detect a changed opaque session without storing
-        // the credential itself. It cannot be used to authenticate any request.
-        const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
-        return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
-    }
-    function bindWorkspaceScope(scope) {
-        if (state.workspaceScope && state.workspaceScope !== scope) {
-            if (state.selected) state.selected.clear();
-            if ('consent' in state) state.consent = false;
-            if ('accountConsent' in state) state.accountConsent = false;
-            state.offers = [];
-            state.lastScanAt = 0;
-            pendingWorkspaceOffers.clear();
-        }
-        state.workspaceScope = scope;
-    }
-
-    // Source: shared/persistence/workspace-ui.js
-    function workspaceCacheNotice() {
-        if (!state.lastScanAt) return 'Results and selections are saved locally. Nothing runs automatically.';
-        return `Last complete scan: ${new Date(state.lastScanAt).toLocaleString()}. ${state.restoredWorkspace || state.needsScan
-            ? 'Saved results; scan again before adding.' : 'Results and selections saved locally.'}`;
-    }
-    function restoreWorkspacePanel(panel, bankName) {
-        const search = panel.getElementById('search');
-        if (search) search.value = state.search || '';
-        panel.getElementById('body').hidden = state.collapsed;
-        const toggle = panel.getElementById('collapse');
-        toggle.textContent = state.collapsed ? '+' : '−';
-        toggle.setAttribute('aria-expanded', String(!state.collapsed));
-        toggle.setAttribute('aria-label', `${state.collapsed ? 'Expand' : 'Minimize'} ${bankName} panel`);
-    }
-
     // Source: core/state.js
     const SETTINGS = {
-        id: "citi-offer-lite", name: "Citi Offer Lite", version: "1.3.1",
+        capabilities: {"activation":true,"scope":"card"},
+        id: "citi-offer-lite", name: "Citi Offer Lite", version: "1.3.3",
         apiBase: '/gcgapi/prod/public/v1',
         retrievePath: '/digital/customers/creditCards/merchantOffers/retrieve',
         enrollmentPath: '/digital/customers/creditCards/accounts/rewards/specialOffers/enrollMerchantOffer',
@@ -3345,8 +2837,8 @@ dispatchIssuer({"id":"citi-offer-lite","patterns":["^https://online\\.citi\\.com
     const state = {
         lastScanAt: 0, workspaceScope: '', restoredWorkspace: false,
         accounts: [], selected: new Set(), offers: [], activeAction: null, busy: false, stopRequested: false,
-        needsScan: false, nextRequestAt: 0, cooldownUntil: 0, storageError: '',
-        status: 'Open Merchant Offers, then detect cards. Nothing runs automatically.',
+        needsScan: false, continuationBlocked: false, nextRequestAt: 0, cooldownUntil: 0, storageError: '',
+        status: 'Refresh all cards & offers to get started. Nothing runs automatically.',
         confirmed: 0, completed: 0, total: 0, panel: null, collapsed: false, search: ''
     };
     function updateStatus(message) {
@@ -3365,31 +2857,11 @@ dispatchIssuer({"id":"citi-offer-lite","patterns":["^https://online\\.citi\\.com
     }
 
     // Source: core/storage.js
-    // Keep the original pacing schema/key; result snapshots use a separate versioned key.
-    function restorePacing() {
-        try {
-            const saved = GM_getValue(`${SETTINGS.id}:pacing`, null);
-            if (saved === null) return;
-            if (saved.schemaVersion !== 1 || !Number.isFinite(saved.cooldownUntil)
-                || !Number.isFinite(saved.nextRequestAt)) {
-                throw new Error('Unsupported pacing snapshot; stored data was preserved.');
-            }
-            state.cooldownUntil = Math.max(state.cooldownUntil, saved.cooldownUntil);
-            state.nextRequestAt = Math.max(state.nextRequestAt, saved.nextRequestAt);
-        } catch {
-            state.storageError = 'Cannot read pacing storage. Resolve Tampermonkey storage before running.';
-        }
-    }
-    function savePacing() {
-        try {
-            GM_setValue(`${SETTINGS.id}:pacing`, {
-                schemaVersion: 1, cooldownUntil: state.cooldownUntil, nextRequestAt: state.nextRequestAt
-            });
-        } catch {
-            state.storageError = 'Cannot save pacing storage. Further requests are blocked; reload after fixing storage.';
-            renderPanel();
-        }
-    }
+    // Existing keys and schema remain readable after the runtime refactor.
+    const issuerStorage = { get: (key, fallback) => GM_getValue(key, fallback), set: (key, value) => GM_setValue(key, value) };
+    const { restorePacing, savePacing } = createHubPacingStorage({
+        state, storage: issuerStorage, storageKey: `${SETTINGS.id}:pacing`, onError: () => renderPanel()
+    });
 
     // Source: core/workspace-fields.js
     const WORKSPACE_FIELDS = {
@@ -3407,6 +2879,15 @@ dispatchIssuer({"id":"citi-offer-lite","patterns":["^https://online\\.citi\\.com
             "expires": "text"
         }
     };
+
+    // Source: core/workspace.js
+    const { saveWorkspace, requireWorkspaceSaved, restoreWorkspace, recordWorkspaceScan,
+        markWorkspaceOfferPending, finishWorkspaceOffer, bindWorkspaceScope } = createHubWorkspaceStore({
+        state, fields: WORKSPACE_FIELDS, storage: issuerStorage, storageKey: `${SETTINGS.id}:workspace`,
+        onError: () => renderPanel()
+    });
+    function workspaceCacheNotice() { return hubWorkspaceCacheNotice(state); }
+    function restoreWorkspacePanel(panel, bankName) { hubRestoreWorkspacePanel(panel, bankName, state); }
 
     // Source: api/session.js
     function readCookie(cookieName) {
@@ -3434,61 +2915,18 @@ dispatchIssuer({"id":"citi-offer-lite","patterns":["^https://online\\.citi\\.com
         return headers;
     }
 
+    // Source: api/request-runtime.js
+    const { sendRequest, retryAfterMilliseconds, waitForRequestSlot } = createHubJsonTransport({
+        state, settings: SETTINGS, ensureRunning, savePacing
+    });
+
     // Source: api/transport.js
-    function retryAfterMilliseconds(value, now = Date.now()) {
-        if (typeof value === 'string' && /^\d+(?:\.\d+)?$/.test(value.trim())) return Number(value) * 1000;
-        const deadline = typeof value === 'string' ? Date.parse(value) : NaN;
-        return Number.isFinite(deadline) ? Math.max(0, deadline - now) : SETTINGS.defaultCooldownMilliseconds;
-    }
-    async function waitForRequestSlot() {
-        while (Date.now() < state.nextRequestAt) {
-            ensureRunning();
-            await new Promise(resolve => setTimeout(resolve, Math.min(250, state.nextRequestAt - Date.now())));
-        }
-        ensureRunning();
-        if (state.storageError) throw new Error(state.storageError);
-        if (Date.now() < state.cooldownUntil) {
-            throw new Error(`Rate limited. Try a new scan after ${new Date(state.cooldownUntil).toLocaleTimeString()}.`);
-        }
-    }
     async function requestJson(path, body) {
         if (![SETTINGS.retrievePath, SETTINGS.enrollmentPath].includes(path)) throw new Error('Unsupported Citi endpoint.');
-        await waitForRequestSlot();
-        const headers = sessionHeaders();
-        // Reserve a slot before sending. A reload or closed tab releases Web Locks,
-        // but must not permit a new tab to immediately overlap this pending request.
-        state.nextRequestAt = Date.now() + SETTINGS.timeoutMilliseconds + SETTINGS.gapMilliseconds;
-        savePacing();
-        if (state.storageError) throw new Error(state.storageError);
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), SETTINGS.timeoutMilliseconds);
-        try {
-            const response = await fetch(SETTINGS.apiBase + path, {
-                method: 'POST', credentials: 'same-origin', redirect: 'error',
-                headers, body: JSON.stringify(body), signal: controller.signal
-            });
-            if (response.status === 429) {
-                state.cooldownUntil = Math.max(state.cooldownUntil,
-                    Date.now() + retryAfterMilliseconds(response.headers.get('Retry-After')));
-            }
-            // Include body consumption in the response-completion pacing boundary.
-            const responseText = await response.text();
-            if (response.status === 429) throw new Error('Citi returned HTTP 429. Cooling down; scan again later.');
-            if (!response.ok) throw new Error(`Citi returned HTTP ${response.status}. Scan again after resolving the error.`);
-            let payload;
-            try { payload = JSON.parse(responseText); }
-            catch { throw new Error('Citi returned a non-JSON response. Sign in and scan again.'); }
-            return payload;
-        } catch (error) {
-            // Do not display browser errors that could contain URLs or session data.
-            if (error.name === 'AbortError') throw new Error('Request timed out; result is unconfirmed. Scan again.');
-            if (error instanceof TypeError) throw new Error('Network request failed; result is unconfirmed. Scan again.');
-            throw error;
-        } finally {
-            clearTimeout(timeout);
-            state.nextRequestAt = Date.now() + SETTINGS.gapMilliseconds;
-            savePacing();
-        }
+        return sendRequest(() => ({ url: SETTINGS.apiBase + path, options: {
+            method: 'POST', credentials: 'same-origin', redirect: 'error',
+            headers: sessionHeaders(), body: JSON.stringify(body)
+        } }));
     }
 
     // Source: api/contracts.js
@@ -3546,38 +2984,12 @@ dispatchIssuer({"id":"citi-offer-lite","patterns":["^https://online\\.citi\\.com
     }
 
     // Source: workflows/runner.js
-    async function runExclusive(action, actionKind = 'scan') {
-        if (state.busy) return;
-        let workspaceActionStarted = false;
-        state.busy = true;
-        state.activeAction = actionKind;
-        if (actionKind === 'add') state.total = 0;
-        state.stopRequested = false;
-        renderPanel();
-        const execute = async () => {
-            restorePacing();
-            if (state.storageError) throw new Error(state.storageError);
-            ensureRunning();
-            workspaceActionStarted = true;
-            await action();
-        };
-        try {
-            // Prevent two tabs running this script from enrolling simultaneously.
-            if (!navigator.locks?.request) throw new Error('This browser does not support the required tab lock. Use current Chrome.');
-            await navigator.locks.request(SETTINGS.id, { ifAvailable: true }, async lock => {
-                if (!lock) throw new Error('Citi Offer Lite is running in another tab. Wait for it to finish.');
-                await execute();
-            });
-        } catch (error) {
-            state.needsScan = true;
-            updateStatus(error.message);
-        } finally {
-            state.busy = false;
-            state.activeAction = null;
-            if (workspaceActionStarted) saveWorkspace();
-            renderPanel();
-        }
-    }
+    const runExclusive = createHubActionRunner({
+        state, settings: SETTINGS, ensureRunning, restorePacing, saveWorkspace,
+        render: () => renderPanel(), updateStatus, supportsActivation: SETTINGS.capabilities.activation,
+        onFailure: () => { state.continuationBlocked = true; }
+    });
+
     function setCardSelected(accountId, selected) {
         if (state.busy || !state.accounts.some(card => card.accountId === accountId)) return;
         if (selected) state.selected.add(accountId); else state.selected.delete(accountId);
@@ -3585,7 +2997,7 @@ dispatchIssuer({"id":"citi-offer-lite","patterns":["^https://online\\.citi\\.com
         renderPanel();
     }
 
-    // Source: workflows/offers.js
+    // Source: workflows/cards.js
     function adoptDetectedCards(accounts) {
         const availableIds = new Set(accounts.map(card => card.accountId));
         state.accounts = accounts;
@@ -3594,24 +3006,30 @@ dispatchIssuer({"id":"citi-offer-lite","patterns":["^https://online\\.citi\\.com
         state.restoredWorkspace = false;
         requireWorkspaceSaved();
     }
-    function detectCards() {
+    function refreshAllCardsAndOffers() {
         return runExclusive(async () => {
-            updateStatus('Detecting eligible cards…');
+            state.needsScan = true;
+            updateStatus('Refreshing all cards & offers: detecting current cards…');
             const payload = await requestJson(SETTINGS.retrievePath, {});
             ensureRunning();
             adoptDetectedCards(normalizeAccounts(payload));
-            updateStatus(`Detected ${state.accounts.length} cards. Your existing card selections were preserved.`);
+            // Refresh every current card; selections control enrollment only.
+            await scanCardOffers(state.accounts);
+            updateStatus(`Refresh complete: ${state.accounts.length} cards and ${state.offers.length} offers updated. ${state.selected.size} cards selected for adding; your saved choices were preserved.`);
         });
     }
-    async function scanSelectedCards(accounts) {
+
+    // Source: workflows/scanning.js
+    async function scanCardOffers(accounts) {
         state.needsScan = true;
         // Cached account IDs are display data until verified against this login.
         if (state.restoredWorkspace) {
+            updateStatus('Checking your saved cards against the current Citi login…');
             const payload = await requestJson(SETTINGS.retrievePath, {});
             ensureRunning();
             adoptDetectedCards(normalizeAccounts(payload));
             if (accounts.some(card => !state.selected.has(card.accountId))) {
-                throw new Error('Saved cards do not match this login. Review your card selections and scan again.');
+                throw new Error('Saved cards do not match this login. Review your card selections and refresh all cards & offers.');
             }
         }
         state.confirmed = 0;
@@ -3627,6 +3045,7 @@ dispatchIssuer({"id":"citi-offer-lite","patterns":["^https://online\\.citi\\.com
             requireWorkspaceSaved();
         }
         state.needsScan = false;
+        state.continuationBlocked = false;
         recordWorkspaceScan();
         renderPanel();
     }
@@ -3634,15 +3053,21 @@ dispatchIssuer({"id":"citi-offer-lite","patterns":["^https://online\\.citi\\.com
         const accounts = state.accounts.filter(card => state.selected.has(card.accountId));
         if (!accounts.length) return;
         return runExclusive(async () => {
-            await scanSelectedCards(accounts);
+            await scanCardOffers(accounts);
             updateStatus(`Scan complete: ${state.offers.filter(offer => state.selected.has(offer.accountId) && offer.status === 'AVAILABLE').length} available across ${accounts.length} selected cards.`);
         });
     }
+    function canContinueSavedOffers() {
+        return state.restoredWorkspace && !state.continuationBlocked && state.lastScanAt > 0 && state.selected.size > 0
+            && !state.offers.some(offer => state.selected.has(offer.accountId) && offer.status === 'UNCONFIRMED');
+    }
+
+    // Source: workflows/offers.js
     function addAllOffers() {
         const accounts = state.accounts.filter(card => state.selected.has(card.accountId));
-        if (!accounts.length || state.needsScan) return;
+        if (!accounts.length || (state.needsScan && !canContinueSavedOffers())) return;
         return runExclusive(async () => {
-            await scanSelectedCards(accounts);
+            await scanCardOffers(accounts);
             const queue = state.offers.filter(offer => state.selected.has(offer.accountId) && offer.status === 'AVAILABLE');
             state.total = queue.length;
             for (const offer of queue) {
@@ -3673,35 +3098,16 @@ dispatchIssuer({"id":"citi-offer-lite","patterns":["^https://online\\.citi\\.com
     // Source: ui/panel.js
     function mountPanel() {
         if (document.getElementById(SETTINGS.id)) return;
-        const host = document.createElement('div');
-        host.id = SETTINGS.id;
-        const panel = host.attachShadow({ mode: 'open' });
-        panel.innerHTML = `<style>${PANEL_STYLES}</style>` + hubWorkflowMarkup(
-            "<p class=\"muted\">Choose the cards to scan and add offers to. Your choices stay saved.</p><button id=\"detect\" aria-label=\"Detect cards\">Detect cards</button><div id=\"cards\" class=\"cards\"></div>",
-            { bank: "Citi", extraReviewMarkup: "", readOnly: false });
-        panel.querySelector('h2').textContent = SETTINGS.name;
-        panel.getElementById('detect').addEventListener('click', detectCards);
-        panel.getElementById('scan').addEventListener('click', scanOffers);
-        panel.getElementById('add').addEventListener('click', addAllOffers);
-        panel.getElementById('stop').addEventListener('click', stopRun);
-        const search = panel.getElementById('search');
-        search.addEventListener('input', event => { state.search = event.target.value; saveWorkspace(); renderOffers(); });
-        panel.getElementById('hub-clear-search').onclick = () => {
-            state.search = ''; search.value = ''; saveWorkspace(); renderOffers(); search.focus();
-        };
-        panel.getElementById('collapse').addEventListener('click', () => {
-            state.collapsed = !state.collapsed;
-            saveWorkspace();
-            panel.getElementById('body').hidden = state.collapsed;
-            const button = panel.getElementById('collapse');
-            button.textContent = state.collapsed ? '+' : '−';
-            button.setAttribute('aria-label', state.collapsed ? 'Expand Citi panel' : 'Minimize Citi panel');
-            button.setAttribute('aria-expanded', String(!state.collapsed));
+        const { host, panel } = createHubWorkflowPanel({
+            state, settings: SETTINGS, bank: "Citi", styles: PANEL_STYLES,
+            scopeMarkup: '<p class="muted">Choose cards for adding offers. Your choices stay saved; new cards start unselected.</p><div id="cards" class="cards"></div>',
+            workflow: { bank: 'Citi', scanLabel: 'Refresh all cards & offers',
+                scanDescription: 'Optional: refresh every card and its offers in one click, including unselected cards. Your saved choices stay selected; refreshing does not add offers.' },
+            onScan: refreshAllCardsAndOffers, onAdd: addAllOffers, onStop: stopRun,
+            saveWorkspace, renderOffers, supportsActivation: SETTINGS.capabilities.activation
         });
-        decorateHubPanel(panel, SETTINGS.version);
         document.body.appendChild(host);
         state.panel = panel;
-        restoreWorkspacePanel(panel, "Citi");
         renderPanel();
     }
 
@@ -3733,11 +3139,12 @@ dispatchIssuer({"id":"citi-offer-lite","patterns":["^https://online\\.citi\\.com
     function renderPanel() {
         if (!state.panel) return;
         const panel = state.panel;
-        panel.getElementById('workspace-cache').textContent = workspaceCacheNotice();
+        const canContinue = canContinueSavedOffers();
+        panel.getElementById('workspace-cache').textContent = canContinue
+            ? `Last complete scan: ${new Date(state.lastScanAt).toLocaleString()}. Saved results restored. Continue adding, or optionally refresh all cards & offers.`
+            : workspaceCacheNotice().replace('scan again before adding', 'refresh all cards & offers before adding');
         const blocked = state.busy || Boolean(state.storageError);
-        panel.getElementById('detect').disabled = blocked;
-        panel.getElementById('scan').disabled = blocked || !state.selected.size;
-        panel.getElementById('add').disabled = blocked || !state.selected.size || state.needsScan;
+        panel.getElementById('scan').disabled = blocked;
         panel.getElementById('stop').disabled = !state.busy || state.stopRequested;
         panel.getElementById('status').textContent = state.status;
         panel.getElementById('storage-error').textContent = state.storageError;
@@ -3745,6 +3152,12 @@ dispatchIssuer({"id":"citi-offer-lite","patterns":["^https://online\\.citi\\.com
         panel.getElementById('counts').textContent = `${scopeOffers.length} offers · ${scopeOffers.filter(offer => offer.status === 'AVAILABLE').length} available · ${state.confirmed}/${state.total} added this run`;
         const cards = panel.getElementById('cards');
         cards.replaceChildren();
+        if (!state.accounts.length) {
+            const note = document.createElement('p');
+            note.className = 'muted';
+            note.textContent = 'Click Refresh all cards & offers to load your cards and offers together.';
+            cards.appendChild(note);
+        }
         for (const card of state.accounts) {
             const label = document.createElement('label');
             label.className = 'card';
@@ -3758,9 +3171,16 @@ dispatchIssuer({"id":"citi-offer-lite","patterns":["^https://online\\.citi\\.com
             cards.appendChild(label);
         }
         renderHubWorkflow(panel, { count: state.offers.filter(offer => state.selected.has(offer.accountId) && offer.status === 'AVAILABLE').length, hasScope: state.selected.size > 0,
-            needsScan: state.needsScan || !state.lastScanAt, busy: state.busy, storageError: state.storageError,
-            coolingDown: Date.now() < state.cooldownUntil, readOnly: false,
+            needsScan: (state.needsScan && !canContinue) || !state.lastScanAt, busy: state.busy, storageError: state.storageError,
+            coolingDown: Date.now() < state.cooldownUntil, readOnly: !SETTINGS.capabilities.activation,
             progress: state.activeAction === 'add' && state.total ? { completed: state.confirmed, total: state.total } : null });
+        const reason = panel.getElementById('hub-action-reason');
+        if (canContinue && !panel.getElementById('add').disabled) {
+            reason.textContent = 'Continue with your saved card choices. Add all offers checks the current login and offer status before adding what remains. Refreshing all cards is optional.';
+        } else {
+            reason.textContent = reason.textContent.replace('Scan offers in step 2', 'Refresh all cards & offers in step 2')
+                .replace('Scan again to refresh', 'Refresh all cards & offers to check for new offers');
+        }
         renderOffers();
     }
 
@@ -3768,6 +3188,11 @@ dispatchIssuer({"id":"citi-offer-lite","patterns":["^https://online\\.citi\\.com
     // --- Init ---
     restorePacing();
     restoreWorkspace();
+    if (state.restoredWorkspace && !state.storageError) {
+        state.status = canContinueSavedOffers()
+            ? 'Saved results and selections restored. Continue with Add all offers, or refresh all cards & offers if you want an updated list.'
+            : 'Saved results and selections restored. Refresh all cards & offers to verify incomplete or unconfirmed results before adding.';
+    }
     mountPanel();
 })();
 // --- End issuer body: citi-offer-lite ---
@@ -3778,254 +3203,10 @@ dispatchIssuer({"id":"usbank-offer-lite","patterns":["^https://onlinebanking\\.u
 (function () {
     'use strict';
 
-    // Source: shared/ui/design-system.js
-    const HUB_DESIGN_STYLES = `
-    :host{all:initial;--hub-ink:#20322f;--hub-muted:#64746e;--hub-accent:#176653;--hub-tint:#edf6f1;--hub-line:#dce5df;--hub-canvas:#f5f7f4;--hub-radius:16px;position:fixed;right:16px;bottom:16px;z-index:2147483646;color:var(--hub-ink);font:13px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:light}
-    *,*::before,*::after{box-sizing:border-box}[hidden]{display:none!important}
-    .panel{width:min(464px,calc(100vw - 24px));max-height:88vh;max-height:88dvh;overflow:auto;background:#fff;border:1px solid var(--hub-line);border-radius:var(--hub-radius);box-shadow:0 16px 60px #21392d20}
-    header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;border-bottom:1px solid var(--hub-line);background:#fff}
-    .hub-heading{min-width:0;flex:1}.hub-eyebrow{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--hub-accent);font-weight:750;margin-bottom:3px}.hub-version{font-size:10px;color:var(--hub-muted);font-variant-numeric:tabular-nums}
-    h2{font-size:18px;line-height:1.3;letter-spacing:-.035em;margin:0;font-weight:650}h3{font-size:12px;margin:0 0 8px;font-weight:650}p{margin:6px 0}
-    section,main{padding:16px 20px;border-bottom:1px solid var(--hub-line)}footer,.status{padding:14px 20px;background:var(--hub-canvas);overflow-wrap:anywhere}.muted,.card-report,.logs{color:var(--hub-muted);font-size:12px}.error,.storage-error{color:#a33232}.notice{border-left:3px solid #a2b9ac;background:var(--hub-canvas);padding:10px 12px}
-    button,input,select{font:inherit}button,select{border:1px solid var(--hub-line);border-radius:9px;color:var(--hub-ink);background:#fff;padding:8px 12px;min-height:36px}button{cursor:pointer;font-weight:550}button:not(:disabled):hover{background:var(--hub-tint);border-color:#a8c6b9}button.primary{background:var(--hub-accent);color:#fff;border-color:var(--hub-accent)}button.primary:not(:disabled):hover{background:#10523f}button:disabled{opacity:.45;cursor:not-allowed}button.stop{color:#a33232}button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #79ad99;outline-offset:3px}
-    input[type=search]{width:100%;padding:11px 13px;border:1px solid var(--hub-line);border-radius:10px;background:var(--hub-canvas);color:var(--hub-ink)}input[type=checkbox]{accent-color:var(--hub-accent);flex:none;width:15px;height:15px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}.cards{max-height:180px;overflow:auto}.card{display:flex;align-items:flex-start;gap:9px;padding:9px 0;overflow-wrap:anywhere}.card input{margin-top:3px}.card-info{min-width:0;flex:1}
-    .offers{max-height:260px;overflow:auto;margin-top:10px}.offer{display:block;padding:13px 0;border-bottom:1px solid var(--hub-line);overflow-wrap:anywhere}.offer:last-child{border-bottom:0}.offer small{display:block;color:var(--hub-muted);margin-top:5px}.offer-title{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.offer-title button{flex-shrink:0}.badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.badge{border-radius:5px;background:var(--hub-canvas);padding:3px 7px;font-size:11px}.badge.enrolled{background:var(--hub-tint);color:var(--hub-accent)}.badge.unconfirmed,.badge.failed{background:#fff1da;color:#865711}.card-counts,.offer-counts,.offer-target{color:var(--hub-accent);font-size:12px}.logs{max-height:90px;overflow:auto}a{color:var(--hub-accent);text-underline-offset:3px}
-    .hub-search-launcher{display:flex;align-items:center;justify-content:space-between;width:100%;border:0;border-bottom:1px solid var(--hub-line);border-radius:0;background:var(--hub-tint);padding:11px 20px;color:var(--hub-accent);text-align:left}.hub-search-launcher span:last-child{font-size:11px;font-weight:400}
-    .hub-step h3{font-size:12px;letter-spacing:.03em;margin-bottom:10px;color:var(--hub-accent)}.hub-action-reason{font-size:12px;color:var(--hub-muted);margin-top:10px}.hub-clear-search{font-size:11px;min-height:28px;padding:4px 8px;margin-top:6px}.hub-search-rule{font-size:11px}.hub-step .actions{margin-bottom:8px}
-    @media(max-width:500px){:host{right:12px;bottom:12px}header{padding:16px}section,main,footer,.status{padding:14px 16px}}
-    `;
-
-    // Source: shared/ui/panel-branding.js
-    function decorateHubPanel(shadowRoot, version) {
-        const header = shadowRoot.querySelector('header');
-        const title = header.querySelector('h2');
-        const heading = document.createElement('div');
-        heading.className = 'hub-heading';
-        const eyebrow = document.createElement('div');
-        eyebrow.className = 'hub-eyebrow';
-        eyebrow.textContent = 'Card Offer Hub';
-        header.insertBefore(heading, title);
-        heading.append(eyebrow, title);
-        const release = document.createElement('span');
-        release.className = 'hub-version';
-        release.textContent = `v${version}`;
-        heading.append(release);
-    }
-
-    // Source: shared/ui/workflow-layout.js
-    function hubWorkflowMarkup(scopeMarkup, { bank, extraReviewMarkup = '', readOnly = false } = {}) {
-        return `<div class="panel">
-          <header><h2></h2><button id="collapse" aria-label="Minimize ${bank} panel" aria-expanded="true">−</button></header>
-          <div id="body">
-            <section class="hub-step" data-step="scope"><h3>1. Choose scope</h3>${scopeMarkup}</section>
-            <section class="hub-step" data-step="scan"><h3>2. Scan offers</h3>
-              <p class="muted">Scan to refresh saved offers. Nothing runs until you click.</p>
-              <div class="actions"><button id="scan" aria-label="Scan offers">Scan offers</button><button id="stop" class="stop" aria-label="Stop">Stop</button></div>
-            </section>
-            <section class="hub-step" data-step="review"><h3>3. Review & add</h3>
-              <input id="search" type="search" aria-label="Search saved offers" placeholder="Search saved offers">
-              <button id="hub-clear-search" class="hub-clear-search" aria-label="Clear search">Clear search</button>
-              <p class="muted hub-search-rule">Search changes the list only. Add all includes offers hidden by search within your chosen scope.</p>
-              <p id="counts" class="muted"></p><div class="actions"><button id="add" class="primary" aria-label="Add all offers" aria-describedby="hub-action-reason">Add all offers</button>${extraReviewMarkup}</div>
-              <p id="hub-action-reason" class="hub-action-reason" role="note"></p>
-              ${readOnly ? '<p id="enrollment-notice" class="notice">Chase is read-only here. Add offers on the Chase website.</p>' : ''}
-              <div id="offers" class="offers"></div>
-            </section>
-            <footer><p id="workspace-cache" class="muted"></p><div id="status" role="status" aria-live="polite"></div><div id="storage-error" class="error" role="alert"></div></footer>
-          </div></div>`;
-    }
-    function hubMatchesSearch(offer, query) {
-        return [offer.merchant, offer.name, offer.title, offer.description, offer.headline, offer.category]
-            .filter(value => typeof value === 'string').join(' ').toLocaleLowerCase().includes(query.trim().toLocaleLowerCase());
-    }
-    function hubOfferStatusLabel(status) {
-        if (['AVAILABLE', 'ELIGIBLE', 'NEW'].includes(status)) return 'Available';
-        if (['ENROLLED', 'ACTIVATED'].includes(status)) return 'Added';
-        if (['UNCONFIRMED', 'UNKNOWN', 'FAILED', 'CONFLICT'].includes(status)) return 'Needs review';
-        return 'Skipped';
-    }
-    function hubShowEmptyOffers(container, query) {
-        const note = document.createElement('p');
-        note.className = 'muted';
-        note.textContent = query.trim() ? 'No offers match your search. Clear search to view all saved offers in this scope.' : 'No offers in this scope yet. Choose your scope and scan to refresh.';
-        container.append(note);
-    }
-    function hubSetActionLabel(control, label, count = null) {
-        if (!control) return;
-        control.textContent = count === null ? label : `${label} (${count})`;
-        control.setAttribute('aria-label', label);
-    }
-    function renderHubWorkflow(root, { count, hasScope = true, needsScan = false, busy = false,
-        storageError = '', readOnly = false, coolingDown = false, progress = null } = {}) {
-        const add = root.getElementById('add') || root.getElementById('btn-enroll-all');
-        hubSetActionLabel(add, 'Add all offers', busy ? null : count);
-        add.disabled = Boolean(busy || storageError || readOnly || coolingDown || !hasScope || needsScan || !count);
-        const reason = root.getElementById('hub-action-reason');
-        reason.textContent = storageError ? 'Resolve the storage error before continuing.'
-            : busy ? progress ? `Adding ${progress.completed} of ${progress.total}. The task keeps its original scope while you search or switch tabs.` : 'Working. Use Stop to end the current task.'
-            : readOnly ? 'Adding is unavailable for this bank. You can still scan and search.'
-            : coolingDown ? 'Waiting for the bank cooldown. Start again manually when it ends.'
-            : !hasScope ? 'Choose or confirm your scope in step 1.'
-            : needsScan ? 'Scan offers in step 2 before adding.'
-            : !count ? 'No available offers in this scope. Scan again to refresh.'
-            : `Ready to add ${count} available ${count === 1 ? 'offer' : 'offers'} in your chosen scope. Search does not change this total.`;
-    }
-
-    // Source: shared/persistence/workspace-records.js
-    function serializeWorkspaceRecord(record, fields) {
-        const normalized = {};
-        for (const [field, type] of Object.entries(fields)) {
-            normalized[field] = type === 'text' && typeof record[field] !== 'string' ? '' : record[field];
-        }
-        return workspaceRecord(normalized, fields);
-    }
-    // Only adapter-declared display fields enter persistent storage. Request tokens,
-    // raw responses, headers, locations and runtime locks never cross this boundary.
-    function workspaceRecord(record, fields) {
-        if (!record || typeof record !== 'object' || Array.isArray(record)) throw new Error('Invalid saved record');
-        const result = {};
-        for (const [field, type] of Object.entries(fields)) {
-            const value = record[field];
-            if (type === 'boolean') {
-                if (typeof value !== 'boolean') throw new Error('Invalid saved flag');
-                result[field] = value;
-            } else {
-                if (typeof value !== 'string' || (type === 'id' && !value.trim())) throw new Error('Invalid saved text');
-                result[field] = value;
-            }
-        }
-        return result;
-    }
-    function workspaceOfferKey(offer) {
-        return JSON.stringify([offer.accountId || '', offer.offerId || offer.id]);
-    }
-    function validateWorkspaceSnapshot(saved) {
-        if (!saved || saved.schemaVersion !== 1 || !Number.isFinite(saved.savedAt) || saved.savedAt < 0
-            || !Number.isFinite(saved.lastScanAt) || saved.lastScanAt < 0
-            || typeof saved.scopeIdentity !== 'string' || typeof saved.consent !== 'boolean'
-            || typeof saved.search !== 'string' || typeof saved.collapsed !== 'boolean'
-            || !Array.isArray(saved.accounts) || !Array.isArray(saved.offers) || !Array.isArray(saved.selected)) {
-            throw new Error('Unsupported or incomplete workspace snapshot');
-        }
-        const accounts = saved.accounts.map(record => workspaceRecord(record, WORKSPACE_FIELDS.accounts));
-        const offers = saved.offers.map(record => workspaceRecord(record, WORKSPACE_FIELDS.offers));
-        const accountIds = new Set(accounts.map(account => account.accountId));
-        const offerIds = new Set(offers.map(workspaceOfferKey));
-        if (accountIds.size !== accounts.length || offerIds.size !== offers.length
-            || (!WORKSPACE_FIELDS.accounts && accounts.length)
-            || (WORKSPACE_FIELDS.accounts && offers.some(offer => !accountIds.has(offer.accountId)))) {
-            throw new Error('Conflicting saved records');
-        }
-        const allowedSelections = WORKSPACE_FIELDS.accounts ? accountIds : new Set(offers.map(offer => offer.offerId));
-        if (saved.selected.some(id => typeof id !== 'string' || !allowedSelections.has(id))
-            || new Set(saved.selected).size !== saved.selected.length) throw new Error('Invalid saved selections');
-        return { ...saved, accounts, offers };
-    }
-
-    // Source: shared/persistence/workspace-storage.js
-    const pendingWorkspaceOffers = new Set();
-    function saveWorkspace() {
-        if (state.storageError) return false;
-        try {
-            const offers = state.offers.map(offer => {
-                const record = serializeWorkspaceRecord(offer, WORKSPACE_FIELDS.offers);
-                if (pendingWorkspaceOffers.has(workspaceOfferKey(offer))) {
-                    if ('status' in record) record.status = 'UNCONFIRMED';
-                    else { record.result = 'Unconfirmed'; record.eligible = false; }
-                }
-                return record;
-            });
-            const snapshot = validateWorkspaceSnapshot({
-                schemaVersion: 1, savedAt: Date.now(), lastScanAt: state.lastScanAt,
-                scopeIdentity: state.workspaceScope, accounts: (state.accounts || []).map(account => serializeWorkspaceRecord(account, WORKSPACE_FIELDS.accounts)),
-                offers, selected: [...(state.selected || [])], consent: state.consent ?? state.accountConsent ?? false,
-                search: state.search || '', collapsed: state.collapsed
-            });
-            GM_setValue(`${SETTINGS.id}:workspace`, snapshot);
-            return true;
-        } catch {
-            state.storageError = 'Cannot save scan results and selections. Further requests are blocked; fix Tampermonkey storage and reload.';
-            renderPanel();
-            return false;
-        }
-    }
-    function requireWorkspaceSaved() {
-        if (!saveWorkspace()) throw new Error(state.storageError);
-    }
-    function restoreWorkspace() {
-        try {
-            const saved = GM_getValue(`${SETTINGS.id}:workspace`, null);
-            if (saved === null) return; // Older releases only saved pacing; keep it intact.
-            const snapshot = validateWorkspaceSnapshot(saved);
-            if (WORKSPACE_FIELDS.accounts) state.accounts = snapshot.accounts;
-            state.offers = snapshot.offers;
-            if (state.selected) state.selected = new Set(snapshot.selected);
-            if ('consent' in state) state.consent = snapshot.consent;
-            if ('accountConsent' in state) state.accountConsent = snapshot.consent;
-            state.search = snapshot.search;
-            state.collapsed = snapshot.collapsed;
-            state.lastScanAt = snapshot.lastScanAt;
-            state.workspaceScope = snapshot.scopeIdentity;
-            state.restoredWorkspace = true;
-            state.needsScan = true;
-            state.status = 'Saved results and selections restored. Scan manually to verify the current account before adding.';
-        } catch {
-            state.storageError = 'Cannot read saved results and selections. Stored data was preserved; resolve Tampermonkey storage before running.';
-        }
-    }
-    function recordWorkspaceScan() {
-        state.lastScanAt = Date.now();
-        state.restoredWorkspace = false;
-        pendingWorkspaceOffers.clear();
-        requireWorkspaceSaved();
-    }
-    function markWorkspaceOfferPending(offer) {
-        pendingWorkspaceOffers.add(workspaceOfferKey(offer));
-        requireWorkspaceSaved(); // Must succeed before a write request can leave.
-    }
-    function finishWorkspaceOffer(offer) {
-        pendingWorkspaceOffers.delete(workspaceOfferKey(offer));
-        requireWorkspaceSaved();
-    }
-
-    // Source: shared/persistence/workspace-scope.js
-    async function workspaceScopeFingerprint(value) {
-        // A one-way scope marker can detect a changed opaque session without storing
-        // the credential itself. It cannot be used to authenticate any request.
-        const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
-        return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
-    }
-    function bindWorkspaceScope(scope) {
-        if (state.workspaceScope && state.workspaceScope !== scope) {
-            if (state.selected) state.selected.clear();
-            if ('consent' in state) state.consent = false;
-            if ('accountConsent' in state) state.accountConsent = false;
-            state.offers = [];
-            state.lastScanAt = 0;
-            pendingWorkspaceOffers.clear();
-        }
-        state.workspaceScope = scope;
-    }
-
-    // Source: shared/persistence/workspace-ui.js
-    function workspaceCacheNotice() {
-        if (!state.lastScanAt) return 'Results and selections are saved locally. Nothing runs automatically.';
-        return `Last complete scan: ${new Date(state.lastScanAt).toLocaleString()}. ${state.restoredWorkspace || state.needsScan
-            ? 'Saved results; scan again before adding.' : 'Results and selections saved locally.'}`;
-    }
-    function restoreWorkspacePanel(panel, bankName) {
-        const search = panel.getElementById('search');
-        if (search) search.value = state.search || '';
-        panel.getElementById('body').hidden = state.collapsed;
-        const toggle = panel.getElementById('collapse');
-        toggle.textContent = state.collapsed ? '+' : '−';
-        toggle.setAttribute('aria-expanded', String(!state.collapsed));
-        toggle.setAttribute('aria-label', `${state.collapsed ? 'Expand' : 'Minimize'} ${bankName} panel`);
-    }
-
     // Source: core/state.js
     const SETTINGS = {
-        id: "usbank-offer-lite", name: "US Bank Offer Lite", version: "1.3.1",
+        capabilities: {"activation":true,"scope":"account"},
+        id: "usbank-offer-lite", name: "US Bank Offer Lite", version: "1.3.3",
         endpoint: '/digital/api/customer-management/graphql/v2',
         gapMilliseconds: 500, timeoutMilliseconds: 45000,
         defaultCooldownMilliseconds: 300000
@@ -4054,31 +3235,11 @@ dispatchIssuer({"id":"usbank-offer-lite","patterns":["^https://onlinebanking\\.u
     }
 
     // Source: core/storage.js
-    // Keep the original pacing schema/key; result snapshots use a separate versioned key.
-    function restorePacing() {
-        try {
-            const saved = GM_getValue(`${SETTINGS.id}:pacing`, null);
-            if (saved === null) return;
-            if (saved.schemaVersion !== 1 || !Number.isFinite(saved.cooldownUntil)
-                || !Number.isFinite(saved.nextRequestAt)) {
-                throw new Error('Unsupported pacing snapshot; stored data was preserved.');
-            }
-            state.cooldownUntil = Math.max(state.cooldownUntil, saved.cooldownUntil);
-            state.nextRequestAt = Math.max(state.nextRequestAt, saved.nextRequestAt);
-        } catch {
-            state.storageError = 'Cannot read pacing storage. Resolve Tampermonkey storage before running.';
-        }
-    }
-    function savePacing() {
-        try {
-            GM_setValue(`${SETTINGS.id}:pacing`, {
-                schemaVersion: 1, cooldownUntil: state.cooldownUntil, nextRequestAt: state.nextRequestAt
-            });
-        } catch {
-            state.storageError = 'Cannot save pacing storage. Further requests are blocked; reload after fixing storage.';
-            renderPanel();
-        }
-    }
+    // Existing keys and schema remain readable after the runtime refactor.
+    const issuerStorage = { get: (key, fallback) => GM_getValue(key, fallback), set: (key, value) => GM_setValue(key, value) };
+    const { restorePacing, savePacing } = createHubPacingStorage({
+        state, storage: issuerStorage, storageKey: `${SETTINGS.id}:pacing`, onError: () => renderPanel()
+    });
 
     // Source: core/workspace-fields.js
     const WORKSPACE_FIELDS = {
@@ -4093,6 +3254,15 @@ dispatchIssuer({"id":"usbank-offer-lite","patterns":["^https://onlinebanking\\.u
             "status": "text"
         }
     };
+
+    // Source: core/workspace.js
+    const { saveWorkspace, requireWorkspaceSaved, restoreWorkspace, recordWorkspaceScan,
+        markWorkspaceOfferPending, finishWorkspaceOffer, bindWorkspaceScope } = createHubWorkspaceStore({
+        state, fields: WORKSPACE_FIELDS, storage: issuerStorage, storageKey: `${SETTINGS.id}:workspace`,
+        onError: () => renderPanel()
+    });
+    function workspaceCacheNotice() { return hubWorkspaceCacheNotice(state); }
+    function restoreWorkspacePanel(panel, bankName) { hubRestoreWorkspacePanel(panel, bankName, state); }
 
     // Source: api/session.js
     function requiredSessionString(value) {
@@ -4128,6 +3298,11 @@ dispatchIssuer({"id":"usbank-offer-lite","patterns":["^https://onlinebanking\\.u
             routingkey: '', 'correlation-id': crypto.randomUUID()
         };
     }
+
+    // Source: api/request-runtime.js
+    const { sendRequest, retryAfterMilliseconds, waitForRequestSlot } = createHubJsonTransport({
+        state, settings: SETTINGS, ensureRunning, savePacing
+    });
 
     // Source: api/queries.js
     // Only fields observed in the captured first-party GraphQL query are requested.
@@ -4224,94 +3399,23 @@ dispatchIssuer({"id":"usbank-offer-lite","patterns":["^https://onlinebanking\\.u
     }
 
     // Source: api/transport.js
-    function retryAfterMilliseconds(value, now = Date.now()) {
-        if (typeof value === 'string' && /^\d+(?:\.\d+)?$/.test(value.trim())) return Number(value) * 1000;
-        const deadline = typeof value === 'string' ? Date.parse(value) : NaN;
-        return Number.isFinite(deadline) ? Math.max(0, deadline - now) : SETTINGS.defaultCooldownMilliseconds;
-    }
-    async function waitForRequestSlot() {
-        while (Date.now() < state.nextRequestAt) {
-            ensureRunning();
-            await new Promise(resolve => setTimeout(resolve, Math.min(250, state.nextRequestAt - Date.now())));
-        }
-        ensureRunning();
-        if (state.storageError) throw new Error(state.storageError);
-        if (Date.now() < state.cooldownUntil) {
-            throw new Error(`Rate limited. Try a new scan after ${new Date(state.cooldownUntil).toLocaleTimeString()}.`);
-        }
-    }
     async function requestGraphql(query, variablesFactory, session) {
         if (![LIST_OFFERS_QUERY, ACTIVATE_OFFER_QUERY].includes(query)) throw new Error('Unsupported US Bank operation.');
-        await waitForRequestSlot();
-        ensureSameSession(session);
-        const headers = sessionHeaders();
-        const variables = variablesFactory();
-        // Reserve a slot before sending. A reload or closed tab releases Web Locks,
-        // but must not permit a new tab to immediately overlap this pending request.
-        state.nextRequestAt = Date.now() + SETTINGS.timeoutMilliseconds + SETTINGS.gapMilliseconds;
-        savePacing();
-        if (state.storageError) throw new Error(state.storageError);
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), SETTINGS.timeoutMilliseconds);
-        try {
-            const response = await fetch(SETTINGS.endpoint, {
-                method: 'POST', credentials: 'same-origin', redirect: 'error',
-                headers, cache: 'no-store', body: JSON.stringify({ query, variables }), signal: controller.signal
-            });
-            if (response.status === 429) {
-                state.cooldownUntil = Math.max(state.cooldownUntil,
-                    Date.now() + retryAfterMilliseconds(response.headers.get('Retry-After')));
-            }
-            // Include body consumption in the response-completion pacing boundary.
-            const responseText = await response.text();
-            if (response.status === 429) throw new Error('US Bank returned HTTP 429. Cooling down; scan again later.');
-            if (!response.ok) throw new Error(`US Bank returned HTTP ${response.status}. Scan again after resolving the error.`);
-            let payload;
-            try { payload = JSON.parse(responseText); }
-            catch { throw new Error('US Bank returned a non-JSON response. Sign in and scan again.'); }
+        return sendRequest(() => {
             ensureSameSession(session);
-            return payload;
-        } catch (error) {
-            // Do not display browser errors that could contain URLs or session data.
-            if (error.name === 'AbortError') throw new Error('Request timed out; result is unconfirmed. Scan again.');
-            if (error instanceof TypeError) throw new Error('Network request failed; result is unconfirmed. Scan again.');
-            throw error;
-        } finally {
-            clearTimeout(timeout);
-            state.nextRequestAt = Date.now() + SETTINGS.gapMilliseconds;
-            savePacing();
-        }
+            return { url: SETTINGS.endpoint, options: {
+                method: 'POST', credentials: 'same-origin', redirect: 'error', cache: 'no-store',
+                headers: sessionHeaders(), body: JSON.stringify({ query, variables: variablesFactory() })
+            }, validateResponse: () => ensureSameSession(session) };
+        });
     }
 
     // Source: workflows/runner.js
-    async function runExclusive(action, actionKind = 'scan') {
-        if (state.busy) return;
-        let workspaceActionStarted = false;
-        state.busy = true;
-        state.activeAction = actionKind;
-        if (actionKind === 'add') state.total = 0;
-        state.stopRequested = false;
-        renderPanel();
-        try {
-            if (!navigator.locks?.request) throw new Error('This browser does not support the required tab lock. Use current Chrome.');
-            await navigator.locks.request(SETTINGS.id, { ifAvailable: true }, async lock => {
-                if (!lock) throw new Error('The script is running in another tab. Wait for it to finish.');
-                restorePacing();
-                if (state.storageError) throw new Error(state.storageError);
-                ensureRunning();
-                workspaceActionStarted = true;
-                await action();
-            });
-        } catch (error) {
-            state.needsScan = true;
-            updateStatus(error.message);
-        } finally {
-            state.busy = false;
-            state.activeAction = null;
-            if (workspaceActionStarted) saveWorkspace();
-            renderPanel();
-        }
-    }
+    const runExclusive = createHubActionRunner({
+        state, settings: SETTINGS, ensureRunning, restorePacing, saveWorkspace,
+        render: () => renderPanel(), updateStatus, supportsActivation: SETTINGS.capabilities.activation
+    });
+
     function setOfferSelected(offerId, selected) {
         if (state.busy || Boolean(state.storageError) || !state.offers.some(offer => offer.offerId === offerId && offer.status === 'AVAILABLE')) return;
         if (selected) state.selected.add(offerId); else state.selected.delete(offerId);
@@ -4405,39 +3509,20 @@ dispatchIssuer({"id":"usbank-offer-lite","patterns":["^https://onlinebanking\\.u
     // Source: ui/panel.js
     function mountPanel() {
         if (document.getElementById(SETTINGS.id)) return;
-        const host = document.createElement('div');
-        host.id = SETTINGS.id;
-        const panel = host.attachShadow({ mode: 'open' });
-        panel.innerHTML = `<style>${PANEL_STYLES}</style>` + hubWorkflowMarkup(
-            "<p class=\"muted\">Current signed-in US Bank customer. Add all covers every available offer. You can also select individual offers below.</p>",
-            { bank: "US Bank", extraReviewMarkup: "<button id=\"activate\" aria-label=\"Add selected offers\">Add selected offers</button><button id=\"select-all\" aria-label=\"Select all available offers\">Select all</button><button id=\"clear\" aria-label=\"Clear offer selection\">Clear selection</button>", readOnly: false });
-        panel.querySelector('h2').textContent = SETTINGS.name;
+        const { host, panel } = createHubWorkflowPanel({
+            state, settings: SETTINGS, bank: "US Bank", styles: PANEL_STYLES,
+            scopeMarkup: "<p class=\"muted\">Current signed-in US Bank customer. Add all covers every available offer. You can also select individual offers below.</p>",
+            workflow: { bank: "US Bank", extraReviewMarkup: "<button id=\"activate\" aria-label=\"Add selected offers\">Add selected offers</button><button id=\"select-all\" aria-label=\"Select all available offers\">Select all</button><button id=\"clear\" aria-label=\"Clear offer selection\">Clear selection</button>", readOnly: !SETTINGS.capabilities.activation },
+            onScan: scanOffers, onAdd: addAllOffers, onStop: stopRun,
+            saveWorkspace, renderOffers, supportsActivation: SETTINGS.capabilities.activation
+        });
         panel.getElementById('activate').addEventListener('click', activateSelectedOffers);
         panel.getElementById('select-all').addEventListener('click', selectAllOffers);
         panel.getElementById('clear').addEventListener('click', () => {
             if (!state.busy) { state.selected.clear(); saveWorkspace(); renderPanel(); }
         });
-        panel.getElementById('scan').addEventListener('click', scanOffers);
-        panel.getElementById('add').addEventListener('click', addAllOffers);
-        panel.getElementById('stop').addEventListener('click', stopRun);
-        const search = panel.getElementById('search');
-        search.addEventListener('input', event => { state.search = event.target.value; saveWorkspace(); renderOffers(); });
-        panel.getElementById('hub-clear-search').onclick = () => {
-            state.search = ''; search.value = ''; saveWorkspace(); renderOffers(); search.focus();
-        };
-        panel.getElementById('collapse').addEventListener('click', () => {
-            state.collapsed = !state.collapsed;
-            saveWorkspace();
-            panel.getElementById('body').hidden = state.collapsed;
-            const button = panel.getElementById('collapse');
-            button.textContent = state.collapsed ? '+' : '−';
-            button.setAttribute('aria-label', state.collapsed ? 'Expand US Bank panel' : 'Minimize US Bank panel');
-            button.setAttribute('aria-expanded', String(!state.collapsed));
-        });
-        decorateHubPanel(panel, SETTINGS.version);
         document.body.appendChild(host);
         state.panel = panel;
-        restoreWorkspacePanel(panel, "US Bank");
         renderPanel();
     }
 
@@ -4481,7 +3566,7 @@ dispatchIssuer({"id":"usbank-offer-lite","patterns":["^https://onlinebanking\\.u
         panel.getElementById('status').textContent = state.status;
         panel.getElementById('storage-error').textContent = state.storageError;
         panel.getElementById('counts').textContent = `${state.offers.length} offers · ${available} available · ${state.selected.size} selected · ${state.confirmed}/${state.total} newly confirmed`;
-        renderHubWorkflow(panel, { count: available, needsScan: state.needsScan, busy: state.busy,
+        renderHubWorkflow(panel, { readOnly: !SETTINGS.capabilities.activation, count: available, needsScan: state.needsScan, busy: state.busy,
             storageError: state.storageError, coolingDown: Date.now() < state.cooldownUntil,
             progress: state.activeAction === 'add' && state.total ? { completed: state.confirmed, total: state.total } : null });
         hubSetActionLabel(panel.getElementById('activate'), 'Add selected offers', state.selected.size);
@@ -4502,254 +3587,10 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","patterns":["^https://web\\.secure\
 (function () {
     'use strict';
 
-    // Source: shared/ui/design-system.js
-    const HUB_DESIGN_STYLES = `
-    :host{all:initial;--hub-ink:#20322f;--hub-muted:#64746e;--hub-accent:#176653;--hub-tint:#edf6f1;--hub-line:#dce5df;--hub-canvas:#f5f7f4;--hub-radius:16px;position:fixed;right:16px;bottom:16px;z-index:2147483646;color:var(--hub-ink);font:13px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:light}
-    *,*::before,*::after{box-sizing:border-box}[hidden]{display:none!important}
-    .panel{width:min(464px,calc(100vw - 24px));max-height:88vh;max-height:88dvh;overflow:auto;background:#fff;border:1px solid var(--hub-line);border-radius:var(--hub-radius);box-shadow:0 16px 60px #21392d20}
-    header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;border-bottom:1px solid var(--hub-line);background:#fff}
-    .hub-heading{min-width:0;flex:1}.hub-eyebrow{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--hub-accent);font-weight:750;margin-bottom:3px}.hub-version{font-size:10px;color:var(--hub-muted);font-variant-numeric:tabular-nums}
-    h2{font-size:18px;line-height:1.3;letter-spacing:-.035em;margin:0;font-weight:650}h3{font-size:12px;margin:0 0 8px;font-weight:650}p{margin:6px 0}
-    section,main{padding:16px 20px;border-bottom:1px solid var(--hub-line)}footer,.status{padding:14px 20px;background:var(--hub-canvas);overflow-wrap:anywhere}.muted,.card-report,.logs{color:var(--hub-muted);font-size:12px}.error,.storage-error{color:#a33232}.notice{border-left:3px solid #a2b9ac;background:var(--hub-canvas);padding:10px 12px}
-    button,input,select{font:inherit}button,select{border:1px solid var(--hub-line);border-radius:9px;color:var(--hub-ink);background:#fff;padding:8px 12px;min-height:36px}button{cursor:pointer;font-weight:550}button:not(:disabled):hover{background:var(--hub-tint);border-color:#a8c6b9}button.primary{background:var(--hub-accent);color:#fff;border-color:var(--hub-accent)}button.primary:not(:disabled):hover{background:#10523f}button:disabled{opacity:.45;cursor:not-allowed}button.stop{color:#a33232}button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #79ad99;outline-offset:3px}
-    input[type=search]{width:100%;padding:11px 13px;border:1px solid var(--hub-line);border-radius:10px;background:var(--hub-canvas);color:var(--hub-ink)}input[type=checkbox]{accent-color:var(--hub-accent);flex:none;width:15px;height:15px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}.cards{max-height:180px;overflow:auto}.card{display:flex;align-items:flex-start;gap:9px;padding:9px 0;overflow-wrap:anywhere}.card input{margin-top:3px}.card-info{min-width:0;flex:1}
-    .offers{max-height:260px;overflow:auto;margin-top:10px}.offer{display:block;padding:13px 0;border-bottom:1px solid var(--hub-line);overflow-wrap:anywhere}.offer:last-child{border-bottom:0}.offer small{display:block;color:var(--hub-muted);margin-top:5px}.offer-title{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.offer-title button{flex-shrink:0}.badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.badge{border-radius:5px;background:var(--hub-canvas);padding:3px 7px;font-size:11px}.badge.enrolled{background:var(--hub-tint);color:var(--hub-accent)}.badge.unconfirmed,.badge.failed{background:#fff1da;color:#865711}.card-counts,.offer-counts,.offer-target{color:var(--hub-accent);font-size:12px}.logs{max-height:90px;overflow:auto}a{color:var(--hub-accent);text-underline-offset:3px}
-    .hub-search-launcher{display:flex;align-items:center;justify-content:space-between;width:100%;border:0;border-bottom:1px solid var(--hub-line);border-radius:0;background:var(--hub-tint);padding:11px 20px;color:var(--hub-accent);text-align:left}.hub-search-launcher span:last-child{font-size:11px;font-weight:400}
-    .hub-step h3{font-size:12px;letter-spacing:.03em;margin-bottom:10px;color:var(--hub-accent)}.hub-action-reason{font-size:12px;color:var(--hub-muted);margin-top:10px}.hub-clear-search{font-size:11px;min-height:28px;padding:4px 8px;margin-top:6px}.hub-search-rule{font-size:11px}.hub-step .actions{margin-bottom:8px}
-    @media(max-width:500px){:host{right:12px;bottom:12px}header{padding:16px}section,main,footer,.status{padding:14px 16px}}
-    `;
-
-    // Source: shared/ui/panel-branding.js
-    function decorateHubPanel(shadowRoot, version) {
-        const header = shadowRoot.querySelector('header');
-        const title = header.querySelector('h2');
-        const heading = document.createElement('div');
-        heading.className = 'hub-heading';
-        const eyebrow = document.createElement('div');
-        eyebrow.className = 'hub-eyebrow';
-        eyebrow.textContent = 'Card Offer Hub';
-        header.insertBefore(heading, title);
-        heading.append(eyebrow, title);
-        const release = document.createElement('span');
-        release.className = 'hub-version';
-        release.textContent = `v${version}`;
-        heading.append(release);
-    }
-
-    // Source: shared/ui/workflow-layout.js
-    function hubWorkflowMarkup(scopeMarkup, { bank, extraReviewMarkup = '', readOnly = false } = {}) {
-        return `<div class="panel">
-          <header><h2></h2><button id="collapse" aria-label="Minimize ${bank} panel" aria-expanded="true">−</button></header>
-          <div id="body">
-            <section class="hub-step" data-step="scope"><h3>1. Choose scope</h3>${scopeMarkup}</section>
-            <section class="hub-step" data-step="scan"><h3>2. Scan offers</h3>
-              <p class="muted">Scan to refresh saved offers. Nothing runs until you click.</p>
-              <div class="actions"><button id="scan" aria-label="Scan offers">Scan offers</button><button id="stop" class="stop" aria-label="Stop">Stop</button></div>
-            </section>
-            <section class="hub-step" data-step="review"><h3>3. Review & add</h3>
-              <input id="search" type="search" aria-label="Search saved offers" placeholder="Search saved offers">
-              <button id="hub-clear-search" class="hub-clear-search" aria-label="Clear search">Clear search</button>
-              <p class="muted hub-search-rule">Search changes the list only. Add all includes offers hidden by search within your chosen scope.</p>
-              <p id="counts" class="muted"></p><div class="actions"><button id="add" class="primary" aria-label="Add all offers" aria-describedby="hub-action-reason">Add all offers</button>${extraReviewMarkup}</div>
-              <p id="hub-action-reason" class="hub-action-reason" role="note"></p>
-              ${readOnly ? '<p id="enrollment-notice" class="notice">Chase is read-only here. Add offers on the Chase website.</p>' : ''}
-              <div id="offers" class="offers"></div>
-            </section>
-            <footer><p id="workspace-cache" class="muted"></p><div id="status" role="status" aria-live="polite"></div><div id="storage-error" class="error" role="alert"></div></footer>
-          </div></div>`;
-    }
-    function hubMatchesSearch(offer, query) {
-        return [offer.merchant, offer.name, offer.title, offer.description, offer.headline, offer.category]
-            .filter(value => typeof value === 'string').join(' ').toLocaleLowerCase().includes(query.trim().toLocaleLowerCase());
-    }
-    function hubOfferStatusLabel(status) {
-        if (['AVAILABLE', 'ELIGIBLE', 'NEW'].includes(status)) return 'Available';
-        if (['ENROLLED', 'ACTIVATED'].includes(status)) return 'Added';
-        if (['UNCONFIRMED', 'UNKNOWN', 'FAILED', 'CONFLICT'].includes(status)) return 'Needs review';
-        return 'Skipped';
-    }
-    function hubShowEmptyOffers(container, query) {
-        const note = document.createElement('p');
-        note.className = 'muted';
-        note.textContent = query.trim() ? 'No offers match your search. Clear search to view all saved offers in this scope.' : 'No offers in this scope yet. Choose your scope and scan to refresh.';
-        container.append(note);
-    }
-    function hubSetActionLabel(control, label, count = null) {
-        if (!control) return;
-        control.textContent = count === null ? label : `${label} (${count})`;
-        control.setAttribute('aria-label', label);
-    }
-    function renderHubWorkflow(root, { count, hasScope = true, needsScan = false, busy = false,
-        storageError = '', readOnly = false, coolingDown = false, progress = null } = {}) {
-        const add = root.getElementById('add') || root.getElementById('btn-enroll-all');
-        hubSetActionLabel(add, 'Add all offers', busy ? null : count);
-        add.disabled = Boolean(busy || storageError || readOnly || coolingDown || !hasScope || needsScan || !count);
-        const reason = root.getElementById('hub-action-reason');
-        reason.textContent = storageError ? 'Resolve the storage error before continuing.'
-            : busy ? progress ? `Adding ${progress.completed} of ${progress.total}. The task keeps its original scope while you search or switch tabs.` : 'Working. Use Stop to end the current task.'
-            : readOnly ? 'Adding is unavailable for this bank. You can still scan and search.'
-            : coolingDown ? 'Waiting for the bank cooldown. Start again manually when it ends.'
-            : !hasScope ? 'Choose or confirm your scope in step 1.'
-            : needsScan ? 'Scan offers in step 2 before adding.'
-            : !count ? 'No available offers in this scope. Scan again to refresh.'
-            : `Ready to add ${count} available ${count === 1 ? 'offer' : 'offers'} in your chosen scope. Search does not change this total.`;
-    }
-
-    // Source: shared/persistence/workspace-records.js
-    function serializeWorkspaceRecord(record, fields) {
-        const normalized = {};
-        for (const [field, type] of Object.entries(fields)) {
-            normalized[field] = type === 'text' && typeof record[field] !== 'string' ? '' : record[field];
-        }
-        return workspaceRecord(normalized, fields);
-    }
-    // Only adapter-declared display fields enter persistent storage. Request tokens,
-    // raw responses, headers, locations and runtime locks never cross this boundary.
-    function workspaceRecord(record, fields) {
-        if (!record || typeof record !== 'object' || Array.isArray(record)) throw new Error('Invalid saved record');
-        const result = {};
-        for (const [field, type] of Object.entries(fields)) {
-            const value = record[field];
-            if (type === 'boolean') {
-                if (typeof value !== 'boolean') throw new Error('Invalid saved flag');
-                result[field] = value;
-            } else {
-                if (typeof value !== 'string' || (type === 'id' && !value.trim())) throw new Error('Invalid saved text');
-                result[field] = value;
-            }
-        }
-        return result;
-    }
-    function workspaceOfferKey(offer) {
-        return JSON.stringify([offer.accountId || '', offer.offerId || offer.id]);
-    }
-    function validateWorkspaceSnapshot(saved) {
-        if (!saved || saved.schemaVersion !== 1 || !Number.isFinite(saved.savedAt) || saved.savedAt < 0
-            || !Number.isFinite(saved.lastScanAt) || saved.lastScanAt < 0
-            || typeof saved.scopeIdentity !== 'string' || typeof saved.consent !== 'boolean'
-            || typeof saved.search !== 'string' || typeof saved.collapsed !== 'boolean'
-            || !Array.isArray(saved.accounts) || !Array.isArray(saved.offers) || !Array.isArray(saved.selected)) {
-            throw new Error('Unsupported or incomplete workspace snapshot');
-        }
-        const accounts = saved.accounts.map(record => workspaceRecord(record, WORKSPACE_FIELDS.accounts));
-        const offers = saved.offers.map(record => workspaceRecord(record, WORKSPACE_FIELDS.offers));
-        const accountIds = new Set(accounts.map(account => account.accountId));
-        const offerIds = new Set(offers.map(workspaceOfferKey));
-        if (accountIds.size !== accounts.length || offerIds.size !== offers.length
-            || (!WORKSPACE_FIELDS.accounts && accounts.length)
-            || (WORKSPACE_FIELDS.accounts && offers.some(offer => !accountIds.has(offer.accountId)))) {
-            throw new Error('Conflicting saved records');
-        }
-        const allowedSelections = WORKSPACE_FIELDS.accounts ? accountIds : new Set(offers.map(offer => offer.offerId));
-        if (saved.selected.some(id => typeof id !== 'string' || !allowedSelections.has(id))
-            || new Set(saved.selected).size !== saved.selected.length) throw new Error('Invalid saved selections');
-        return { ...saved, accounts, offers };
-    }
-
-    // Source: shared/persistence/workspace-storage.js
-    const pendingWorkspaceOffers = new Set();
-    function saveWorkspace() {
-        if (state.storageError) return false;
-        try {
-            const offers = state.offers.map(offer => {
-                const record = serializeWorkspaceRecord(offer, WORKSPACE_FIELDS.offers);
-                if (pendingWorkspaceOffers.has(workspaceOfferKey(offer))) {
-                    if ('status' in record) record.status = 'UNCONFIRMED';
-                    else { record.result = 'Unconfirmed'; record.eligible = false; }
-                }
-                return record;
-            });
-            const snapshot = validateWorkspaceSnapshot({
-                schemaVersion: 1, savedAt: Date.now(), lastScanAt: state.lastScanAt,
-                scopeIdentity: state.workspaceScope, accounts: (state.accounts || []).map(account => serializeWorkspaceRecord(account, WORKSPACE_FIELDS.accounts)),
-                offers, selected: [...(state.selected || [])], consent: state.consent ?? state.accountConsent ?? false,
-                search: state.search || '', collapsed: state.collapsed
-            });
-            GM_setValue(`${SETTINGS.id}:workspace`, snapshot);
-            return true;
-        } catch {
-            state.storageError = 'Cannot save scan results and selections. Further requests are blocked; fix Tampermonkey storage and reload.';
-            renderPanel();
-            return false;
-        }
-    }
-    function requireWorkspaceSaved() {
-        if (!saveWorkspace()) throw new Error(state.storageError);
-    }
-    function restoreWorkspace() {
-        try {
-            const saved = GM_getValue(`${SETTINGS.id}:workspace`, null);
-            if (saved === null) return; // Older releases only saved pacing; keep it intact.
-            const snapshot = validateWorkspaceSnapshot(saved);
-            if (WORKSPACE_FIELDS.accounts) state.accounts = snapshot.accounts;
-            state.offers = snapshot.offers;
-            if (state.selected) state.selected = new Set(snapshot.selected);
-            if ('consent' in state) state.consent = snapshot.consent;
-            if ('accountConsent' in state) state.accountConsent = snapshot.consent;
-            state.search = snapshot.search;
-            state.collapsed = snapshot.collapsed;
-            state.lastScanAt = snapshot.lastScanAt;
-            state.workspaceScope = snapshot.scopeIdentity;
-            state.restoredWorkspace = true;
-            state.needsScan = true;
-            state.status = 'Saved results and selections restored. Scan manually to verify the current account before adding.';
-        } catch {
-            state.storageError = 'Cannot read saved results and selections. Stored data was preserved; resolve Tampermonkey storage before running.';
-        }
-    }
-    function recordWorkspaceScan() {
-        state.lastScanAt = Date.now();
-        state.restoredWorkspace = false;
-        pendingWorkspaceOffers.clear();
-        requireWorkspaceSaved();
-    }
-    function markWorkspaceOfferPending(offer) {
-        pendingWorkspaceOffers.add(workspaceOfferKey(offer));
-        requireWorkspaceSaved(); // Must succeed before a write request can leave.
-    }
-    function finishWorkspaceOffer(offer) {
-        pendingWorkspaceOffers.delete(workspaceOfferKey(offer));
-        requireWorkspaceSaved();
-    }
-
-    // Source: shared/persistence/workspace-scope.js
-    async function workspaceScopeFingerprint(value) {
-        // A one-way scope marker can detect a changed opaque session without storing
-        // the credential itself. It cannot be used to authenticate any request.
-        const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
-        return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
-    }
-    function bindWorkspaceScope(scope) {
-        if (state.workspaceScope && state.workspaceScope !== scope) {
-            if (state.selected) state.selected.clear();
-            if ('consent' in state) state.consent = false;
-            if ('accountConsent' in state) state.accountConsent = false;
-            state.offers = [];
-            state.lastScanAt = 0;
-            pendingWorkspaceOffers.clear();
-        }
-        state.workspaceScope = scope;
-    }
-
-    // Source: shared/persistence/workspace-ui.js
-    function workspaceCacheNotice() {
-        if (!state.lastScanAt) return 'Results and selections are saved locally. Nothing runs automatically.';
-        return `Last complete scan: ${new Date(state.lastScanAt).toLocaleString()}. ${state.restoredWorkspace || state.needsScan
-            ? 'Saved results; scan again before adding.' : 'Results and selections saved locally.'}`;
-    }
-    function restoreWorkspacePanel(panel, bankName) {
-        const search = panel.getElementById('search');
-        if (search) search.value = state.search || '';
-        panel.getElementById('body').hidden = state.collapsed;
-        const toggle = panel.getElementById('collapse');
-        toggle.textContent = state.collapsed ? '+' : '−';
-        toggle.setAttribute('aria-expanded', String(!state.collapsed));
-        toggle.setAttribute('aria-label', `${state.collapsed ? 'Expand' : 'Minimize'} ${bankName} panel`);
-    }
-
     // Source: core/state.js
     const SETTINGS = {
-        id: "wellsfargo-offer-lite", name: "Wells Fargo Offer Lite", version: "1.3.1",
+        capabilities: {"activation":true,"scope":"account"},
+        id: "wellsfargo-offer-lite", name: "Wells Fargo Offer Lite", version: "1.3.3",
         retrievePath: '/deals-portal/as/getDeals', enrollmentPath: '/deals-portal/as/activateCLDeal',
         gapMilliseconds: 500, timeoutMilliseconds: 45000, defaultCooldownMilliseconds: 300000
     };
@@ -4777,31 +3618,11 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","patterns":["^https://web\\.secure\
     }
 
     // Source: core/storage.js
-    // Keep the original pacing schema/key; result snapshots use a separate versioned key.
-    function restorePacing() {
-        try {
-            const saved = GM_getValue(`${SETTINGS.id}:pacing`, null);
-            if (saved === null) return;
-            if (saved.schemaVersion !== 1 || !Number.isFinite(saved.cooldownUntil)
-                || !Number.isFinite(saved.nextRequestAt)) {
-                throw new Error('Unsupported pacing snapshot; stored data was preserved.');
-            }
-            state.cooldownUntil = Math.max(state.cooldownUntil, saved.cooldownUntil);
-            state.nextRequestAt = Math.max(state.nextRequestAt, saved.nextRequestAt);
-        } catch {
-            state.storageError = 'Cannot read pacing storage. Resolve Tampermonkey storage before running.';
-        }
-    }
-    function savePacing() {
-        try {
-            GM_setValue(`${SETTINGS.id}:pacing`, {
-                schemaVersion: 1, cooldownUntil: state.cooldownUntil, nextRequestAt: state.nextRequestAt
-            });
-        } catch {
-            state.storageError = 'Cannot save pacing storage. Further requests are blocked; reload after fixing storage.';
-            renderPanel();
-        }
-    }
+    // Existing keys and schema remain readable after the runtime refactor.
+    const issuerStorage = { get: (key, fallback) => GM_getValue(key, fallback), set: (key, value) => GM_setValue(key, value) };
+    const { restorePacing, savePacing } = createHubPacingStorage({
+        state, storage: issuerStorage, storageKey: `${SETTINGS.id}:pacing`, onError: () => renderPanel()
+    });
 
     // Source: core/workspace-fields.js
     const WORKSPACE_FIELDS = {
@@ -4814,6 +3635,16 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","patterns":["^https://web\\.secure\
             "expires": "text"
         }
     };
+
+    // Source: core/workspace.js
+    const { saveWorkspace, requireWorkspaceSaved, restoreWorkspace, recordWorkspaceScan,
+        markWorkspaceOfferPending, finishWorkspaceOffer, bindWorkspaceScope } = createHubWorkspaceStore({
+        state, fields: WORKSPACE_FIELDS, storage: issuerStorage, storageKey: `${SETTINGS.id}:workspace`,
+        onError: () => renderPanel(),
+        readConsent: () => state.accountConsent, writeConsent: value => { state.accountConsent = value; }
+    });
+    function workspaceCacheNotice() { return hubWorkspaceCacheNotice(state); }
+    function restoreWorkspacePanel(panel, bankName) { hubRestoreWorkspacePanel(panel, bankName, state); }
 
     // Source: api/session.js
     function activationUrl() {
@@ -4842,69 +3673,28 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","patterns":["^https://web\\.secure\
         return url.pathname + url.search;
     }
 
+    // Source: api/request-runtime.js
+    const { sendRequest, retryAfterMilliseconds, waitForRequestSlot } = createHubJsonTransport({
+        state, settings: SETTINGS, ensureRunning, savePacing
+    });
+
     // Source: api/transport.js
-    function retryAfterMilliseconds(value, now = Date.now()) {
-        if (typeof value === 'string' && /^\d+(?:\.\d+)?$/.test(value.trim())) return Number(value) * 1000;
-        const deadline = typeof value === 'string' ? Date.parse(value) : NaN;
-        return Number.isFinite(deadline) ? Math.max(0, deadline - now) : SETTINGS.defaultCooldownMilliseconds;
-    }
-    async function waitForRequestSlot() {
-        while (Date.now() < state.nextRequestAt) {
-            ensureRunning();
-            await new Promise(resolve => setTimeout(resolve, Math.min(250, state.nextRequestAt - Date.now())));
-        }
-        ensureRunning();
-        if (state.storageError) throw new Error(state.storageError);
-        if (Date.now() < state.cooldownUntil) {
-            throw new Error(`Rate limited. Try a new scan after ${new Date(state.cooldownUntil).toLocaleTimeString()}.`);
-        }
-    }
     async function requestJson(path, body) {
         if (![SETTINGS.retrievePath, SETTINGS.enrollmentPath].includes(path)) throw new Error('Unsupported Wells Fargo endpoint.');
-        await waitForRequestSlot();
-        const enrollment = path === SETTINGS.enrollmentPath;
-        const url = enrollment ? activationUrl() : path;
-        if (enrollment && state.workspaceScope && await workspaceScopeFingerprint(url) !== state.workspaceScope) {
-            state.accountConsent = false;
-            throw new Error('The signed-in account session changed. Scan and confirm account activation again.');
-        }
-        ensureRunning();
-        const headers = { Accept: 'application/json' };
-        if (enrollment) headers['Content-Type'] = 'application/json';
-        // Reserve a slot before sending. A reload or closed tab releases Web Locks,
-        // but must not permit a new tab to immediately overlap this pending request.
-        state.nextRequestAt = Date.now() + SETTINGS.timeoutMilliseconds + SETTINGS.gapMilliseconds;
-        savePacing();
-        if (state.storageError) throw new Error(state.storageError);
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), SETTINGS.timeoutMilliseconds);
-        try {
-            const response = await fetch(url, {
-                method: enrollment ? 'POST' : 'GET', credentials: 'same-origin', redirect: 'error', cache: 'no-store',
-                headers, ...(enrollment ? { body: JSON.stringify(body) } : {}), signal: controller.signal
-            });
-            if (response.status === 429) {
-                state.cooldownUntil = Math.max(state.cooldownUntil,
-                    Date.now() + retryAfterMilliseconds(response.headers.get('Retry-After')));
+        return sendRequest(async () => {
+            const enrollment = path === SETTINGS.enrollmentPath;
+            const url = enrollment ? activationUrl() : path;
+            if (enrollment && state.workspaceScope && await workspaceScopeFingerprint(url) !== state.workspaceScope) {
+                state.accountConsent = false;
+                throw new Error('The signed-in account session changed. Scan and confirm account activation again.');
             }
-            // Include body consumption in the response-completion pacing boundary.
-            const responseText = await response.text();
-            if (response.status === 429) throw new Error('Wells Fargo returned HTTP 429. Cooling down; scan again later.');
-            if (!response.ok) throw new Error(`Wells Fargo returned HTTP ${response.status}. Scan again after resolving the error.`);
-            let payload;
-            try { payload = JSON.parse(responseText); }
-            catch { throw new Error('Wells Fargo returned a non-JSON response. Sign in and scan again.'); }
-            return payload;
-        } catch (error) {
-            // Do not display browser errors that could contain URLs or session data.
-            if (error.name === 'AbortError') throw new Error('Request timed out; result is unconfirmed. Scan again.');
-            if (error instanceof TypeError) throw new Error('Network request failed; result is unconfirmed. Scan again.');
-            throw error;
-        } finally {
-            clearTimeout(timeout);
-            state.nextRequestAt = Date.now() + SETTINGS.gapMilliseconds;
-            savePacing();
-        }
+            const headers = { Accept: 'application/json' };
+            if (enrollment) headers['Content-Type'] = 'application/json';
+            return { url, options: {
+                method: enrollment ? 'POST' : 'GET', credentials: 'same-origin', redirect: 'error', cache: 'no-store',
+                headers, ...(enrollment ? { body: JSON.stringify(body) } : {})
+            } };
+        });
     }
 
     // Source: api/contracts.js
@@ -4956,38 +3746,10 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","patterns":["^https://web\\.secure\
     }
 
     // Source: workflows/runner.js
-    async function runExclusive(action, actionKind = 'scan') {
-        if (state.busy) return;
-        let workspaceActionStarted = false;
-        state.busy = true;
-        state.activeAction = actionKind;
-        if (actionKind === 'add') state.total = 0;
-        state.stopRequested = false;
-        renderPanel();
-        const execute = async () => {
-            restorePacing();
-            if (state.storageError) throw new Error(state.storageError);
-            ensureRunning();
-            workspaceActionStarted = true;
-            await action();
-        };
-        try {
-            // Prevent two tabs running this script from enrolling simultaneously.
-            if (!navigator.locks?.request) throw new Error('This browser does not support the required tab lock. Use current Chrome.');
-            await navigator.locks.request(SETTINGS.id, { ifAvailable: true }, async lock => {
-                if (!lock) throw new Error(`${SETTINGS.name} is running in another tab. Wait for it to finish.`);
-                await execute();
-            });
-        } catch (error) {
-            state.needsScan = true;
-            updateStatus(error.message);
-        } finally {
-            state.busy = false;
-            state.activeAction = null;
-            if (workspaceActionStarted) saveWorkspace();
-            renderPanel();
-        }
-    }
+    const runExclusive = createHubActionRunner({
+        state, settings: SETTINGS, ensureRunning, restorePacing, saveWorkspace,
+        render: () => renderPanel(), updateStatus, supportsActivation: SETTINGS.capabilities.activation
+    });
 
     // Source: workflows/offers.js
     async function scanCurrentAccount() {
@@ -5047,38 +3809,19 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","patterns":["^https://web\\.secure\
     // Source: ui/panel.js
     function mountPanel() {
         if (document.getElementById(SETTINGS.id)) return;
-        const host = document.createElement('div');
-        host.id = SETTINGS.id;
-        const panel = host.attachShadow({ mode: 'open' });
-        panel.innerHTML = `<style>${PANEL_STYLES}</style>` + hubWorkflowMarkup(
-            "<p class=\"muted\">Current signed-in Wells Fargo account. Offers needing an individual card choice are skipped.</p><label class=\"card\"><input id=\"consent\" type=\"checkbox\" aria-label=\"Allow account-wide Wells Fargo activation\">Allow adding offers to this account</label>",
-            { bank: "Wells Fargo", extraReviewMarkup: "", readOnly: false });
-        panel.querySelector('h2').textContent = SETTINGS.name;
+        const { host, panel } = createHubWorkflowPanel({
+            state, settings: SETTINGS, bank: "Wells Fargo", styles: PANEL_STYLES,
+            scopeMarkup: "<p class=\"muted\">Current signed-in Wells Fargo account. Offers needing an individual card choice are skipped.</p><label class=\"card\"><input id=\"consent\" type=\"checkbox\" aria-label=\"Allow account-wide Wells Fargo activation\">Allow adding offers to this account</label>",
+            workflow: { bank: "Wells Fargo", extraReviewMarkup: "", readOnly: !SETTINGS.capabilities.activation },
+            onScan: scanOffers, onAdd: addAllOffers, onStop: stopRun,
+            saveWorkspace, renderOffers, supportsActivation: SETTINGS.capabilities.activation
+        });
         panel.getElementById('consent').addEventListener('change', event => {
             if (state.busy) return;
             state.accountConsent = event.target.checked; saveWorkspace(); renderPanel();
         });
-        panel.getElementById('scan').addEventListener('click', scanOffers);
-        panel.getElementById('add').addEventListener('click', addAllOffers);
-        panel.getElementById('stop').addEventListener('click', stopRun);
-        const search = panel.getElementById('search');
-        search.addEventListener('input', event => { state.search = event.target.value; saveWorkspace(); renderOffers(); });
-        panel.getElementById('hub-clear-search').onclick = () => {
-            state.search = ''; search.value = ''; saveWorkspace(); renderOffers(); search.focus();
-        };
-        panel.getElementById('collapse').addEventListener('click', () => {
-            state.collapsed = !state.collapsed;
-            saveWorkspace();
-            panel.getElementById('body').hidden = state.collapsed;
-            const button = panel.getElementById('collapse');
-            button.textContent = state.collapsed ? '+' : '−';
-            button.setAttribute('aria-label', state.collapsed ? 'Expand Wells Fargo panel' : 'Minimize Wells Fargo panel');
-            button.setAttribute('aria-expanded', String(!state.collapsed));
-        });
-        decorateHubPanel(panel, SETTINGS.version);
         document.body.appendChild(host);
         state.panel = panel;
-        restoreWorkspacePanel(panel, "Wells Fargo");
         renderPanel();
     }
 
@@ -5121,7 +3864,7 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","patterns":["^https://web\\.secure\
         panel.getElementById('counts').textContent = `${state.offers.length} offers · ${state.offers.filter(offer => offer.status === 'AVAILABLE').length} eligible · ${state.offers.filter(offer => ['UNSUPPORTED', 'CONFLICT'].includes(offer.status)).length} skipped · ${state.confirmed}/${state.total} added this run`;
         renderHubWorkflow(panel, { count: state.offers.filter(offer => offer.status === 'AVAILABLE').length, hasScope: state.accountConsent,
             needsScan: state.needsScan, busy: state.busy, storageError: state.storageError,
-            coolingDown: Date.now() < state.cooldownUntil, readOnly: false,
+            coolingDown: Date.now() < state.cooldownUntil, readOnly: !SETTINGS.capabilities.activation,
             progress: state.activeAction === 'add' && state.total ? { completed: state.confirmed, total: state.total } : null });
         renderOffers();
     }

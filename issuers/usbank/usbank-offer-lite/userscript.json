@@ -21,13 +21,23 @@
         "persistence/workspace-records.js",
         "persistence/workspace-storage.js",
         "persistence/workspace-scope.js",
-        "persistence/workspace-ui.js"
+        "persistence/workspace-ui.js",
+        "runtime/request-scheduler.js",
+        "runtime/json-transport.js",
+        "runtime/action-runner.js",
+        "persistence/pacing-storage.js",
+        "offers/display-records.js",
+        "ui/workflow-panel.js",
+        "runtime/action-lifecycle.js"
     ],
     "sources": [
+        "snapshots/saved-results.js",
         "core/state.js",
         "core/storage.js",
         "core/workspace-fields.js",
+        "core/workspace.js",
         "api/session.js",
+        "api/request-runtime.js",
         "api/queries.js",
         "api/contracts.js",
         "api/transport.js",
@@ -39,5 +49,10 @@
         "initialize.js"
     ],
     "bankLabel": "US Bank",
-    "offersUrl": "https://onlinebanking.usbank.com/digital/servicing/dominjection/cashback-deals"
+    "offersUrl": "https://onlinebanking.usbank.com/digital/servicing/dominjection/cashback-deals",
+    "savedResultsSource": "snapshots/saved-results.js",
+    "capabilities": {
+        "activation": true,
+        "scope": "account"
+    }
 }

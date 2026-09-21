@@ -21,16 +21,28 @@
         "persistence/workspace-records.js",
         "persistence/workspace-storage.js",
         "persistence/workspace-scope.js",
-        "persistence/workspace-ui.js"
+        "persistence/workspace-ui.js",
+        "runtime/request-scheduler.js",
+        "runtime/json-transport.js",
+        "runtime/action-runner.js",
+        "persistence/pacing-storage.js",
+        "offers/display-records.js",
+        "ui/workflow-panel.js",
+        "runtime/action-lifecycle.js"
     ],
     "sources": [
+        "snapshots/saved-results.js",
         "core/state.js",
         "core/storage.js",
         "core/workspace-fields.js",
+        "core/workspace.js",
         "api/session.js",
+        "api/request-runtime.js",
         "api/transport.js",
         "api/contracts.js",
         "workflows/runner.js",
+        "workflows/cards.js",
+        "workflows/scanning.js",
         "workflows/offers.js",
         "ui/styles.js",
         "ui/panel.js",
@@ -38,5 +50,10 @@
         "initialize.js"
     ],
     "bankLabel": "Citi",
-    "offersUrl": "https://online.citi.com/US/nga/products-offers/merchantoffers"
+    "offersUrl": "https://online.citi.com/US/nga/products-offers/merchantoffers",
+    "savedResultsSource": "snapshots/saved-results.js",
+    "capabilities": {
+        "activation": true,
+        "scope": "card"
+    }
 }

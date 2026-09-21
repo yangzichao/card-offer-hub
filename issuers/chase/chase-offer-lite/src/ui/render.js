@@ -56,7 +56,7 @@ function renderPanel() {
         const cardName = chaseCardDisplayName(card);
         checkbox.setAttribute('aria-label', `Select ${cardName}`);
         checkbox.addEventListener('change', () => setCardSelected(card.accountId, checkbox.checked));
-        label.append(checkbox, document.createTextNode(`${cardName}${card.eligible === false ? ' · Not eligible for Offers' : ''}`));
+        label.append(checkbox, document.createTextNode(`${cardName}${card.eligible === false ? ' · Detect cards to refresh' : ''}`));
         cards.appendChild(label);
     }
     renderHubWorkflow(panel, { count: state.offers.filter(offer => state.selected.has(offer.accountId) && offer.status === 'NEW').length, hasScope: state.selected.size > 0,

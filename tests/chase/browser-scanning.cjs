@@ -52,6 +52,9 @@ async function fixture(browser, mode = 'success') {
             return;
         }
         const payload = listing(accountIdentifier, [offer('a'), offer('b', 'SERVED'), offer('already', 'ACTIVATED'), offer('a')]);
+        // Both cards appear in native Offers despite absent/false shopping flags.
+        payload.digitalProfileAccounts[0].shoppingEligibilityIndicator = false;
+        delete payload.digitalProfileAccounts[1].shoppingEligibilityIndicator;
         if (new URL(request.url()).searchParams.get('source-request-component-name') === 'OVERVIEW_DASHBOARD') {
             payload.customerOffers[0].totalAvailableOfferCount = 37;
         }
@@ -88,6 +91,8 @@ async function fixture(browser, mode = 'success') {
         await page.getByRole('button', { name: 'Detect cards', exact: true }).click();
         await advanceUntil(mode === 'storage' ? /Cannot save/ : /Detected 2/);
         assert.equal(await page.getByRole('checkbox', { checked: true }).count(), 0);
+        assert.equal(await page.getByRole('checkbox', { disabled: true }).count(), mode === 'storage' ? 2 : 0,
+            'shopping flags do not block selection; storage failures still do');
         assert.equal(await page.locator('.offer').count(), 0, 'native previews never become scan results');
     }
     return { context, page, requests, errors, status, advanceUntil, captureNativeRequest };

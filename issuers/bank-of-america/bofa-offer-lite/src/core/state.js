@@ -1,4 +1,5 @@
 const SETTINGS = {
+    capabilities: __USERSCRIPT_CAPABILITIES__,
     id: __USERSCRIPT_ID__, name: __USERSCRIPT_NAME__, version: __USERSCRIPT_VERSION__,
     gapMilliseconds: 500, timeoutMilliseconds: 45000, pageSize: 24,
     defaultCooldownMilliseconds: 300000
@@ -12,9 +13,12 @@ const state = {
     panel: null, collapsed: false
 };
 function updateStatus(message) { state.status = message; renderPanel(); }
-function ensureRunning() {
+function ensurePageReady() {
     if (state.stopRequested) throw new Error('Stopped. Scan again before activating more offers.');
     if (location.origin !== 'https://deals.merchant-rewards.com') throw new Error('Open the official Deals website.');
+}
+function ensureRunning() {
+    ensurePageReady();
     if (!state.sessionToken || currentSessionToken() !== state.sessionToken) {
         throw new Error('The signed-in session changed. Scan again.');
     }

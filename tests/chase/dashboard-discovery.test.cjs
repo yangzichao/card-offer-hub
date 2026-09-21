@@ -45,6 +45,25 @@ test('Chase empty requested-card lists are accepted only for the observed homepa
     }
 });
 
+test('Chase detection refreshes legacy shopping-based blocks without opting cards in', async () => {
+    const harness = createHarness(() => jsonResponse(listing()), { seedSession: false });
+    const payload = listing();
+    payload.digitalProfileAccounts[0].shoppingEligibilityIndicator = false;
+    delete payload.digitalProfileAccounts[1].shoppingEligibilityIndicator;
+    const capture = harness.captureSessionRequest(dashboardEndpoint, 'GET', dashboardHeaders());
+    assert.equal(harness.captureSessionResponse(capture, payload), true);
+    harness.state.accounts = [{ accountId: '101', name: 'Saved card', eligible: false }];
+    await harness.detectCards();
+    assert.equal(harness.state.accounts.every(card => card.eligible), true);
+    assert.equal(harness.state.selected.size, 0);
+    assert.equal(harness.requests.length, 0);
+    harness.setCardSelected('101', true);
+    await harness.scanOffers();
+    assert.equal(harness.requests.length, 1);
+    assert.equal(harness.state.needsScan, false);
+    assert.equal(harness.state.offers.length, 1);
+});
+
 test('Chase homepage discovery rejects wrong profiles, foreign cards and ambiguous default groups', () => {
     for (const mutate of [
         payload => { payload.primaryIndividualEnterprisePartyIdentifier = '808'; },

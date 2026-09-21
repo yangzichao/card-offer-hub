@@ -9,7 +9,7 @@ const { replaceCatalog } = require('../../scripts/build/readme-catalog.cjs');
 const { REPOSITORY, publishedFileUrl, publishedUserscriptFileName } = require('../../scripts/build/repository.cjs');
 const { loadAllInOneManifest } = require('../../scripts/build/all-in-one-manifest.cjs');
 
-const { readPublishedIssuerSource } = require('../helpers/published-issuer-source.cjs');
+const { readPublishedIssuerBody } = require('../helpers/published-issuer-source.cjs');
 const scripts = loadScriptRegistry();
 const manifest = loadAllInOneManifest(scripts);
 const distDirectory = resolve(projectRoot, REPOSITORY.publishDirectory);
@@ -30,7 +30,7 @@ function metadataValues(publishedText, key) {
 
 for (const script of scripts) {
     test(`${script.id}: the shipped module matches its sources and unified version`, () => {
-        const body = readPublishedIssuerSource(script.id);
+        const body = readPublishedIssuerBody(script.id);
         assert.equal(body, bundleIssuerBody(script, manifest.version));
         assert.equal(body.match(/__USERSCRIPT_[A-Z_]+__/g), null);
         assert.ok(body.includes(`version: ${JSON.stringify(manifest.version)}`));

@@ -25,11 +25,12 @@ function renderOffers() {
 function renderPanel() {
     if (!state.panel) return;
     const panel = state.panel;
-    panel.getElementById('workspace-cache').textContent = workspaceCacheNotice();
+    const canContinue = canContinueSavedOffers();
+    panel.getElementById('workspace-cache').textContent = canContinue
+        ? `Last complete scan: ${new Date(state.lastScanAt).toLocaleString()}. Saved results restored. Continue adding, or optionally refresh all cards & offers.`
+        : workspaceCacheNotice().replace('scan again before adding', 'refresh all cards & offers before adding');
     const blocked = state.busy || Boolean(state.storageError);
-    panel.getElementById('detect').disabled = blocked;
-    panel.getElementById('scan').disabled = blocked || !state.selected.size;
-    panel.getElementById('add').disabled = blocked || !state.selected.size || state.needsScan;
+    panel.getElementById('scan').disabled = blocked;
     panel.getElementById('stop').disabled = !state.busy || state.stopRequested;
     panel.getElementById('status').textContent = state.status;
     panel.getElementById('storage-error').textContent = state.storageError;
@@ -37,6 +38,12 @@ function renderPanel() {
     panel.getElementById('counts').textContent = `${scopeOffers.length} offers · ${scopeOffers.filter(offer => offer.status === 'AVAILABLE').length} available · ${state.confirmed}/${state.total} added this run`;
     const cards = panel.getElementById('cards');
     cards.replaceChildren();
+    if (!state.accounts.length) {
+        const note = document.createElement('p');
+        note.className = 'muted';
+        note.textContent = 'Click Refresh all cards & offers to load your cards and offers together.';
+        cards.appendChild(note);
+    }
     for (const card of state.accounts) {
         const label = document.createElement('label');
         label.className = 'card';
@@ -50,8 +57,15 @@ function renderPanel() {
         cards.appendChild(label);
     }
     renderHubWorkflow(panel, { count: state.offers.filter(offer => state.selected.has(offer.accountId) && offer.status === 'AVAILABLE').length, hasScope: state.selected.size > 0,
-        needsScan: state.needsScan || !state.lastScanAt, busy: state.busy, storageError: state.storageError,
-        coolingDown: Date.now() < state.cooldownUntil, readOnly: false,
+        needsScan: (state.needsScan && !canContinue) || !state.lastScanAt, busy: state.busy, storageError: state.storageError,
+        coolingDown: Date.now() < state.cooldownUntil, readOnly: !SETTINGS.capabilities.activation,
         progress: state.activeAction === 'add' && state.total ? { completed: state.confirmed, total: state.total } : null });
+    const reason = panel.getElementById('hub-action-reason');
+    if (canContinue && !panel.getElementById('add').disabled) {
+        reason.textContent = 'Continue with your saved card choices. Add all offers checks the current login and offer status before adding what remains. Refreshing all cards is optional.';
+    } else {
+        reason.textContent = reason.textContent.replace('Scan offers in step 2', 'Refresh all cards & offers in step 2')
+            .replace('Scan again to refresh', 'Refresh all cards & offers to check for new offers');
+    }
     renderOffers();
 }

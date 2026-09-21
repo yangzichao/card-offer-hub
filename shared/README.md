@@ -1,14 +1,16 @@
-# 跨脚本共享模块
+# 公共运行核心
 
-放在这里的 `.js` 文件可以被任意 issuer 的脚本引用：在该脚本的 `userscript.json` 里把相对路径写进 `sharedModules`，构建时会按顺序拼在这个脚本自己的 `sources` 之前。
+银行清单用 `sharedModules` 声明依赖。构建器按注册顺序合并依赖，在唯一发布包的外层 IIFE 中只定义一次；每个银行仍有自己的私有 IIFE 和状态。公共模块不使用 `import` / `export`，不读取银行的 `state`、`SETTINGS` 或构建身份常量。
 
-```json
-{
-    "sharedModules": ["rate-limit/request-queue.js"],
-    "sources": ["core/state.js", "..."]
-}
-```
+## 职责
 
-约束与 `src/` 下的模块相同：不使用 `import` / `export`，顶层声明会被拼进同一个 IIFE，所以命名必须在整个包内唯一。构建时可用的常量是 `__USERSCRIPT_ID__`、`__USERSCRIPT_NAME__`、`__USERSCRIPT_VERSION__`，会被替换成引用它的那个脚本的值。
+- `runtime/`：任务生命周期、请求槽、响应完成后限速、超时、429 和错误清理。
+- `persistence/`：注入存储接口和字段规则的快照与 pacing 工厂；保留原来的键和 schema。
+- `offers/`：用于显示与搜索的公共记录，不能用来授权写请求。
+- `ui/`：样式、工作流面板、搜索/折叠绑定、操作状态；银行控件通过参数和扩展节点接入。
 
-目前还没有抽取任何共享模块。第二个脚本出现、确实有重复逻辑时再往这里搬，不要提前抽象。
+每个工厂通过参数获取状态、配置、存储及必要回调。银行的 `core/workspace.js`、`api/request-runtime.js`、`workflows/runner.js` 负责连接这些依赖。实例之间不共享可变状态。
+
+所有网络操作仍由用户点击触发。请求路径、会话检查、资格与成功确认规则归银行适配器所有；公共传输不会把 HTTP 200 或请求 acknowledgement 当作添加成功。Amex 保留自己的卡片优先级、存储格式与确认协议，共用请求调度和任务生命周期。
+
+新增公共模块必须在至少一个银行的 `sharedModules` 中登记。不要添加只有设想、尚无实际消费者的抽象。完整设计与验证边界见 [统一运行架构](../docs/unified-runtime.md)。

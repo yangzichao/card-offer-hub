@@ -9,7 +9,8 @@
 - 跨脚本代码放 `shared/`，通过清单的 `sharedModules` 引入。**等第二个脚本真的需要了再抽**，不要预先抽象。
 - 测试：`tests/<issuer>/` 放脚本回归，`tests/build/` 放构建与发布产物自身的回归。维护记录放 `docs/`。
 - 命名用描述性的长名字，文件宁可多而小，按功能分子目录（`core/` `api/` `workflows/` `ui/`）。一个文件变大之前就拆，不要等它变大。
-- `src/` 模块最后被拼进同一个 IIFE：不写 `import` / `export`，同一个 bundle 里所有顶层名字必须唯一。
+- `src/` 模块最后被拼进银行自己的 IIFE：不写 `import` / `export`。公共定义在发布包外层只输出一次，公共名字必须唯一；通过工厂显式传入银行状态、配置和回调，不能读取银行隐含全局变量。
+- 银行清单声明 `capabilities`（`activation` 布尔值与 `scope: card|account`）。离线搜索读取器通过 `savedResultsSource` 指向 `sources` 内的一个文件；只定义无副作用的 `readIssuerSavedResults(bank, readValue)`，不访问会话、不发请求。
 
 ## 发布产物
 
@@ -34,7 +35,7 @@
 ## 测试
 
 - **合成数据。** 永远不要提交账户抓包、token 或 HAR 文件。`*.har`、`work/`、`analysis/` 已在 `.gitignore` 里。
-- 单元测试跑的是**构建产物** `dist/card-offer-hub-all.user.js`，由 `tests/helpers/published-issuer-source.cjs` 提取实际发布的银行模块，再通过 `tests/<issuer>/helpers/` 里的 vm harness 载入。不要为测试另建单独版产物。harness 需要暴露新函数时改 probe 列表。
+- 单元测试跑的是**构建产物** `dist/card-offer-hub-all.user.js`，由 `tests/helpers/published-issuer-source.cjs` 提取实际发布的公共定义和银行模块，再通过 `tests/<issuer>/helpers/` 里的 vm harness 载入。不要为测试另建单独版产物。harness 需要暴露新函数时改 probe 列表。
 - vm realm 里创建的数组和宿主的原型不同，`assert.deepStrictEqual` 会报「same structure but not reference-equal」。跨 realm 比较先 `Array.from(x, fn)` 转成本地数组。
 - 浏览器回归用 Playwright + Chromium：拦截**全部**网络请求，只喂合成数据，用 `page.clock` 跑虚拟时间而不是真的等。
 - 离线回归结果不等于发卡行网站当前行为已验证。写结论时把两者分开说。

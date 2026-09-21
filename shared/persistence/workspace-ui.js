@@ -1,9 +1,9 @@
-function workspaceCacheNotice() {
+function hubWorkspaceCacheNotice(state) {
     if (!state.lastScanAt) return 'Results and selections are saved locally. Nothing runs automatically.';
     return `Last complete scan: ${new Date(state.lastScanAt).toLocaleString()}. ${state.restoredWorkspace || state.needsScan
         ? 'Saved results; scan again before adding.' : 'Results and selections saved locally.'}`;
 }
-function restoreWorkspacePanel(panel, bankName) {
+function hubRestoreWorkspacePanel(panel, bankName, state) {
     const search = panel.getElementById('search');
     if (search) search.value = state.search || '';
     panel.getElementById('body').hidden = state.collapsed;

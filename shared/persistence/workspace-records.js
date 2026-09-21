@@ -25,7 +25,7 @@ function workspaceRecord(record, fields) {
 function workspaceOfferKey(offer) {
     return JSON.stringify([offer.accountId || '', offer.offerId || offer.id]);
 }
-function validateWorkspaceSnapshot(saved) {
+function validateWorkspaceSnapshot(saved, fields) {
     if (!saved || saved.schemaVersion !== 1 || !Number.isFinite(saved.savedAt) || saved.savedAt < 0
         || !Number.isFinite(saved.lastScanAt) || saved.lastScanAt < 0
         || typeof saved.scopeIdentity !== 'string' || typeof saved.consent !== 'boolean'
@@ -33,16 +33,16 @@ function validateWorkspaceSnapshot(saved) {
         || !Array.isArray(saved.accounts) || !Array.isArray(saved.offers) || !Array.isArray(saved.selected)) {
         throw new Error('Unsupported or incomplete workspace snapshot');
     }
-    const accounts = saved.accounts.map(record => workspaceRecord(record, WORKSPACE_FIELDS.accounts));
-    const offers = saved.offers.map(record => workspaceRecord(record, WORKSPACE_FIELDS.offers));
+    const accounts = saved.accounts.map(record => workspaceRecord(record, fields.accounts));
+    const offers = saved.offers.map(record => workspaceRecord(record, fields.offers));
     const accountIds = new Set(accounts.map(account => account.accountId));
     const offerIds = new Set(offers.map(workspaceOfferKey));
     if (accountIds.size !== accounts.length || offerIds.size !== offers.length
-        || (!WORKSPACE_FIELDS.accounts && accounts.length)
-        || (WORKSPACE_FIELDS.accounts && offers.some(offer => !accountIds.has(offer.accountId)))) {
+        || (!fields.accounts && accounts.length)
+        || (fields.accounts && offers.some(offer => !accountIds.has(offer.accountId)))) {
         throw new Error('Conflicting saved records');
     }
-    const allowedSelections = WORKSPACE_FIELDS.accounts ? accountIds : new Set(offers.map(offer => offer.offerId));
+    const allowedSelections = fields.accounts ? accountIds : new Set(offers.map(offer => offer.offerId));
     if (saved.selected.some(id => typeof id !== 'string' || !allowedSelections.has(id))
         || new Set(saved.selected).size !== saved.selected.length) throw new Error('Invalid saved selections');
     return { ...saved, accounts, offers };

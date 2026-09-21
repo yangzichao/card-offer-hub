@@ -1,11 +1,12 @@
-function hubWorkflowMarkup(scopeMarkup, { bank, extraReviewMarkup = '', readOnly = false } = {}) {
+function hubWorkflowMarkup(scopeMarkup, { bank, extraReviewMarkup = '', readOnly = false,
+    scanLabel = 'Scan offers', scanDescription = 'Scan to refresh saved offers. Nothing runs until you click.' } = {}) {
     return `<div class="panel">
       <header><h2></h2><button id="collapse" aria-label="Minimize ${bank} panel" aria-expanded="true">−</button></header>
       <div id="body">
         <section class="hub-step" data-step="scope"><h3>1. Choose scope</h3>${scopeMarkup}</section>
         <section class="hub-step" data-step="scan"><h3>2. Scan offers</h3>
-          <p class="muted">Scan to refresh saved offers. Nothing runs until you click.</p>
-          <div class="actions"><button id="scan" aria-label="Scan offers">Scan offers</button><button id="stop" class="stop" aria-label="Stop">Stop</button></div>
+          <p class="muted">${scanDescription}</p>
+          <div class="actions"><button id="scan" aria-label="${scanLabel}">${scanLabel}</button><button id="stop" class="stop" aria-label="Stop">Stop</button></div>
         </section>
         <section class="hub-step" data-step="review"><h3>3. Review & add</h3>
           <input id="search" type="search" aria-label="Search saved offers" placeholder="Search saved offers">
@@ -13,7 +14,7 @@ function hubWorkflowMarkup(scopeMarkup, { bank, extraReviewMarkup = '', readOnly
           <p class="muted hub-search-rule">Search changes the list only. Add all includes offers hidden by search within your chosen scope.</p>
           <p id="counts" class="muted"></p><div class="actions"><button id="add" class="primary" aria-label="Add all offers" aria-describedby="hub-action-reason">Add all offers</button>${extraReviewMarkup}</div>
           <p id="hub-action-reason" class="hub-action-reason" role="note"></p>
-          ${readOnly ? '<p id="enrollment-notice" class="notice">Chase is read-only here. Add offers on the Chase website.</p>' : ''}
+          ${readOnly ? `<p id="enrollment-notice" class="notice">${bank} is read-only here. Add offers on the bank website.</p>` : ''}
           <div id="offers" class="offers"></div>
         </section>
         <footer><p id="workspace-cache" class="muted"></p><div id="status" role="status" aria-live="polite"></div><div id="storage-error" class="error" role="alert"></div></footer>

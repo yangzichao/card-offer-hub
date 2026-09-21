@@ -6,7 +6,7 @@
 
 <!-- published-scripts:start -->
 
-**[安装 / 更新 Card Offer Hub 1.3.1](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/card-offer-hub-all.user.js)** — 唯一安装包，包含下列 6 家银行。
+**[安装 / 更新 Card Offer Hub 1.3.3](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/card-offer-hub-all.user.js)** — 唯一安装包，包含下列 6 家银行。
 
 安装一次，按当前银行页面加载对应功能，所有银行共用一个发布版本。[使用说明](bundles/all/README.md)
 
@@ -50,10 +50,12 @@ tests/<issuer>/            # 合成数据的离线回归
 tests/build/               # 构建与发布产物自身的回归
 ```
 
+公共运行核心、存储工厂与界面只在发布包中定义一次，各银行通过独立实例接入。银行负责会话、请求与成功确认，跨银行搜索通过各自的只读快照适配器读取缓存。详见[统一运行架构](docs/unified-runtime.md)。
+
 ## 加一个银行模块
 
 1. 建 `issuers/<issuer>/<tool>/src/`，按功能拆成小文件。模块之间靠拼接后的同一作用域共享，不写 `import` / `export`。
-2. 写 `issuers/<issuer>/<tool>/userscript.json`：`id`（kebab-case，用于模块与存储隔离）、`name`、`description`、`author`、`issuer`、`matches`、`grants`，以及按拼接顺序排列的 `sources`。
+2. 写 `issuers/<issuer>/<tool>/userscript.json`：`id`（kebab-case，用于模块与存储隔离）、`name`、`description`、`author`、`issuer`、`matches`、`grants`，以及按拼接顺序排列的 `sources`。声明 `capabilities`、实际需要的 `sharedModules`，并用 `savedResultsSource` 指定已在 `sources` 登记的离线快照读取器。
 3. 银行清单不写版本号，发布时统一升版。跑 `npm run build`。`src/` 下漏登记在 `sources` 里的文件会直接让构建失败，不会被悄悄漏掉。
 4. 完成构建、检查、单元和浏览器回归；用户要求发布时提交源码和 `dist/`，推到 `main`。
 

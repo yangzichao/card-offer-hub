@@ -11,6 +11,6 @@
     "check": "node scripts/build/build-userscripts.cjs --check",
     "bump": "node scripts/build/bump-version.cjs",
     "test": "node --test tests/build/*.test.cjs tests/amex/*.test.cjs tests/citi/*.test.cjs tests/chase/*.test.cjs tests/bank-of-america/*.test.cjs tests/usbank/*.test.cjs tests/wellsfargo/*.test.cjs",
-    "test:browser": "node tests/amex/browser-smoke.cjs && node tests/amex/browser-counts.cjs && node tests/amex/browser-persistence.cjs && node tests/amex/browser-offer-persistence.cjs && node tests/citi/browser-enrollment.cjs && node tests/chase/browser-scanning.cjs && node tests/bank-of-america/browser-activation.cjs && node tests/usbank/browser-activation.cjs && node tests/wellsfargo/browser-enrollment.cjs && node tests/build/browser-all-in-one.cjs && node tests/build/browser-cross-bank-search.cjs && node tests/amex/browser-bulk-tab-switch.cjs"
+    "test:browser": "node tests/amex/browser-smoke.cjs && node tests/amex/browser-counts.cjs && node tests/amex/browser-persistence.cjs && node tests/amex/browser-offer-persistence.cjs && node tests/citi/browser-enrollment.cjs && node tests/citi/browser-refresh-continuation.cjs && node tests/chase/browser-scanning.cjs && node tests/bank-of-america/browser-activation.cjs && node tests/usbank/browser-activation.cjs && node tests/wellsfargo/browser-enrollment.cjs && node tests/build/browser-all-in-one.cjs && node tests/build/browser-cross-bank-search.cjs && node tests/amex/browser-bulk-tab-switch.cjs"
   }
 }

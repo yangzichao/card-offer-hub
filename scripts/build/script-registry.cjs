@@ -71,6 +71,7 @@ function validateSourceCoverage(manifestPath, toolDirectory, declaredSources) {
 }
 
 function validateSharedModules(manifestPath, sharedModules) {
+    if (new Set(sharedModules).size !== sharedModules.length) throw new Error(`${manifestPath}: duplicate shared module.`);
     for (const sharedModule of sharedModules) {
         if (!existsSync(join(sharedDirectory, sharedModule))) {
             throw new Error(`${manifestPath}: "sharedModules" lists shared/${sharedModule}, which does not exist.`);
@@ -95,6 +96,14 @@ function readScriptManifest(toolDirectory) {
     const sharedModules = requireStringArray(manifestPath, manifest, 'sharedModules', { allowEmpty: true });
     validateSourceCoverage(manifestPath, toolDirectory, sources);
     validateSharedModules(manifestPath, sharedModules);
+    const savedResultsSource = manifest.savedResultsSource || null;
+    if (savedResultsSource && !sources.includes(savedResultsSource)) {
+        throw new Error(`${manifestPath}: savedResultsSource must be listed in sources.`);
+    }
+    const capabilities = manifest.capabilities || null;
+    if (capabilities && (typeof capabilities.activation !== 'boolean' || !['card', 'account'].includes(capabilities.scope))) {
+        throw new Error(`${manifestPath}: capabilities must declare activation and card/account scope.`);
+    }
     return {
         id: identifier,
         name: requireString(manifestPath, manifest, 'name'),
@@ -109,6 +118,8 @@ function readScriptManifest(toolDirectory) {
         runAt: manifest.runAt ?? 'document-idle',
         noFrames: manifest.noFrames !== false,
         sharedModules,
+        savedResultsSource,
+        capabilities,
         sources,
         manifestPath,
         toolDirectory,

@@ -2,15 +2,16 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createHarness, jsonResponse, offer, listing, confirmation, selectCards } = require('./helpers/userscript-harness.cjs');
 
-test('discovery is manual, never auto-selects cards or assigns default-card offers', async () => {
-    const harness = createHarness(() => jsonResponse(listing([offer('default-only')], [{ accountId: 'a', displayProductName: 'Example Card' }])));
+test('refresh is manual and scans every card without selecting or enrolling it', async () => {
+    const harness = createHarness(request => jsonResponse(listing([offer(request.body.accountId ? 'card-offer' : 'default-only')], [{ accountId: 'a', displayProductName: 'Example Card' }])));
     assert.equal(harness.requests.length, 0);
-    await harness.detectCards();
+    await harness.refreshAllCardsAndOffers();
     assert.equal(harness.state.accounts.length, 1);
     assert.equal(harness.state.selected.size, 0);
-    assert.equal(harness.state.offers.length, 0);
+    assert.deepEqual(Array.from(harness.state.offers, item => item.offerId), ['card-offer']);
     await harness.addAllOffers();
-    assert.equal(harness.requests.length, 1);
+    assert.equal(harness.requests.length, 2);
+    assert.deepEqual(harness.requests.map(request => request.body), [{}, { accountId: 'a' }]);
 });
 
 test('one click scans selected cards and serially enrolls the same offer on each card', async () => {
@@ -48,11 +49,11 @@ test('unconfirmed enrollment stops the queue; only a new scan unlocks adding', a
 
 test('429 cooldown persists across reload and does not retry', async () => {
     const harness = createHarness(() => jsonResponse({}, 429, '600'));
-    await harness.detectCards();
+    await harness.refreshAllCardsAndOffers();
     const cooldown = harness.state.cooldownUntil;
     assert.equal(harness.requests.length, 1);
     const reloaded = createHarness(() => { throw new Error('must not fetch'); }, { storage: harness.storage });
-    await reloaded.detectCards();
+    await reloaded.refreshAllCardsAndOffers();
     assert.equal(reloaded.requests.length, 0);
     assert.equal(reloaded.state.cooldownUntil, cooldown);
     assert.match(reloaded.state.status, /Rate limited/);
@@ -101,7 +102,7 @@ test('storage failure and another tab lock both block further requests', async (
     assert.equal(harness.requests.length, 0, 'failed pacing checkpoint must prevent even the first request');
     assert.match(harness.state.storageError, /Cannot save/);
     const locked = createHarness(() => jsonResponse(listing()), { locked: true });
-    await locked.detectCards();
+    await locked.refreshAllCardsAndOffers();
     assert.equal(locked.requests.length, 0);
     assert.match(locked.state.status, /another tab/);
 });
@@ -111,7 +112,7 @@ test('cooldown never gets shortened by restore or a shorter Retry-After', async 
         access.state.cooldownUntil = access.state.nextRequestAt + 900000;
         return jsonResponse({}, 429, '1');
     });
-    await harness.detectCards();
+    await harness.refreshAllCardsAndOffers();
     const longerCooldown = harness.state.cooldownUntil;
     harness.storage.set('citi-offer-lite:pacing', { schemaVersion: 1, cooldownUntil: 1, nextRequestAt: 1 });
     harness.restorePacing();

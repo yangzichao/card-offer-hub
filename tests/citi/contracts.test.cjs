@@ -64,7 +64,7 @@ test('unknown storage schema is preserved and prevents requests', async () => {
     const saved = { schemaVersion: 999, cooldownUntil: 0, nextRequestAt: 0 };
     const storage = new Map([['citi-offer-lite:pacing', saved]]);
     const harness = createHarness(() => { throw new Error('must not fetch'); }, { storage });
-    await harness.detectCards();
+    await harness.refreshAllCardsAndOffers();
     assert.equal(harness.requests.length, 0);
     assert.match(harness.state.storageError, /storage/);
     assert.deepEqual(storage.get('citi-offer-lite:pacing'), saved);

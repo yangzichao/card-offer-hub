@@ -13,6 +13,7 @@ function buildConstants(script, releaseVersion) {
     return {
         __USERSCRIPT_ID__: script.id,
         __USERSCRIPT_NAME__: script.name,
+        __USERSCRIPT_CAPABILITIES__: script.capabilities,
         __USERSCRIPT_VERSION__: releaseVersion
     };
 }
@@ -41,9 +42,7 @@ function readBundleSection(absolutePath, sourceLabel, constants) {
 function bundleIssuerBody(script, releaseVersion) {
     const constants = buildConstants(script, releaseVersion);
     const sections = [
-        ...script.sharedModules.map((sharedModule) =>
-            readBundleSection(join(sharedDirectory, sharedModule), `shared/${sharedModule}`, constants)),
-        ...script.sources.map((source) =>
+        ...script.sources.filter(source => source !== script.savedResultsSource).map((source) =>
             readBundleSection(join(script.toolDirectory, 'src', source), source, constants))
     ];
     const publishedText = `(function () {\n    'use strict';\n\n${sections.join('\n\n')}\n})();\n`;
@@ -53,4 +52,19 @@ function bundleIssuerBody(script, releaseVersion) {
     return publishedText;
 }
 
-module.exports = { bundleIssuerBody, buildConstants, BUNDLE_INDENT };
+function bundleSharedRuntime(scripts) {
+    const sharedModules = [...new Set(scripts.flatMap(script => script.sharedModules))];
+    // No issuer identity or mutable issuer state may be captured in this scope.
+    const sections = sharedModules.map(source => readBundleSection(join(sharedDirectory, source), `shared/${source}`, {}));
+    const output = sections.join('\n\n');
+    new Script(output, { filename: 'shared-runtime.js' });
+    return output;
+}
+
+function bundleSavedResultsReader(script, releaseVersion) {
+    const source = readBundleSection(join(script.toolDirectory, 'src', script.savedResultsSource),
+        `${script.issuer}/${script.savedResultsSource}`, buildConstants(script, releaseVersion));
+    return `(function () {\n${source}\nreturn readIssuerSavedResults;\n})()`;
+}
+
+module.exports = { bundleIssuerBody, bundleSharedRuntime, bundleSavedResultsReader, buildConstants, BUNDLE_INDENT };

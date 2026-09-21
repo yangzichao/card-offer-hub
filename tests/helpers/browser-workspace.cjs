@@ -30,7 +30,8 @@ async function verifyWorkspaceReload({ page, script, id, bank, requests, activat
         assert.equal(await search.inputValue(), 'saved query');
         await search.fill('');
     }
-    assert.equal(await page.locator('.offer').count(), before.offers.length);
+    const visibleOffers = before.accounts.length ? before.offers.filter(offer => selectedBefore.includes(offer.accountId)) : before.offers;
+    assert.equal(await page.locator('.offer').count(), visibleOffers.length);
     const expectedChecked = selectedBefore.length + Number(before.consent);
     assert.equal(await page.getByRole('checkbox', { checked: true }).count(), expectedChecked);
     // An actual UI deselection must survive another restoration too.
