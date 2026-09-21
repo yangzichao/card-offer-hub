@@ -54,6 +54,7 @@
         "workflows/card-reconciliation.js",
         "workflows/cards.js",
         "workflows/scanning.js",
+        "workflows/enrollment-attempt.js",
         "workflows/offers.js",
         "workflows/saved-offer-recovery.js",
         "workflows/saved-offers.js",

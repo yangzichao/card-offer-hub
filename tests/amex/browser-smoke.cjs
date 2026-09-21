@@ -60,6 +60,8 @@ async function run() {
         await page.clock.runFor(5000);
         assert.equal(requests.length, 0, 'page load and UI timers must not call APIs');
         await page.getByRole('button', { name: 'Detect cards', exact: true }).click();
+        // Card discovery finishes asynchronously after the click handler returns.
+        await page.getByRole('checkbox', { name: /Whitelist Platinum/ }).waitFor();
         assert.equal(await page.getByRole('checkbox').count(), 2);
         assert.equal(await page.getByRole('button', { name: 'Detect cards', exact: true }).isDisabled(), true);
         assert.equal(await page.getByRole('button', { name: 'Scan offers', exact: true }).isDisabled(), true);

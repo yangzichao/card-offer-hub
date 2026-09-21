@@ -14,8 +14,15 @@ async function hubSendJsonRequest({ url, options, timeoutMilliseconds, label, on
         // Body consumption is part of the request, including HTTP error bodies.
         const responseText = await response.text();
         if (persistenceError) throw persistenceError;
-        if (response.status === 429) throw new Error(`${label} returned HTTP 429. Cooling down; scan again later.`);
-        if (!response.ok) throw new Error(`${label} returned HTTP ${response.status}. Sign in and scan again.`);
+        if (!response.ok) {
+            const guidance = response.status === 429 ? 'Cooling down; scan again later.'
+                : [401, 403].includes(response.status) ? 'Sign in and scan again.'
+                : 'Check the status before continuing.';
+            const error = new Error(`${label} returned HTTP ${response.status}. ${guidance}`);
+            error.name = 'HubHttpError';
+            error.httpStatus = response.status;
+            throw error;
+        }
         // Acknowledgement only: callers must verify the actual result separately.
         if (allowEmptyResponse && response.status === 200 && responseText === '') return null;
         try { return JSON.parse(responseText); }

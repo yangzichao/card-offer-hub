@@ -60,8 +60,8 @@ test('429 cooldown persists across reload and does not retry', async () => {
     assert.match(reloaded.state.status, /Rate limited/);
 });
 
-test('HTTP/auth failures halt without replaying enrollments', async () => {
-    for (const status of [401, 403, 500]) {
+test('HTTP client/auth failures halt without replaying enrollments', async () => {
+    for (const status of [400, 401, 403, 404]) {
         const harness = createHarness(request => request.url.endsWith('/retrieve') ? jsonResponse(availableListing()) : jsonResponse({}, status));
         seedSavedOffers(harness);
         await harness.addSavedOffers();

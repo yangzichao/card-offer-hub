@@ -54,6 +54,11 @@ async function fixture(browser, mode = 'success') {
             }
             if (enrollment) {
                 await bankState.beforeEnrollmentResponse?.(record);
+                if (bankState.mode === 'server-error' || bankState.mode === 'server-error-once') {
+                    if (bankState.mode === 'server-error-once') bankState.mode = 'success';
+                    await route.fulfill({ status: 500, contentType: 'application/json', body: '{}' });
+                    return;
+                }
                 const unconfirmed = bankState.mode === 'unconfirmed' || bankState.mode === 'unconfirmed-once';
                 payload = unconfirmed ? {} : confirmation(record);
                 if (bankState.mode === 'unconfirmed-once') bankState.mode = 'success';

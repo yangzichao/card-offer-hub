@@ -1,7 +1,7 @@
 @citi @browser @recovery
 Feature: Isolate unresolved Citi offers and continue the rest
   Unknown outcomes must never auto-retry or prevent unrelated offers from adding.
-  Transport failures and rate limits still stop the batch.
+  Authentication failures, network failures and rate limits still stop the batch.
 
   Background:
     Given a synthetic Citi page with the published userscript

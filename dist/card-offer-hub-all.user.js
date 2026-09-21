@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Card Offer Hub — All Banks
 // @namespace    https://github.com/yangzichao/card-offer-hub
-// @version      1.6.2
+// @version      1.6.3
 // @description  All six Card Offer Hub tools in one install; manual scanning and activation on the matching bank website
 // @author       Zichao Yang
 // @match        https://*.americanexpress.com/*
@@ -831,8 +831,15 @@
             // Body consumption is part of the request, including HTTP error bodies.
             const responseText = await response.text();
             if (persistenceError) throw persistenceError;
-            if (response.status === 429) throw new Error(`${label} returned HTTP 429. Cooling down; scan again later.`);
-            if (!response.ok) throw new Error(`${label} returned HTTP ${response.status}. Sign in and scan again.`);
+            if (!response.ok) {
+                const guidance = response.status === 429 ? 'Cooling down; scan again later.'
+                    : [401, 403].includes(response.status) ? 'Sign in and scan again.'
+                    : 'Check the status before continuing.';
+                const error = new Error(`${label} returned HTTP ${response.status}. ${guidance}`);
+                error.name = 'HubHttpError';
+                error.httpStatus = response.status;
+                throw error;
+            }
             // Acknowledgement only: callers must verify the actual result separately.
             if (allowEmptyResponse && response.status === 200 && responseText === '') return null;
             try { return JSON.parse(responseText); }
@@ -1364,14 +1371,14 @@ function dispatchIssuer(configuration, startIssuer) {
 }
 
 // --- Issuer dispatches ---
-dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://global.americanexpress.com/offers","version":"1.6.2","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*americanexpress\\.com/.*$"],"patterns":["^https://global\\.americanexpress\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://global.americanexpress.com/offers","version":"1.6.3","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*americanexpress\\.com/.*$"],"patterns":["^https://global\\.americanexpress\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: amex-offer-lite ---
 (function () {
     'use strict';
 
     // Source: core/state.js
     const SETTINGS = Object.freeze({
-        version: "1.6.2", capabilities: {"activation":true,"scope":"card"}, workflow: "amex-combination",
+        version: "1.6.3", capabilities: {"activation":true,"scope":"card"}, workflow: "amex-combination",
         requestGapMs: 500,
         rateLimitCooldownMs: 120000,
         requestTimeoutMs: 30000,
@@ -2591,7 +2598,7 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
 // --- End issuer body: amex-offer-lite ---
 });
 
-dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"https://deals.merchant-rewards.com/","version":"1.6.2","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*bankofamerica\\.com/.*$","^https://deals\\.merchant-rewards\\.com/.*$"],"patterns":["^https://deals\\.merchant-rewards\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"https://deals.merchant-rewards.com/","version":"1.6.3","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*bankofamerica\\.com/.*$","^https://deals\\.merchant-rewards\\.com/.*$"],"patterns":["^https://deals\\.merchant-rewards\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: bofa-offer-lite ---
 (function () {
     'use strict';
@@ -2599,7 +2606,7 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "bofa-offer-lite", name: "BankAmeriDeals Lite", version: "1.6.2",
+        id: "bofa-offer-lite", name: "BankAmeriDeals Lite", version: "1.6.3",
         gapMilliseconds: 500, timeoutMilliseconds: 45000, pageSize: 24,
         defaultCooldownMilliseconds: 300000
     };
@@ -2901,7 +2908,7 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
 // --- End issuer body: bofa-offer-lite ---
 });
 
-dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://secure.chase.com/web/auth/dashboard","version":"1.6.2","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*chase\\.com/.*$"],"patterns":["^https://secure\\.chase\\.com/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://secure.chase.com/web/auth/dashboard","version":"1.6.3","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*chase\\.com/.*$"],"patterns":["^https://secure\\.chase\\.com/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: chase-offer-lite ---
 (function () {
     'use strict';
@@ -2909,7 +2916,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"card"}, workflow: "per-card",
-        id: "chase-offer-lite", name: "Chase Offer Lite", version: "1.6.2",
+        id: "chase-offer-lite", name: "Chase Offer Lite", version: "1.6.3",
         gapMilliseconds: 500, timeoutMilliseconds: 45000,
         defaultCooldownMilliseconds: 300000
     };
@@ -3683,7 +3690,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
 // --- End issuer body: chase-offer-lite ---
 });
 
-dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://online.citi.com/US/nga/products-offers/merchantoffers","version":"1.6.2","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*citi\\.com/.*$"],"patterns":["^https://online\\.citi\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://online.citi.com/US/nga/products-offers/merchantoffers","version":"1.6.3","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*citi\\.com/.*$"],"patterns":["^https://online\\.citi\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: citi-offer-lite ---
 (function () {
     'use strict';
@@ -3691,7 +3698,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"card"}, workflow: "per-card",
-        id: "citi-offer-lite", name: "Citi Offer Lite", version: "1.6.2",
+        id: "citi-offer-lite", name: "Citi Offer Lite", version: "1.6.3",
         apiBase: '/gcgapi/prod/public/v1',
         retrievePath: '/digital/customers/creditCards/merchantOffers/retrieve',
         enrollmentPath: '/digital/customers/creditCards/accounts/rewards/specialOffers/enrollMerchantOffer',
@@ -4002,6 +4009,27 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
         });
     }
 
+    // Source: workflows/enrollment-attempt.js
+    async function attemptCitiEnrollment(offer) {
+        offerWorkflow.assertAction(offer);
+        markWorkspaceOfferPending(offer);
+        let serverErrorStatus = null;
+        let payload;
+        try {
+            payload = await requestJson(SETTINGS.enrollmentPath, enrollmentBody(offer));
+        } catch (error) {
+            // Only a completed HTTP server-error response can be isolated here.
+            // Auth, rate limits, network errors, Stop and persistence failures still propagate.
+            if (error.name !== 'HubHttpError' || !Number.isInteger(error.httpStatus) || error.httpStatus < 500 || error.httpStatus > 599) throw error;
+            serverErrorStatus = error.httpStatus;
+        }
+        const confirmed = serverErrorStatus === null && enrollmentConfirmed(payload, offer);
+        offer.status = confirmed ? 'ENROLLED' : 'UNCONFIRMED';
+        // Checkpoint every unknown result before sending another offer. Never replay it.
+        finishWorkspaceOffer(offer);
+        return { confirmed, serverErrorStatus };
+    }
+
     // Source: workflows/offers.js
     async function enrollPlannedOffers() {
         ensureRunning();
@@ -4010,33 +4038,30 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
         state.completed = 0;
         state.total = queue.length;
         let unconfirmed = 0;
+        let serverErrors = 0;
+        let consecutiveServerErrors = 0;
         for (const offer of queue) {
             ensureRunning();
-            updateStatus(`Adding ${state.completed + 1}/${state.total}: ${offer.merchant}…`);
+            updateStatus(`Adding ${state.completed + 1}/${state.total}: ${offer.merchant}…${unconfirmed ? ` ${unconfirmed} unconfirmed offer(s) skipped; continuing with the rest.` : ''}`);
             // A stop while waiting has not sent this offer. Keep it available, not unconfirmed.
             await waitForRequestSlot();
             try {
-                offerWorkflow.assertAction(offer);
-                markWorkspaceOfferPending(offer);
-                const payload = await requestJson(SETTINGS.enrollmentPath, enrollmentBody(offer));
-                if (enrollmentConfirmed(payload, offer)) {
-                    offer.status = 'ENROLLED';
-                    state.confirmed++;
-                } else {
-                    // Isolate this result. Other AVAILABLE offers can proceed without replaying it.
-                    offer.status = 'UNCONFIRMED';
-                    unconfirmed++;
-                }
+                const result = await attemptCitiEnrollment(offer);
+                if (result.confirmed) state.confirmed++; else unconfirmed++;
+                if (result.serverErrorStatus !== null) serverErrors++;
+                consecutiveServerErrors = result.serverErrorStatus === null ? 0 : consecutiveServerErrors + 1;
                 state.completed++;
-                finishWorkspaceOffer(offer);
                 renderPanel();
+                if (consecutiveServerErrors >= 3 && state.completed < state.total) {
+                    throw new Error(`Paused: Citi returned server errors for 3 offers in a row (latest HTTP ${result.serverErrorStatus}). ${state.confirmed} added; ${unconfirmed} unconfirmed; ${state.total - state.completed} not attempted. Progress saved. Use Add saved offers to continue later; unconfirmed offers will be skipped.`);
+                }
             } catch (error) {
                 if (offer.status !== 'ENROLLED') offer.status = 'UNCONFIRMED';
                 throw error;
             }
         }
         ensureRunning();
-        updateStatus(state.total ? `Finished: ${state.confirmed}/${state.total} offers added.${unconfirmed ? ` ${unconfirmed} unconfirmed offer(s) skipped; refresh to check their status.` : ''}` : 'Up to date. No new offers to add to your selected cards.');
+        updateStatus(state.total ? `Finished: ${state.confirmed}/${state.total} offers added.${unconfirmed ? ` ${unconfirmed} unconfirmed offer(s) skipped; refresh to check their status.` : ''}${serverErrors ? ` Citi returned server errors for ${serverErrors} offer(s); none were retried.` : ''}` : 'Up to date. No new offers to add to your selected cards.');
     }
 
     // Source: workflows/saved-offer-recovery.js
@@ -4097,7 +4122,9 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
     }
 
     // Source: ui/styles.js
-    const PANEL_STYLES = HUB_DESIGN_STYLES;
+    const PANEL_STYLES = HUB_DESIGN_STYLES + `
+        #status:not(:empty), #storage-error:not(:empty) { margin: 12px 0; }
+    `;
 
     // Source: ui/panel.js
     function mountPanel() {
@@ -4112,6 +4139,9 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
         });
         document.body.appendChild(host);
         state.panel = panel;
+        // Progress and failures must remain next to the actions, above long offer lists.
+        const actions = panel.querySelector('.hub-primary-actions');
+        actions.after(panel.getElementById('status'), panel.getElementById('storage-error'));
         panel.querySelector('.hub-search-rule').textContent = 'Both actions add across your selected cards, including offers hidden by search.';
         renderPanel();
     }
@@ -4227,7 +4257,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
 // --- End issuer body: citi-offer-lite ---
 });
 
-dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://onlinebanking.usbank.com/digital/servicing/dominjection/cashback-deals","version":"1.6.2","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*usbank\\.com/.*$"],"patterns":["^https://onlinebanking\\.usbank\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://onlinebanking.usbank.com/digital/servicing/dominjection/cashback-deals","version":"1.6.3","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*usbank\\.com/.*$"],"patterns":["^https://onlinebanking\\.usbank\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: usbank-offer-lite ---
 (function () {
     'use strict';
@@ -4235,7 +4265,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "usbank-offer-lite", name: "US Bank Offer Lite", version: "1.6.2",
+        id: "usbank-offer-lite", name: "US Bank Offer Lite", version: "1.6.3",
         endpoint: '/digital/api/customer-management/graphql/v2',
         gapMilliseconds: 500, timeoutMilliseconds: 45000,
         defaultCooldownMilliseconds: 300000
@@ -4632,7 +4662,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
 // --- End issuer body: usbank-offer-lite ---
 });
 
-dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"https://web.secure.wellsfargo.com/auth/deals-portal","version":"1.6.2","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*wellsfargo\\.com/.*$"],"patterns":["^https://web\\.secure\\.wellsfargo\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"https://web.secure.wellsfargo.com/auth/deals-portal","version":"1.6.3","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*wellsfargo\\.com/.*$"],"patterns":["^https://web\\.secure\\.wellsfargo\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: wellsfargo-offer-lite ---
 (function () {
     'use strict';
@@ -4640,7 +4670,7 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "wellsfargo-offer-lite", name: "Wells Fargo Offer Lite", version: "1.6.2",
+        id: "wellsfargo-offer-lite", name: "Wells Fargo Offer Lite", version: "1.6.3",
         retrievePath: '/deals-portal/as/getDeals', enrollmentPath: '/deals-portal/as/activateCLDeal',
         gapMilliseconds: 500, timeoutMilliseconds: 45000, defaultCooldownMilliseconds: 300000
     };
