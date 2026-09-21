@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Card Offer Hub — All Banks
 // @namespace    https://github.com/yangzichao/card-offer-hub
-// @version      1.5.1
+// @version      1.5.2
 // @description  All six Card Offer Hub tools in one install; manual scanning and activation on the matching bank website
 // @author       Zichao Yang
 // @match        https://*.americanexpress.com/*
@@ -34,6 +34,7 @@
     .panel{width:min(464px,calc(100vw - 24px));max-height:88vh;max-height:88dvh;overflow:auto;background:#fff;border:1px solid var(--hub-line);border-radius:var(--hub-radius);box-shadow:0 16px 60px #21392d20}
     header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;border-bottom:1px solid var(--hub-line);background:#fff}
     .hub-heading{min-width:0;flex:1}.hub-eyebrow{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--hub-accent);font-weight:750;margin-bottom:3px}.hub-version{font-size:10px;color:var(--hub-muted);font-variant-numeric:tabular-nums}
+    .hub-release{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:6px}.hub-update{display:inline-flex;align-items:center;min-height:28px;padding:2px 8px;border:1px solid var(--hub-line);border-radius:6px;font-size:11px;font-weight:550;text-decoration:none}.hub-update:hover{background:var(--hub-tint);border-color:#a8c6b9}
     h2{font-size:18px;line-height:1.3;letter-spacing:-.035em;margin:0;font-weight:650}h3{font-size:12px;margin:0 0 8px;font-weight:650}p{margin:6px 0}
     section,main{padding:16px 20px;border-bottom:1px solid var(--hub-line)}footer,.status{padding:14px 20px;background:var(--hub-canvas);overflow-wrap:anywhere}.muted,.card-report,.logs{color:var(--hub-muted);font-size:12px}.error,.storage-error{color:#a33232}.notice{border-left:3px solid #a2b9ac;background:var(--hub-canvas);padding:10px 12px}
     button,input,select{font:inherit}button,select{border:1px solid var(--hub-line);border-radius:9px;color:var(--hub-ink);background:#fff;padding:8px 12px;min-height:36px}button{cursor:pointer;font-weight:550}button:not(:disabled):hover{background:var(--hub-tint);border-color:#a8c6b9}button.primary{background:var(--hub-accent);color:#fff;border-color:var(--hub-accent)}button.primary:not(:disabled):hover{background:#10523f}button:disabled{opacity:.45;cursor:not-allowed}button.stop{color:#a33232}button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #79ad99;outline-offset:3px}
@@ -58,7 +59,19 @@
         const release = document.createElement('span');
         release.className = 'hub-version';
         release.textContent = `v${version}`;
-        heading.append(release);
+        const update = document.createElement('a');
+        update.className = 'hub-update';
+        update.textContent = 'Update';
+        update.href = "https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/card-offer-hub-all.user.js";
+        update.target = '_blank';
+        update.rel = 'noopener noreferrer';
+        update.referrerPolicy = 'no-referrer';
+        update.setAttribute('aria-label', 'Update Card Offer Hub');
+        update.title = 'Open the latest installer in a new tab. After updating, reload this bank page.';
+        const releaseRow = document.createElement('div');
+        releaseRow.className = 'hub-release';
+        releaseRow.append(release, update);
+        heading.append(releaseRow);
     }
 
     // Source: shared/ui/workflow-layout.js
@@ -1327,14 +1340,14 @@ function dispatchIssuer(configuration, startIssuer) {
 }
 
 // --- Issuer dispatches ---
-dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://global.americanexpress.com/offers","version":"1.5.1","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*americanexpress\\.com/.*$"],"patterns":["^https://global\\.americanexpress\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://global.americanexpress.com/offers","version":"1.5.2","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*americanexpress\\.com/.*$"],"patterns":["^https://global\\.americanexpress\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: amex-offer-lite ---
 (function () {
     'use strict';
 
     // Source: core/state.js
     const SETTINGS = Object.freeze({
-        version: "1.5.1", capabilities: {"activation":true,"scope":"card"}, workflow: "amex-combination",
+        version: "1.5.2", capabilities: {"activation":true,"scope":"card"}, workflow: "amex-combination",
         requestGapMs: 500,
         rateLimitCooldownMs: 120000,
         requestTimeoutMs: 30000,
@@ -2554,7 +2567,7 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
 // --- End issuer body: amex-offer-lite ---
 });
 
-dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"https://deals.merchant-rewards.com/","version":"1.5.1","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*bankofamerica\\.com/.*$","^https://deals\\.merchant-rewards\\.com/.*$"],"patterns":["^https://deals\\.merchant-rewards\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"https://deals.merchant-rewards.com/","version":"1.5.2","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*bankofamerica\\.com/.*$","^https://deals\\.merchant-rewards\\.com/.*$"],"patterns":["^https://deals\\.merchant-rewards\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: bofa-offer-lite ---
 (function () {
     'use strict';
@@ -2562,7 +2575,7 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "bofa-offer-lite", name: "BankAmeriDeals Lite", version: "1.5.1",
+        id: "bofa-offer-lite", name: "BankAmeriDeals Lite", version: "1.5.2",
         gapMilliseconds: 500, timeoutMilliseconds: 45000, pageSize: 24,
         defaultCooldownMilliseconds: 300000
     };
@@ -2864,7 +2877,7 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
 // --- End issuer body: bofa-offer-lite ---
 });
 
-dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://secure.chase.com/web/auth/dashboard","version":"1.5.1","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*chase\\.com/.*$"],"patterns":["^https://secure\\.chase\\.com/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://secure.chase.com/web/auth/dashboard","version":"1.5.2","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*chase\\.com/.*$"],"patterns":["^https://secure\\.chase\\.com/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: chase-offer-lite ---
 (function () {
     'use strict';
@@ -2872,7 +2885,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":false,"scope":"card"}, workflow: "per-card",
-        id: "chase-offer-lite", name: "Chase Offer Lite", version: "1.5.1",
+        id: "chase-offer-lite", name: "Chase Offer Lite", version: "1.5.2",
         gapMilliseconds: 500, timeoutMilliseconds: 45000,
         defaultCooldownMilliseconds: 300000
     };
@@ -3376,7 +3389,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
 // --- End issuer body: chase-offer-lite ---
 });
 
-dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://online.citi.com/US/nga/products-offers/merchantoffers","version":"1.5.1","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*citi\\.com/.*$"],"patterns":["^https://online\\.citi\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://online.citi.com/US/nga/products-offers/merchantoffers","version":"1.5.2","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*citi\\.com/.*$"],"patterns":["^https://online\\.citi\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: citi-offer-lite ---
 (function () {
     'use strict';
@@ -3384,7 +3397,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"card"}, workflow: "per-card",
-        id: "citi-offer-lite", name: "Citi Offer Lite", version: "1.5.1",
+        id: "citi-offer-lite", name: "Citi Offer Lite", version: "1.5.2",
         apiBase: '/gcgapi/prod/public/v1',
         retrievePath: '/digital/customers/creditCards/merchantOffers/retrieve',
         enrollmentPath: '/digital/customers/creditCards/accounts/rewards/specialOffers/enrollMerchantOffer',
@@ -3846,7 +3859,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
 // --- End issuer body: citi-offer-lite ---
 });
 
-dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://onlinebanking.usbank.com/digital/servicing/dominjection/cashback-deals","version":"1.5.1","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*usbank\\.com/.*$"],"patterns":["^https://onlinebanking\\.usbank\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://onlinebanking.usbank.com/digital/servicing/dominjection/cashback-deals","version":"1.5.2","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*usbank\\.com/.*$"],"patterns":["^https://onlinebanking\\.usbank\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: usbank-offer-lite ---
 (function () {
     'use strict';
@@ -3854,7 +3867,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "usbank-offer-lite", name: "US Bank Offer Lite", version: "1.5.1",
+        id: "usbank-offer-lite", name: "US Bank Offer Lite", version: "1.5.2",
         endpoint: '/digital/api/customer-management/graphql/v2',
         gapMilliseconds: 500, timeoutMilliseconds: 45000,
         defaultCooldownMilliseconds: 300000
@@ -4251,7 +4264,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
 // --- End issuer body: usbank-offer-lite ---
 });
 
-dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"https://web.secure.wellsfargo.com/auth/deals-portal","version":"1.5.1","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*wellsfargo\\.com/.*$"],"patterns":["^https://web\\.secure\\.wellsfargo\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"https://web.secure.wellsfargo.com/auth/deals-portal","version":"1.5.2","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*wellsfargo\\.com/.*$"],"patterns":["^https://web\\.secure\\.wellsfargo\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: wellsfargo-offer-lite ---
 (function () {
     'use strict';
@@ -4259,7 +4272,7 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "wellsfargo-offer-lite", name: "Wells Fargo Offer Lite", version: "1.5.1",
+        id: "wellsfargo-offer-lite", name: "Wells Fargo Offer Lite", version: "1.5.2",
         retrievePath: '/deals-portal/as/getDeals', enrollmentPath: '/deals-portal/as/activateCLDeal',
         gapMilliseconds: 500, timeoutMilliseconds: 45000, defaultCooldownMilliseconds: 300000
     };

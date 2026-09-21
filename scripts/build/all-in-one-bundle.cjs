@@ -9,7 +9,7 @@ const { matchPatternExpression } = require('./match-patterns.cjs');
 function buildAllInOneBundle(scripts) {
     const manifest = loadAllInOneManifest(scripts);
     const runtimeSource = manifest.sources.map(source => readFileSync(join(allInOneDirectory, 'src', source), 'utf8').trim()).join('\n\n');
-    const sharedSource = bundleSharedRuntime(scripts);
+    const sharedSource = bundleSharedRuntime(scripts, manifest);
     const banks = scripts.map(script => {
         const url = script.offersUrl;
         const pageUrl = new URL(url).href.split('#')[0];

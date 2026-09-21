@@ -3,6 +3,7 @@ const { join } = require('node:path');
 const { Script } = require('node:vm');
 const { sharedDirectory } = require('./script-registry.cjs');
 const { bundleWorkflowRegistry } = require('./workflow-registry.cjs');
+const { publishedFileUrl, publishedUserscriptFileName } = require('./repository.cjs');
 
 const BUNDLE_INDENT = '    ';
 const BUILD_CONSTANT_PATTERN = /__USERSCRIPT_[A-Z_]+__/g;
@@ -54,10 +55,13 @@ function bundleIssuerBody(script, releaseVersion) {
     return publishedText;
 }
 
-function bundleSharedRuntime(scripts) {
+function bundleSharedRuntime(scripts, releaseManifest) {
     const sharedModules = [...new Set(scripts.flatMap(script => script.sharedModules))];
-    // No issuer identity or mutable issuer state may be captured in this scope.
-    const sections = sharedModules.map(source => readBundleSection(join(sharedDirectory, source), `shared/${source}`, {}));
+    // Only immutable release metadata is shared; no issuer identity or mutable state.
+    const constants = {
+        __USERSCRIPT_DOWNLOAD_URL__: publishedFileUrl(publishedUserscriptFileName(releaseManifest.id))
+    };
+    const sections = sharedModules.map(source => readBundleSection(join(sharedDirectory, source), `shared/${source}`, constants));
     const output = sections.join('\n\n') + '\n' + bundleWorkflowRegistry(scripts);
     new Script(output, { filename: 'shared-runtime.js' });
     return output;

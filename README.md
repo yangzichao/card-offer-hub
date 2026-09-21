@@ -6,7 +6,7 @@
 
 <!-- published-scripts:start -->
 
-**[安装 / 更新 Card Offer Hub 1.5.1](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/card-offer-hub-all.user.js)** — 唯一安装包，包含下列 6 家银行。
+**[安装 / 更新 Card Offer Hub 1.5.2](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/card-offer-hub-all.user.js)** — 唯一安装包，包含下列 6 家银行。
 
 安装一次，覆盖银行主域名和所有子域名；网银显示操作面板，其他页面提供 Offers 入口和缓存搜索。所有银行共用一个发布版本。[地址匹配说明](docs/website-matching.md)
 
@@ -37,7 +37,7 @@
 
 1. 安装 [Tampermonkey](https://www.tampermonkey.net/)。
 2. 点上面的 **安装 / 更新 Card Offer Hub**，在 Tampermonkey 安装页确认一次，然后刷新银行页面。
-3. 之后不用再管。唯一发布文件的 metadata 里带 `@updateURL` 和 `@downloadURL`，Tampermonkey 按自己的周期回来检查版本号，`@version` 比本地高就静默更新。想立刻更新就在 Tampermonkey 面板点 **Check for userscript updates**。
+3. 之后由 Tampermonkey 按更新设置检查统一版本。想立刻更新，可点银行面板顶部版本号旁的 **Update**，在新标签页确认安装，再刷新银行页面。也可在 Tampermonkey 中使用 **Check for userscript updates**。详见[面板内手动更新](docs/manual-update.md)。
 
 不要把 `dist/` 里的文件内容手动贴进已有脚本。手贴出来的副本没有和更新地址绑定，不会自动更新。同一站点只运行一份 Card Offer Hub。
 
