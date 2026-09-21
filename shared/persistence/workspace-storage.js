@@ -1,5 +1,5 @@
 function createHubWorkspaceStore({ state, fields, storage, storageKey, workflowType, onError = () => {},
-    readConsent = () => false, writeConsent = () => {},
+    readConsent = () => false, writeConsent = () => {}, defaultSelectCards = false,
     markPendingRecord = record => { record.status = 'UNCONFIRMED'; } }) {
     const pendingWorkspaceOffers = new Set();
     function saveWorkspace() {
@@ -13,7 +13,8 @@ function createHubWorkspaceStore({ state, fields, storage, storageKey, workflowT
                 return record;
             });
             const snapshot = validateWorkspaceSnapshot({
-                schemaVersion: 2, workflowType, savedAt: Date.now(), lastScanAt: state.lastScanAt,
+                schemaVersion: 3, workflowType, savedAt: Date.now(), lastScanAt: state.lastScanAt,
+                selectionInitialized: true, continuationBlocked: Boolean(state.continuationBlocked),
                 scopeIdentity: state.workspaceScope, accounts: (state.accounts || []).map(account => serializeWorkspaceRecord(account, fields.accounts)),
                 offers, selected: [...(state.selected || [])], consent: readConsent(),
                 search: state.search || '', collapsed: state.collapsed
@@ -37,6 +38,10 @@ function createHubWorkspaceStore({ state, fields, storage, storageKey, workflowT
             if (fields.accounts) state.accounts = snapshot.accounts;
             state.offers = snapshot.offers;
             if (state.selected) state.selected = new Set(snapshot.selected);
+            if (defaultSelectCards && !snapshot.selectionInitialized && !snapshot.selected.length) {
+                state.selected = new Set(snapshot.accounts.filter(card => card.eligible !== false).map(card => card.accountId));
+            }
+            if ('continuationBlocked' in state) state.continuationBlocked = snapshot.continuationBlocked;
             writeConsent(snapshot.consent);
             state.search = snapshot.search;
             state.collapsed = snapshot.collapsed;

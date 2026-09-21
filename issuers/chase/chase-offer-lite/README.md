@@ -9,11 +9,11 @@ Chase Offers 的 Tampermonkey 脚本，提供手动选择卡片和串行扫描�
 构建产物为 [`dist/card-offer-hub-all.user.js`](../../../dist/card-offer-hub-all.user.js)。首次发布前，在 Tampermonkey Dashboard → Utilities → Import from file 中导入本地文件；发布到 `main` 后可使用 [安装 / 更新链接](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/card-offer-hub-all.user.js)，以后由 Tampermonkey 检查版本更新。
 
 1. 安装后刷新 Chase 页面，使脚本在页面加载开始时安装被动观察器。登录并等待首页的 Chase Offers 预览加载，即可检测卡片；如果首页没有加载预览，进入 Chase Offers 或切换页面内的卡片，让 Chase 自身正常加载清单。
-2. 点击 **Detect cards**，从本标签页已观察到的 Chase 响应缓存读取卡片；此操作不会发出网络请求。再手动勾选需要扫描的卡片，不会默认选择卡片。卡片显示末四位便于区分同名卡；不以 `shoppingEligibilityIndicator` 判断卡片能否读取 Offers。旧缓存中被禁用的卡片会在检测后重新核对。
+2. 点击 **Detect cards**，从本标签页已观察到的 Chase 响应缓存读取卡片；此操作不会发出网络请求。首次检测默认全选，新发现的卡片也默认勾选；主动取消的选择会保存。卡片显示末四位便于区分同名卡；不以 `shoppingEligibilityIndicator` 判断卡片能否读取 Offers。旧缓存中被禁用的卡片会在检测后重新核对。
 3. 点击 **Scan offers**，读取已选卡片的 Offer。
 4. 需要中止时点击 **Stop**。已经发出的请求会等到响应并记录结果，然后停止后续请求。
 
-首页请求可以不指定卡片，由 Chase 返回默认卡和卡片清单。脚本支持这种识别方式，但首页的少量 Offer 预览不会当作完整扫描结果；仍需勾选卡片并点击 **Scan offers**。
+首页请求可以不指定卡片，由 Chase 返回默认卡和卡片清单。脚本支持这种识别方式，但首页的少量 Offer 预览不会当作完整扫描结果；仍需点击 **Scan offers**。
 
 脚本页面加载时仅安装被动观察器，不会自动发出请求；Chase 页面自身的请求照常进行。脚本发出的每次请求必须由点击扫描触发，同一时刻只有一个请求在途，从前一次响应完成起按 Chase 已学习的间隔等待，首次 1 秒、最低 0.5 秒，遇到限流时减速并保存。搜索仅筛选显示内容，不改变扫描卡片。面板最多显示 200 个搜索匹配项，读取清单本身没有此上限。
 

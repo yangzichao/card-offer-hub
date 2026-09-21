@@ -37,11 +37,11 @@ Feature: Stop cached Citi additions and continue remaining offers
       | card-a | a     |
       | card-a | b     |
 
-  Scenario: Stop cannot clear an unconfirmed in-flight enrollment
+  Scenario: Stop keeps an uncertain offer skipped while remaining offers stay usable
     Given Citi will return an unconfirmed enrollment response
     And I will press Stop while the first enrollment is in flight
     When I click "Add saved offers"
-    And the operation reports "not explicitly confirmed"
-    Then the "Add saved offers" button is disabled
-    And the disabled-action explanation contains "1 saved offer(s) have an unconfirmed add result"
+    And the operation reports "Stopped"
+    Then the "Add saved offers" button is enabled
+    And the disabled-action explanation contains "1 saved offer(s) need a status check"
     And exactly 1 enrollment request has been sent

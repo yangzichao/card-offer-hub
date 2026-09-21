@@ -65,6 +65,7 @@ function jsonResponse(payload, status = 200, retryAfter = null) {
     return { status, ok: status >= 200 && status < 300, headers: { get: () => retryAfter }, text: async () => JSON.stringify(payload) };
 }
 function selectCards(harness, ids = ['101']) {
+    harness.state.selected.clear();
     harness.state.accounts = ids.map(accountId => ({ accountId, name: `Synthetic ${accountId}`, eligible: true }));
     harness.state.sessionIdentity = harness.currentSession().enterprisePartyIdentifier;
     ids.forEach(id => harness.setCardSelected(id, true));

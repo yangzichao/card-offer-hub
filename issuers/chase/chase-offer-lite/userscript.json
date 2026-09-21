@@ -19,6 +19,7 @@
         "ui/design-system.js",
         "ui/panel-branding.js",
         "ui/workflow-layout.js",
+        "persistence/card-selection.js",
         "persistence/workspace-records.js",
         "persistence/workspace-storage.js",
         "persistence/workspace-scope.js",

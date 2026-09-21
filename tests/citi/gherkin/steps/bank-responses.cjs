@@ -31,3 +31,7 @@ Given('I will press Stop while the first enrollment is in flight', function () {
         await this.fixture.page.getByRole('button', { name: 'Stop', exact: true }).click();
     };
 });
+
+Given('only the first Citi enrollment will be unconfirmed', function () {
+    this.fixture.bankState.mode = 'unconfirmed-once';
+});

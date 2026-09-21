@@ -45,7 +45,7 @@ function registerWorkspacePersistenceTests({ create, prepare, choose = () => {},
         const first = create(); await prepare(first); choose(first); first.saveWorkspace();
         const key = `${first.SETTINGS.id}:workspace`;
         const saved = structuredClone(snapshot(first));
-        assert.equal(saved.schemaVersion, 2);
+        assert.equal(saved.schemaVersion, 3);
         assert.equal(saved.workflowType, first.SETTINGS.workflow);
         const legacy = { ...saved, schemaVersion: 1 };
         delete legacy.workflowType;

@@ -7,14 +7,13 @@ function accountForRequest(request) {
     return JSON.parse(request.headers['path-params']).primaryDigitalAccountIdentifierList[0];
 }
 
-test('Chase discovery reads page capture only and never selects cards or starts enrollment', async () => {
+test('Chase discovery selects all cards without starting scans or enrollment', async () => {
     const harness = createHarness(() => { throw new Error('must not fetch'); });
     assert.equal(harness.requests.length, 0);
     await harness.detectCards();
     assert.equal(harness.state.accounts.length, 2);
-    assert.equal(harness.state.selected.size, 0);
+    assert.equal(harness.state.selected.size, 2);
     assert.equal(harness.state.offers.length, 0);
-    await harness.scanOffers();
     await harness.addAllOffers();
     assert.equal(harness.requests.length, 0);
     assert.equal(harness.state.enrollmentSupported, false);
@@ -107,6 +106,8 @@ test('Chase stop in flight keeps the current read result and never scans the nex
 test('Chase ineligible cards cannot be selected or scanned', async () => {
     const harness = createHarness(() => { throw new Error('must not fetch'); });
     await harness.detectCards();
+    harness.setCardSelected('101', false);
+    harness.setCardSelected('202', false);
     harness.state.accounts[0].eligible = false;
     harness.setCardSelected('101', true);
     await harness.scanOffers();

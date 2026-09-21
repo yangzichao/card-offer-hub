@@ -12,16 +12,16 @@ function detectCards() {
     return runExclusive(async () => {
         const accounts = normalizeAccounts(getCapturedAccountsPayload());
         const identity = currentSession().enterprisePartyIdentifier;
+        const previousAccounts = state.workspaceScope === identity ? state.accounts : [];
         bindWorkspaceScope(identity);
-        const eligibleIds = new Set(accounts.filter(card => card.eligible).map(card => card.accountId));
+        state.selected = hubSelectDetectedCards(accounts, previousAccounts, state.selected);
         state.accounts = accounts;
-        state.selected = new Set([...state.selected].filter(id => eligibleIds.has(id)));
         state.offers = state.offers.filter(offer => accounts.some(card => card.accountId === offer.accountId));
         state.needsScan = true;
         state.sessionIdentity = identity;
         state.restoredWorkspace = false;
         requireWorkspaceSaved();
-        updateStatus(`Detected ${state.accounts.length} cards from Chase's page. Your existing card selections were preserved.`);
+        updateStatus(`Detected ${state.accounts.length} cards from Chase's page. New cards are selected by default; your saved choices are preserved.`);
     });
 }
 function scanOffers() {

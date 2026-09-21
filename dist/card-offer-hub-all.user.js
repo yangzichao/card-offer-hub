@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Card Offer Hub — All Banks
 // @namespace    https://github.com/yangzichao/card-offer-hub
-// @version      1.5.2
+// @version      1.5.3
 // @description  All six Card Offer Hub tools in one install; manual scanning and activation on the matching bank website
 // @author       Zichao Yang
 // @match        https://*.americanexpress.com/*
@@ -227,7 +227,7 @@
             expires: hubText(offer.expires), category: hubText(offer.category), url: bank.url };
     }
     function hubWorkspaceDisplayRecords(bank, snapshot, normalizeOffer, workflowType) {
-        snapshot = hubMigrateWorkflowSnapshot(snapshot, workflowType);
+        snapshot = hubMigrateWorkflowSnapshot(snapshot, workflowType, 3);
         const cardScoped = HUB_WORKFLOW_TEMPLATES[workflowType].scope === 'card';
         if (!Array.isArray(snapshot.offers) || !Array.isArray(snapshot.accounts)) {
             throw new Error('Unsupported saved results');
@@ -597,12 +597,21 @@
 
     // Source: shared/workflows/snapshot.js
     // Version 1 belongs to the bank's established namespace. Migrate in memory,
-    // preserving every field; write version 2 only on the next explicit save.
-    function hubMigrateWorkflowSnapshot(snapshot, workflowType) {
-        if (!snapshot || ![1, 2].includes(snapshot.schemaVersion)
-            || (snapshot.schemaVersion === 2 && snapshot.workflowType !== workflowType)
+    // preserving fields; only an explicit save writes the migrated format.
+    // Workspaces use v3 recovery/selection flags; Amex offer snapshots remain v2.
+    function hubMigrateWorkflowSnapshot(snapshot, workflowType, targetVersion = 2) {
+        if (!snapshot || ![1, 2, ...(targetVersion === 3 ? [3] : [])].includes(snapshot.schemaVersion)
+            || (snapshot.schemaVersion >= 2 && snapshot.workflowType !== workflowType)
             || (snapshot.workflowType !== undefined && snapshot.workflowType !== workflowType)) {
             throw new Error('Saved results belong to an unsupported workflow.');
+        }
+        if (targetVersion === 3) {
+            const selectionInitialized = snapshot.schemaVersion < 3 ? false : snapshot.selectionInitialized;
+            const continuationBlocked = snapshot.schemaVersion < 3 ? false : snapshot.continuationBlocked;
+            if (typeof selectionInitialized !== 'boolean' || typeof continuationBlocked !== 'boolean') {
+                throw new Error('Invalid saved workspace recovery state.');
+            }
+            return { ...snapshot, schemaVersion: 3, workflowType, selectionInitialized, continuationBlocked };
         }
         return { ...snapshot, schemaVersion: 2, workflowType };
     }
@@ -672,7 +681,7 @@
             || (HUB_WORKFLOW_TEMPLATES[workflowType].scope === 'card') !== Boolean(fields.accounts)) {
             throw new Error('Workspace fields do not match its workflow.');
         }
-        saved = hubMigrateWorkflowSnapshot(saved, workflowType);
+        saved = hubMigrateWorkflowSnapshot(saved, workflowType, 3);
         if (!Number.isFinite(saved.savedAt) || saved.savedAt < 0
             || !Number.isFinite(saved.lastScanAt) || saved.lastScanAt < 0
             || typeof saved.scopeIdentity !== 'string' || typeof saved.consent !== 'boolean'
@@ -697,7 +706,7 @@
 
     // Source: shared/persistence/workspace-storage.js
     function createHubWorkspaceStore({ state, fields, storage, storageKey, workflowType, onError = () => {},
-        readConsent = () => false, writeConsent = () => {},
+        readConsent = () => false, writeConsent = () => {}, defaultSelectCards = false,
         markPendingRecord = record => { record.status = 'UNCONFIRMED'; } }) {
         const pendingWorkspaceOffers = new Set();
         function saveWorkspace() {
@@ -711,7 +720,8 @@
                     return record;
                 });
                 const snapshot = validateWorkspaceSnapshot({
-                    schemaVersion: 2, workflowType, savedAt: Date.now(), lastScanAt: state.lastScanAt,
+                    schemaVersion: 3, workflowType, savedAt: Date.now(), lastScanAt: state.lastScanAt,
+                    selectionInitialized: true, continuationBlocked: Boolean(state.continuationBlocked),
                     scopeIdentity: state.workspaceScope, accounts: (state.accounts || []).map(account => serializeWorkspaceRecord(account, fields.accounts)),
                     offers, selected: [...(state.selected || [])], consent: readConsent(),
                     search: state.search || '', collapsed: state.collapsed
@@ -735,6 +745,10 @@
                 if (fields.accounts) state.accounts = snapshot.accounts;
                 state.offers = snapshot.offers;
                 if (state.selected) state.selected = new Set(snapshot.selected);
+                if (defaultSelectCards && !snapshot.selectionInitialized && !snapshot.selected.length) {
+                    state.selected = new Set(snapshot.accounts.filter(card => card.eligible !== false).map(card => card.accountId));
+                }
+                if ('continuationBlocked' in state) state.continuationBlocked = snapshot.continuationBlocked;
                 writeConsent(snapshot.consent);
                 state.search = snapshot.search;
                 state.collapsed = snapshot.collapsed;
@@ -952,6 +966,14 @@
             scopeHint: 'Offers apply to the current signed-in account.',
             emptyScope: 'Confirm the account above before adding.',
             searchRule: 'Add all includes every available account offer, including results hidden by search.' });
+    }
+
+    // Source: shared/persistence/card-selection.js
+    // Newly discovered cards start selected; known cards retain the user's choice.
+    function hubSelectDetectedCards(accounts, previousAccounts, selected) {
+        const knownIds = new Set(previousAccounts.map(card => card.accountId));
+        return new Set(accounts.filter(card => card.eligible !== false
+            && (!knownIds.has(card.accountId) || selected.has(card.accountId))).map(card => card.accountId));
     }
 
     // Source: shared/workflows/per-card/model.js
@@ -1340,14 +1362,14 @@ function dispatchIssuer(configuration, startIssuer) {
 }
 
 // --- Issuer dispatches ---
-dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://global.americanexpress.com/offers","version":"1.5.2","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*americanexpress\\.com/.*$"],"patterns":["^https://global\\.americanexpress\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://global.americanexpress.com/offers","version":"1.5.3","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*americanexpress\\.com/.*$"],"patterns":["^https://global\\.americanexpress\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: amex-offer-lite ---
 (function () {
     'use strict';
 
     // Source: core/state.js
     const SETTINGS = Object.freeze({
-        version: "1.5.2", capabilities: {"activation":true,"scope":"card"}, workflow: "amex-combination",
+        version: "1.5.3", capabilities: {"activation":true,"scope":"card"}, workflow: "amex-combination",
         requestGapMs: 500,
         rateLimitCooldownMs: 120000,
         requestTimeoutMs: 30000,
@@ -2567,7 +2589,7 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
 // --- End issuer body: amex-offer-lite ---
 });
 
-dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"https://deals.merchant-rewards.com/","version":"1.5.2","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*bankofamerica\\.com/.*$","^https://deals\\.merchant-rewards\\.com/.*$"],"patterns":["^https://deals\\.merchant-rewards\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"https://deals.merchant-rewards.com/","version":"1.5.3","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*bankofamerica\\.com/.*$","^https://deals\\.merchant-rewards\\.com/.*$"],"patterns":["^https://deals\\.merchant-rewards\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: bofa-offer-lite ---
 (function () {
     'use strict';
@@ -2575,7 +2597,7 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "bofa-offer-lite", name: "BankAmeriDeals Lite", version: "1.5.2",
+        id: "bofa-offer-lite", name: "BankAmeriDeals Lite", version: "1.5.3",
         gapMilliseconds: 500, timeoutMilliseconds: 45000, pageSize: 24,
         defaultCooldownMilliseconds: 300000
     };
@@ -2877,7 +2899,7 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
 // --- End issuer body: bofa-offer-lite ---
 });
 
-dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://secure.chase.com/web/auth/dashboard","version":"1.5.2","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*chase\\.com/.*$"],"patterns":["^https://secure\\.chase\\.com/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://secure.chase.com/web/auth/dashboard","version":"1.5.3","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*chase\\.com/.*$"],"patterns":["^https://secure\\.chase\\.com/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: chase-offer-lite ---
 (function () {
     'use strict';
@@ -2885,7 +2907,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":false,"scope":"card"}, workflow: "per-card",
-        id: "chase-offer-lite", name: "Chase Offer Lite", version: "1.5.2",
+        id: "chase-offer-lite", name: "Chase Offer Lite", version: "1.5.3",
         gapMilliseconds: 500, timeoutMilliseconds: 45000,
         defaultCooldownMilliseconds: 300000
     };
@@ -2953,7 +2975,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
     const { saveWorkspace, requireWorkspaceSaved, restoreWorkspace, recordWorkspaceScan,
         markWorkspaceOfferPending, finishWorkspaceOffer, bindWorkspaceScope } = createHubWorkspaceStore({
         state, workflowType: SETTINGS.workflow, fields: WORKSPACE_FIELDS, storage: issuerStorage, storageKey: `${SETTINGS.id}:workspace`,
-        onError: () => renderPanel()
+        onError: () => renderPanel(), defaultSelectCards: true
     });
     function workspaceCacheNotice() { return hubWorkspaceCacheNotice(state); }
     function restoreWorkspacePanel(panel, bankName) { hubRestoreWorkspacePanel(panel, bankName, state); }
@@ -3240,16 +3262,16 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
         return runExclusive(async () => {
             const accounts = normalizeAccounts(getCapturedAccountsPayload());
             const identity = currentSession().enterprisePartyIdentifier;
+            const previousAccounts = state.workspaceScope === identity ? state.accounts : [];
             bindWorkspaceScope(identity);
-            const eligibleIds = new Set(accounts.filter(card => card.eligible).map(card => card.accountId));
+            state.selected = hubSelectDetectedCards(accounts, previousAccounts, state.selected);
             state.accounts = accounts;
-            state.selected = new Set([...state.selected].filter(id => eligibleIds.has(id)));
             state.offers = state.offers.filter(offer => accounts.some(card => card.accountId === offer.accountId));
             state.needsScan = true;
             state.sessionIdentity = identity;
             state.restoredWorkspace = false;
             requireWorkspaceSaved();
-            updateStatus(`Detected ${state.accounts.length} cards from Chase's page. Your existing card selections were preserved.`);
+            updateStatus(`Detected ${state.accounts.length} cards from Chase's page. New cards are selected by default; your saved choices are preserved.`);
         });
     }
     function scanOffers() {
@@ -3389,7 +3411,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
 // --- End issuer body: chase-offer-lite ---
 });
 
-dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://online.citi.com/US/nga/products-offers/merchantoffers","version":"1.5.2","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*citi\\.com/.*$"],"patterns":["^https://online\\.citi\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://online.citi.com/US/nga/products-offers/merchantoffers","version":"1.5.3","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*citi\\.com/.*$"],"patterns":["^https://online\\.citi\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: citi-offer-lite ---
 (function () {
     'use strict';
@@ -3397,7 +3419,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"card"}, workflow: "per-card",
-        id: "citi-offer-lite", name: "Citi Offer Lite", version: "1.5.2",
+        id: "citi-offer-lite", name: "Citi Offer Lite", version: "1.5.3",
         apiBase: '/gcgapi/prod/public/v1',
         retrievePath: '/digital/customers/creditCards/merchantOffers/retrieve',
         enrollmentPath: '/digital/customers/creditCards/accounts/rewards/specialOffers/enrollMerchantOffer',
@@ -3470,7 +3492,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
     const { saveWorkspace, requireWorkspaceSaved, restoreWorkspace, recordWorkspaceScan,
         markWorkspaceOfferPending, finishWorkspaceOffer, bindWorkspaceScope } = createHubWorkspaceStore({
         state, workflowType: SETTINGS.workflow, fields: WORKSPACE_FIELDS, storage: issuerStorage, storageKey: `${SETTINGS.id}:workspace`,
-        onError: () => renderPanel()
+        onError: () => renderPanel(), defaultSelectCards: true
     });
     function workspaceCacheNotice() { return hubWorkspaceCacheNotice(state); }
     function restoreWorkspacePanel(panel, bankName) { hubRestoreWorkspacePanel(panel, bankName, state); }
@@ -3594,8 +3616,8 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
     // Source: workflows/cards.js
     function adoptDetectedCards(accounts) {
         const availableIds = new Set(accounts.map(card => card.accountId));
+        state.selected = hubSelectDetectedCards(accounts, state.accounts, state.selected);
         state.accounts = accounts;
-        state.selected = new Set([...state.selected].filter(id => availableIds.has(id)));
         state.offers = state.offers.filter(offer => availableIds.has(offer.accountId));
         state.restoredWorkspace = false;
         requireWorkspaceSaved();
@@ -3620,15 +3642,17 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
     async function refreshCurrentCardsAndOffers(selectedAccounts = []) {
         state.needsScan = true;
         await verifySelectedCards(selectedAccounts);
-        // Discover offers on every card; only explicitly selected cards can be enrolled.
+        // Discover every card; new cards default selected and existing opt-outs are retained.
         await scanCardOffers(state.accounts);
     }
     function refreshAndAddOffers() {
         const accounts = state.accounts.filter(card => state.selected.has(card.accountId));
         if (!accounts.length) return;
         return runExclusive(async () => {
-            await refreshCurrentCardsAndOffers(accounts);
-            await enrollPlannedOffers();
+            await withSavedOfferContinuation(async () => {
+                await refreshCurrentCardsAndOffers(accounts);
+                await enrollPlannedOffers();
+            });
         }, 'add');
     }
 
@@ -3672,6 +3696,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
         state.confirmed = 0;
         state.completed = 0;
         state.total = queue.length;
+        let unconfirmed = 0;
         for (const offer of queue) {
             ensureRunning();
             updateStatus(`Adding ${state.completed + 1}/${state.total}: ${offer.merchant}…`);
@@ -3681,9 +3706,14 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
                 offerWorkflow.assertAction(offer);
                 markWorkspaceOfferPending(offer);
                 const payload = await requestJson(SETTINGS.enrollmentPath, enrollmentBody(offer));
-                if (!enrollmentConfirmed(payload, offer)) throw new Error('Enrollment was not explicitly confirmed. Use Refresh & add offers to check before continuing.');
-                offer.status = 'ENROLLED';
-                state.confirmed++;
+                if (enrollmentConfirmed(payload, offer)) {
+                    offer.status = 'ENROLLED';
+                    state.confirmed++;
+                } else {
+                    // Isolate this result. Other AVAILABLE offers can proceed without replaying it.
+                    offer.status = 'UNCONFIRMED';
+                    unconfirmed++;
+                }
                 state.completed++;
                 finishWorkspaceOffer(offer);
                 renderPanel();
@@ -3693,17 +3723,12 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
             }
         }
         ensureRunning();
-        updateStatus(state.total ? `Finished: ${state.confirmed}/${state.total} offers added.` : 'Up to date. No new offers to add to your selected cards.');
+        updateStatus(state.total ? `Finished: ${state.confirmed}/${state.total} offers added.${unconfirmed ? ` ${unconfirmed} unconfirmed offer(s) skipped; refresh to check their status.` : ''}` : 'Up to date. No new offers to add to your selected cards.');
     }
 
     // Source: workflows/saved-offers.js
     function savedOffersBlockReason() {
         if (!state.selected.size) return 'Choose at least one card above. Your choices stay saved.';
-        const selectedOffers = state.offers.filter(offer => state.selected.has(offer.accountId));
-        const unconfirmedCount = selectedOffers.filter(offer => offer.status === 'UNCONFIRMED').length;
-        if (unconfirmedCount) return `${unconfirmedCount} saved offer(s) have an unconfirmed add result. Use Refresh & add offers to check their status before continuing.`;
-        const conflictCount = selectedOffers.filter(offer => offer.status === 'CONFLICT').length;
-        if (conflictCount) return `Citi returned conflicting statuses for ${conflictCount} saved offer(s). Use Refresh & add offers to check their status before continuing.`;
         if (!state.lastScanAt) return 'The first offer refresh did not finish. Use Refresh & add offers to complete it.';
         if (state.continuationBlocked) return 'The previous operation did not complete successfully. Use Refresh & add offers to check before continuing.';
         if (state.needsScan && !state.restoredWorkspace) return 'The offer refresh did not finish. Use Refresh & add offers to complete it.';
@@ -3713,20 +3738,28 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
     function addSavedOffers() {
         if (!canAddSavedOffers() || !offerWorkflow.preview().length) return;
         const accounts = state.accounts.filter(card => state.selected.has(card.accountId));
-        return runExclusive(async () => {
-            try {
-                // Verify card ownership only. This path deliberately keeps the saved offer list.
-                await verifySelectedCards(accounts);
-                state.needsScan = false;
-                await enrollPlannedOffers();
-            } catch (error) {
-                if (error.name === 'CitiActionStopped' && !savedOffersBlockReason()) {
-                    error.canResumeSavedOffers = true;
-                    error.message = 'Stopped. Your progress is saved. Use Add saved offers to continue.';
-                }
-                throw error;
+        return runExclusive(() => withSavedOfferContinuation(async () => {
+            // Verify card ownership only. Keep the saved list and skip unresolved entries.
+            await verifySelectedCards(accounts);
+            state.needsScan = false;
+            await enrollPlannedOffers();
+        }), 'add');
+    }
+    async function withSavedOfferContinuation(action) {
+        try {
+            await action();
+        } catch (error) {
+            if (error.name === 'CitiActionStopped' && !savedOffersBlockReason()) {
+                error.canResumeSavedOffers = true;
+                error.message = 'Stopped. Your progress is saved. Use Add saved offers to continue.';
             }
-        }, 'add');
+            throw error;
+        }
+    }
+    function savedOffersReviewNotice() {
+        const unresolved = state.offers.filter(offer => state.selected.has(offer.accountId)
+            && ['UNCONFIRMED', 'CONFLICT'].includes(offer.status)).length;
+        return unresolved ? `${unresolved} saved offer(s) need a status check and will be skipped. Other available offers can continue. Use Refresh & add offers to check skipped offers.` : '';
     }
 
     // Source: ui/styles.js
@@ -3759,7 +3792,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
         const canUseSaved = canAddSavedOffers() && savedCount > 0;
         const refresh = panel.getElementById('scan');
         hubSetActionLabel(refresh, hasCards ? 'Refresh & add offers' : 'Load cards & offers');
-        refresh.title = hasCards ? 'Refresh every card and its offers, then add available offers to your selected cards.' : 'Load your cards and offers so you can choose which cards to use.';
+        refresh.title = hasCards ? 'Refresh every card and its offers, then add available offers to your selected cards.' : 'Load your cards and offers. All cards start selected; you can uncheck any card.';
         refresh.disabled = blocked || (hasCards && !hasSelection);
         refresh.classList.toggle('primary', !canUseSaved);
         const add = panel.getElementById('add');
@@ -3776,6 +3809,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
             : coolingDown ? 'Citi is asking us to wait. Try again after the cooldown.'
             : !hasCards ? ''
             : savedOffersBlockReason() ? savedOffersBlockReason()
+            : savedOffersReviewNotice() ? savedOffersReviewNotice()
             : !savedCount ? 'No saved offers left to add. Refresh & add offers checks for new ones.'
             : '';
         reason.hidden = !reason.textContent;
@@ -3859,7 +3893,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
 // --- End issuer body: citi-offer-lite ---
 });
 
-dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://onlinebanking.usbank.com/digital/servicing/dominjection/cashback-deals","version":"1.5.2","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*usbank\\.com/.*$"],"patterns":["^https://onlinebanking\\.usbank\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://onlinebanking.usbank.com/digital/servicing/dominjection/cashback-deals","version":"1.5.3","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*usbank\\.com/.*$"],"patterns":["^https://onlinebanking\\.usbank\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: usbank-offer-lite ---
 (function () {
     'use strict';
@@ -3867,7 +3901,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "usbank-offer-lite", name: "US Bank Offer Lite", version: "1.5.2",
+        id: "usbank-offer-lite", name: "US Bank Offer Lite", version: "1.5.3",
         endpoint: '/digital/api/customer-management/graphql/v2',
         gapMilliseconds: 500, timeoutMilliseconds: 45000,
         defaultCooldownMilliseconds: 300000
@@ -4264,7 +4298,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
 // --- End issuer body: usbank-offer-lite ---
 });
 
-dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"https://web.secure.wellsfargo.com/auth/deals-portal","version":"1.5.2","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*wellsfargo\\.com/.*$"],"patterns":["^https://web\\.secure\\.wellsfargo\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"https://web.secure.wellsfargo.com/auth/deals-portal","version":"1.5.3","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*wellsfargo\\.com/.*$"],"patterns":["^https://web\\.secure\\.wellsfargo\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: wellsfargo-offer-lite ---
 (function () {
     'use strict';
@@ -4272,7 +4306,7 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "wellsfargo-offer-lite", name: "Wells Fargo Offer Lite", version: "1.5.2",
+        id: "wellsfargo-offer-lite", name: "Wells Fargo Offer Lite", version: "1.5.3",
         retrievePath: '/deals-portal/as/getDeals', enrollmentPath: '/deals-portal/as/activateCLDeal',
         gapMilliseconds: 500, timeoutMilliseconds: 45000, defaultCooldownMilliseconds: 300000
     };

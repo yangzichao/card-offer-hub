@@ -52,13 +52,16 @@ async function run() {
         const count = continued.requests.length;
         continued.bankState.cards.push('card-c');
         await page.getByRole('button', { name: refreshName, exact: true }).click();
-        await continued.advanceUntil(/Finished: 1\/1/);
+        await continued.advanceUntil(/Finished: 4\/4/);
         assert.deepEqual(continued.requests.slice(count).map(request => request.body), [
             {}, { accountId: 'card-a' }, { accountId: 'card-b' }, { accountId: 'card-c' },
-            { accountId: 'card-a', offerId: 'new-after-cache', oneClickEnroll: 'true' }
+            { accountId: 'card-a', offerId: 'new-after-cache', oneClickEnroll: 'true' },
+            { accountId: 'card-c', offerId: 'a', oneClickEnroll: 'true' },
+            { accountId: 'card-c', offerId: 'b', oneClickEnroll: 'true' },
+            { accountId: 'card-c', offerId: 'new-after-cache', oneClickEnroll: 'true' }
         ]);
-        assert.equal(await page.getByRole('checkbox', { checked: true }).count(), 1);
-        assert.equal(await page.getByRole('checkbox', { name: 'Select Synthetic Card C', exact: true }).isChecked(), false);
+        assert.equal(await page.getByRole('checkbox', { checked: true }).count(), 2);
+        assert.equal(await page.getByRole('checkbox', { name: 'Select Synthetic Card C', exact: true }).isChecked(), true);
         assert.equal(await page.getByRole('searchbox').inputValue(), 'no matching offers');
         assert.deepEqual(continued.errors, []);
         await continued.context.close();
@@ -71,19 +74,19 @@ async function run() {
         await changedLogin.advanceUntil(/do not match this login/);
         assert.equal(changedLogin.requests.length, 4);
         assert.equal(changedLogin.requests.filter(request => request.url.endsWith('/enrollMerchantOffer')).length, 0);
-        assert.equal(await changedLogin.page.getByRole('checkbox', { checked: true }).count(), 0);
+        assert.equal(await changedLogin.page.getByRole('checkbox', { checked: true }).count(), 1);
         assert.deepEqual(changedLogin.errors, []);
         await changedLogin.context.close();
 
         const unconfirmed = await fixture(browser, 'unconfirmed');
         await unconfirmed.selectCard();
         await unconfirmed.page.getByRole('button', { name: savedName, exact: true }).click();
-        await unconfirmed.advanceUntil(/not explicitly confirmed/);
+        await unconfirmed.advanceUntil(/Finished: 0\/2/);
         await reloadSavedWorkspace(unconfirmed);
         assert.equal(await unconfirmed.page.getByRole('button', { name: savedName, exact: true }).isEnabled(), false);
-        assert.match(await unconfirmed.page.locator('#hub-action-reason').innerText(), /1 saved offer\(s\) have an unconfirmed add result/);
+        assert.match(await unconfirmed.page.locator('#hub-action-reason').innerText(), /2 saved offer\(s\) need a status check/);
         assert.equal(await unconfirmed.page.getByRole('button', { name: refreshName, exact: true }).isEnabled(), true);
-        // An unconfirmed write may have succeeded. Refresh must resolve it before adding anything else.
+        // An unconfirmed write may have succeeded. Refresh resolves each skipped result before it can be submitted again.
         unconfirmed.bankState.enrolled.add('card-a:a');
         unconfirmed.bankState.mode = 'success';
         const beforeRecovery = unconfirmed.requests.length;
@@ -95,7 +98,7 @@ async function run() {
         ]);
         assert.deepEqual(unconfirmed.errors, []);
         await unconfirmed.context.close();
-        console.log('PASS: Citi saved-only addition, one-click refresh and add with empty cache, selected-card scope, new-card opt-out, login verification, uncertain-write recovery, and no automatic requests.');
+        console.log('PASS: Citi saved-only addition, one-click refresh and add with empty cache, selected-card scope, new-card default selection, login verification, uncertain-write recovery, and no automatic requests.');
     } finally { await browser.close(); }
 }
 run().catch(error => { console.error(error); process.exitCode = 1; });

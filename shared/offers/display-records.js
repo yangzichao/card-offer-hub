@@ -17,7 +17,7 @@ function hubOfferRecord(bank, offer, context) {
         expires: hubText(offer.expires), category: hubText(offer.category), url: bank.url };
 }
 function hubWorkspaceDisplayRecords(bank, snapshot, normalizeOffer, workflowType) {
-    snapshot = hubMigrateWorkflowSnapshot(snapshot, workflowType);
+    snapshot = hubMigrateWorkflowSnapshot(snapshot, workflowType, 3);
     const cardScoped = HUB_WORKFLOW_TEMPLATES[workflowType].scope === 'card';
     if (!Array.isArray(snapshot.offers) || !Array.isArray(snapshot.accounts)) {
         throw new Error('Unsupported saved results');

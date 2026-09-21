@@ -45,29 +45,82 @@ test('manual continuation after stopping a confirmed write skips the completed o
     ]);
 });
 
-test('stop does not unlock an in-flight enrollment whose response is unconfirmed or fails', async () => {
-    for (const status of [200, 500]) {
-        const harness = createHarness((request, access) => {
-            if (request.url.endsWith('/retrieve')) return jsonResponse(listing([], cards));
-            access.stopRun();
-            return jsonResponse({}, status);
-        });
-        seedSavedOffers(harness);
-        await harness.addSavedOffers();
-        assert.equal(harness.canAddSavedOffers(), false);
-        assert.match(harness.savedOffersBlockReason(), /1 saved offer\(s\) have an unconfirmed add result/);
-        await harness.addSavedOffers();
-        assert.equal(harness.requests.length, 2);
-    }
+test('Stop preserves the unconfirmed item but lets the user continue remaining offers', async () => {
+    let first = true;
+    const harness = createHarness((request, access) => {
+        if (request.url.endsWith('/retrieve')) return jsonResponse(listing([], cards));
+        if (first) { first = false; access.stopRun(); return jsonResponse({}); }
+        return jsonResponse(confirmation(request));
+    });
+    seedSavedOffers(harness);
+    await harness.addSavedOffers();
+    assert.equal(harness.canAddSavedOffers(), true);
+    assert.match(harness.state.status, /Stopped/);
+    assert.equal(harness.requests.length, 2);
+    await harness.addSavedOffers();
+    assert.deepEqual(harness.requests.filter(request => request.body.offerId).map(request => request.body.offerId), ['a', 'b']);
+    assert.equal(harness.state.offers[0].status, 'UNCONFIRMED');
 });
 
-test('saved-offer blockers explain conflicting data and an incomplete first scan separately', () => {
-    const harness = createHarness(() => { throw new Error('no requests'); });
+test('transport failures still require refresh, including after a reload', async () => {
+    const harness = createHarness(request => request.url.endsWith('/retrieve')
+        ? jsonResponse(listing([], cards)) : jsonResponse({}, 500));
+    seedSavedOffers(harness);
+    await harness.addSavedOffers();
+    assert.equal(harness.canAddSavedOffers(), false);
+    const restored = createHarness(() => { throw new Error('no requests'); }, { storage: harness.storage });
+    restored.restoreWorkspace();
+    assert.equal(restored.canAddSavedOffers(), false);
+    await restored.addSavedOffers();
+    assert.equal(restored.requests.length, 0);
+});
+
+test('conflicting offers are skipped; an incomplete first scan still blocks the batch', async () => {
+    const harness = createHarness(request => jsonResponse(request.url.endsWith('/retrieve')
+        ? listing([], cards) : confirmation(request)));
     seedSavedOffers(harness);
     harness.state.offers[0].status = 'CONFLICT';
-    assert.match(harness.savedOffersBlockReason(), /conflicting statuses for 1 saved offer/);
-    harness.state.offers[0].status = 'AVAILABLE';
+    assert.equal(harness.savedOffersBlockReason(), '');
+    await harness.addSavedOffers();
+    assert.deepEqual(harness.requests.filter(request => request.body.offerId).map(request => request.body.offerId), ['b']);
     harness.state.lastScanAt = 0;
     assert.match(harness.savedOffersBlockReason(), /first offer refresh did not finish/);
-    assert.equal(harness.canAddSavedOffers(), false);
+});
+
+test('Stop during refresh-and-add also leaves completed scans ready to continue', async () => {
+    const harness = createHarness((request, access) => {
+        if (request.url.endsWith('/retrieve')) return jsonResponse(listing(undefined, cards));
+        access.stopRun();
+        return jsonResponse(confirmation(request));
+    });
+    seedSavedOffers(harness);
+    await harness.refreshAndAddOffers();
+    assert.equal(harness.canAddSavedOffers(), true);
+    assert.equal(harness.state.needsScan, false);
+    assert.match(harness.state.status, /Stopped/);
+});
+
+test('upgrading a legacy cache with one unknown result can add all 225 remaining offers', async () => {
+    const { offer } = require('./helpers/userscript-harness.cjs');
+    const first = createHarness(() => { throw new Error('no request while seeding'); });
+    seedSavedOffers(first, ['card-a'], Array.from({ length: 226 }, (_, index) => offer(String(index))));
+    first.markWorkspaceOfferPending(first.state.offers[0]);
+    const key = 'citi-offer-lite:workspace';
+    const legacy = structuredClone(first.storage.get(key));
+    legacy.schemaVersion = 2;
+    delete legacy.selectionInitialized;
+    delete legacy.continuationBlocked;
+    first.storage.set(key, legacy);
+    const next = createHarness(request => jsonResponse(request.url.endsWith('/retrieve')
+        ? listing([], cards) : confirmation(request)), { storage: first.storage });
+    next.restoreWorkspace();
+    assert.equal(next.canAddSavedOffers(), true);
+    assert.equal(next.requests.length, 0);
+    await next.addSavedOffers();
+    const writes = next.requests.filter(request => request.body.offerId);
+    assert.equal(writes.length, 225);
+    assert.equal(new Set(writes.map(request => request.body.offerId)).size, 225);
+    assert.ok(writes.every(request => request.body.offerId !== '0'));
+    assert.equal(next.state.confirmed, 225);
+    assert.equal(next.state.offers[0].status, 'UNCONFIRMED');
 });

@@ -1,6 +1,6 @@
 @citi @browser
 Feature: Add Citi offers from a saved list
-  Saved offers should be usable after choosing a card, including after reopening
+  Cards start selected and saved offers stay usable, including after reopening
   the page. Only a deliberate click may contact Citi or add an offer.
 
   Background:
@@ -47,3 +47,12 @@ Feature: Add Citi offers from a saved list
       | card-a | a         |
       | card-a | b         |
       | card-a | new-offer |
+
+  Scenario: Loading selects every card without adding any offers
+    When I click "Load cards & offers"
+    And the operation reports "Loaded 2 cards"
+    Then all loaded cards are selected
+    And no enrollment requests have been sent
+    When I reload the page
+    Then all loaded cards are selected
+    And no new Citi requests have been sent

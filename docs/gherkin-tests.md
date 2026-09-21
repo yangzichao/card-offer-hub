@@ -17,8 +17,8 @@ npm run test:gherkin -- --tags @recovery
 ## 目前覆盖 Citi
 
 - `tests/citi/features/saved-offers.feature`：无点击不请求、恢复缓存后立即可添加、搜索不缩小添加范围、仅选中卡登记、登录变更阻止登记、空缓存刷新发现新优惠。
-- `tests/citi/features/stop-and-continue.feature`：请求发出前停止、已发出请求明确成功后停止、已发出请求未确认时停止；前两者允许继续，后一种保持禁用。
-- `tests/citi/features/blocked-offers.feature`：275 条可用优惠被一条未确认记录阻止时解释原因、未确认原因在重载后可见、刷新核验后跳过已完成优惠、429 冷却跨重载保留且不自动重试。
+- `tests/citi/features/stop-and-continue.feature`：请求发出前停止、已发出请求明确成功后停止、已发出请求未确认时停止；全部保留进度；未确认项跳过，其他可用项允许手动继续。
+- `tests/citi/features/blocked-offers.feature`：单条未确认时继续下一条、225 条剩余优惠在 Stop 和重载后可继续且不重发未确认项、刷新核验后跳过已完成优惠、429 冷却跨重载保留且不自动重试。
 
 每个场景都有独立浏览器上下文、GM 存储和合成银行状态；所有网络请求被拦截，用虚拟时间推进等待。场景后检查页面错误和请求串行性，失败时附截图。Cucumber 不重试失败场景，未定义或待实现步骤会让命令失败。
 

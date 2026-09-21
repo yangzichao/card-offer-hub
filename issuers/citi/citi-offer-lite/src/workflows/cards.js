@@ -1,7 +1,7 @@
 function adoptDetectedCards(accounts) {
     const availableIds = new Set(accounts.map(card => card.accountId));
+    state.selected = hubSelectDetectedCards(accounts, state.accounts, state.selected);
     state.accounts = accounts;
-    state.selected = new Set([...state.selected].filter(id => availableIds.has(id)));
     state.offers = state.offers.filter(offer => availableIds.has(offer.accountId));
     state.restoredWorkspace = false;
     requireWorkspaceSaved();
@@ -26,14 +26,16 @@ async function verifySelectedCards(accounts) {
 async function refreshCurrentCardsAndOffers(selectedAccounts = []) {
     state.needsScan = true;
     await verifySelectedCards(selectedAccounts);
-    // Discover offers on every card; only explicitly selected cards can be enrolled.
+    // Discover every card; new cards default selected and existing opt-outs are retained.
     await scanCardOffers(state.accounts);
 }
 function refreshAndAddOffers() {
     const accounts = state.accounts.filter(card => state.selected.has(card.accountId));
     if (!accounts.length) return;
     return runExclusive(async () => {
-        await refreshCurrentCardsAndOffers(accounts);
-        await enrollPlannedOffers();
+        await withSavedOfferContinuation(async () => {
+            await refreshCurrentCardsAndOffers(accounts);
+            await enrollPlannedOffers();
+        });
     }, 'add');
 }

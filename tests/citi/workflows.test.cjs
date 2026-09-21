@@ -5,14 +5,13 @@ const { createHarness, jsonResponse, offer, listing, confirmation, selectCards, 
 const cards = ['card-a', 'card-b', 'excluded', 'a', 'b'].map(accountId => ({ accountId, displayProductName: accountId }));
 const availableListing = offers => listing(offers, cards);
 
-test('refresh is manual and scans every card without selecting or enrolling it', async () => {
+test('manual refresh selects every card and scans without enrolling', async () => {
     const harness = createHarness(request => jsonResponse(listing([offer(request.body.accountId ? 'card-offer' : 'default-only')], [{ accountId: 'a', displayProductName: 'Example Card' }])));
     assert.equal(harness.requests.length, 0);
     await harness.refreshAllCardsAndOffers();
     assert.equal(harness.state.accounts.length, 1);
-    assert.equal(harness.state.selected.size, 0);
+    assert.equal(harness.state.selected.size, 1);
     assert.deepEqual(Array.from(harness.state.offers, item => item.offerId), ['card-offer']);
-    await harness.addSavedOffers();
     assert.equal(harness.requests.length, 2);
     assert.deepEqual(harness.requests.map(request => request.body), [{}, { accountId: 'a' }]);
 });
@@ -35,19 +34,18 @@ test('one cached click verifies ownership without scanning offers and serially e
     for (const forbidden of ['synthetic-session', 'synthetic-client', 'X-XSRF-TOKEN']) assert.equal(stored.includes(forbidden), false);
 });
 
-test('unconfirmed enrollment stops the queue; only a new scan unlocks adding', async () => {
-    const harness = createHarness(request => jsonResponse(request.url.endsWith('/retrieve') ? availableListing([offer('a'), offer('b')]) : {}));
+test('an unconfirmed offer is skipped while other available offers continue without replay', async () => {
+    const harness = createHarness(request => jsonResponse(request.url.endsWith('/retrieve') ? availableListing()
+        : request.body.offerId === 'a' ? {} : confirmation(request)));
     seedSavedOffers(harness);
     await harness.addSavedOffers();
-    assert.equal(harness.requests.length, 2);
-    assert.equal(harness.state.confirmed, 0);
-    assert.equal(harness.state.offers[0].status, 'UNCONFIRMED');
-    assert.equal(harness.state.needsScan, true);
-    await harness.addSavedOffers();
-    assert.equal(harness.requests.length, 2);
-    await harness.scanOffers();
-    assert.equal(harness.state.needsScan, false);
     assert.equal(harness.requests.length, 3);
+    assert.equal(harness.state.confirmed, 1);
+    assert.deepEqual(Array.from(harness.state.offers, record => record.status), ['UNCONFIRMED', 'ENROLLED']);
+    assert.equal(harness.state.needsScan, false);
+    assert.match(harness.state.status, /1 unconfirmed offer\(s\) skipped/);
+    await harness.addSavedOffers();
+    assert.equal(harness.requests.length, 3, 'never replay the unconfirmed offer');
 });
 
 test('429 cooldown persists across reload and does not retry', async () => {

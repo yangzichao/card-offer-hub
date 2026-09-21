@@ -90,7 +90,7 @@ async function fixture(browser, mode = 'success') {
         // Response.clone parsing can finish after the page has consumed its copy.
         await page.getByRole('button', { name: 'Detect cards', exact: true }).click();
         await advanceUntil(mode === 'storage' ? /Cannot save/ : /Detected 2/);
-        assert.equal(await page.getByRole('checkbox', { checked: true }).count(), 0);
+        assert.equal(await page.getByRole('checkbox', { checked: true }).count(), 2);
         assert.equal(await page.getByRole('checkbox', { disabled: true }).count(), mode === 'storage' ? 2 : 0,
             'shopping flags do not block selection; storage failures still do');
         assert.equal(await page.locator('.offer').count(), 0, 'native previews never become scan results');

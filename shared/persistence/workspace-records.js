@@ -30,7 +30,7 @@ function validateWorkspaceSnapshot(saved, fields, workflowType) {
         || (HUB_WORKFLOW_TEMPLATES[workflowType].scope === 'card') !== Boolean(fields.accounts)) {
         throw new Error('Workspace fields do not match its workflow.');
     }
-    saved = hubMigrateWorkflowSnapshot(saved, workflowType);
+    saved = hubMigrateWorkflowSnapshot(saved, workflowType, 3);
     if (!Number.isFinite(saved.savedAt) || saved.savedAt < 0
         || !Number.isFinite(saved.lastScanAt) || saved.lastScanAt < 0
         || typeof saved.scopeIdentity !== 'string' || typeof saved.consent !== 'boolean'

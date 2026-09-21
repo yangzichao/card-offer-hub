@@ -50,8 +50,10 @@ async function fixture(browser, mode = 'success') {
             }
             if (enrollment) {
                 await bankState.beforeEnrollmentResponse?.(record);
-                payload = bankState.mode === 'unconfirmed' ? {} : confirmation(record);
-                if (bankState.mode !== 'unconfirmed') bankState.enrolled.add(`${record.body.accountId}:${record.body.offerId}`);
+                const unconfirmed = bankState.mode === 'unconfirmed' || bankState.mode === 'unconfirmed-once';
+                payload = unconfirmed ? {} : confirmation(record);
+                if (bankState.mode === 'unconfirmed-once') bankState.mode = 'success';
+                if (!unconfirmed) bankState.enrolled.add(`${record.body.accountId}:${record.body.offerId}`);
             } else {
                 const offers = bankState.offerIds.map(id => offer(id,
                     id === 'already' || bankState.enrolled.has(`${record.body.accountId}:${id}`) ? 'ENROLLED' : 'AVAILABLE'));
@@ -66,7 +68,7 @@ async function fixture(browser, mode = 'success') {
     await page.addScriptTag({ content: script });
     const status = () => page.getByRole('status').innerText();
     async function advanceUntil(pattern, stepMilliseconds = 1000) {
-        for (let turn = 0; turn < 150; turn++) {
+        for (let turn = 0; turn < 500; turn++) {
             if (pattern.test(await status())) return;
             await page.clock.runFor(stepMilliseconds);
         }
@@ -75,8 +77,8 @@ async function fixture(browser, mode = 'success') {
     async function selectCard() {
         await page.getByRole('button', { name: 'Load cards & offers', exact: true }).click();
         await advanceUntil(/Loaded 2 cards/, 100);
-        assert.equal(await page.getByRole('checkbox', { checked: true }).count(), 0);
-        await page.getByRole('checkbox', { name: 'Select Synthetic Card A', exact: true }).check();
+        assert.equal(await page.getByRole('checkbox', { checked: true }).count(), 2);
+        await page.getByRole('checkbox', { name: 'Select Synthetic Card B', exact: true }).uncheck();
     }
     return { context, page, requests, errors, status, advanceUntil, selectCard, bankState, script, maximumActive: () => maximumActive };
 }

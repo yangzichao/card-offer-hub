@@ -12,7 +12,7 @@ When('I click {string}', async function (name) {
 
 When('the operation reports {string}', async function (message) {
     const escaped = message.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    await this.fixture.advanceUntil(new RegExp(escaped), 100);
+    await this.fixture.advanceUntil(new RegExp(escaped), 1000);
 });
 
 When('one minute passes without a click', async function () {

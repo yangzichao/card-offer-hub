@@ -59,7 +59,8 @@ test('search reads new workflow snapshots and excludes a mismatched bank without
     const h = harness();
     for (const [key, value] of h.storage) {
         if (!key.endsWith(':workspace') && !key.endsWith('saved_offers_v1')) continue;
-        value.schemaVersion = 2;
+        value.schemaVersion = key.endsWith(':workspace') ? 3 : 2;
+        if (value.schemaVersion === 3) { value.selectionInitialized = true; value.continuationBlocked = false; }
         value.workflowType = key.includes('amex') ? 'amex-combination'
             : key.includes('citi') || key.includes('chase') ? 'per-card' : 'account';
     }

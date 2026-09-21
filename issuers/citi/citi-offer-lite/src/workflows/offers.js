@@ -4,6 +4,7 @@ async function enrollPlannedOffers() {
     state.confirmed = 0;
     state.completed = 0;
     state.total = queue.length;
+    let unconfirmed = 0;
     for (const offer of queue) {
         ensureRunning();
         updateStatus(`Adding ${state.completed + 1}/${state.total}: ${offer.merchant}…`);
@@ -13,9 +14,14 @@ async function enrollPlannedOffers() {
             offerWorkflow.assertAction(offer);
             markWorkspaceOfferPending(offer);
             const payload = await requestJson(SETTINGS.enrollmentPath, enrollmentBody(offer));
-            if (!enrollmentConfirmed(payload, offer)) throw new Error('Enrollment was not explicitly confirmed. Use Refresh & add offers to check before continuing.');
-            offer.status = 'ENROLLED';
-            state.confirmed++;
+            if (enrollmentConfirmed(payload, offer)) {
+                offer.status = 'ENROLLED';
+                state.confirmed++;
+            } else {
+                // Isolate this result. Other AVAILABLE offers can proceed without replaying it.
+                offer.status = 'UNCONFIRMED';
+                unconfirmed++;
+            }
             state.completed++;
             finishWorkspaceOffer(offer);
             renderPanel();
@@ -25,5 +31,5 @@ async function enrollPlannedOffers() {
         }
     }
     ensureRunning();
-    updateStatus(state.total ? `Finished: ${state.confirmed}/${state.total} offers added.` : 'Up to date. No new offers to add to your selected cards.');
+    updateStatus(state.total ? `Finished: ${state.confirmed}/${state.total} offers added.${unconfirmed ? ` ${unconfirmed} unconfirmed offer(s) skipped; refresh to check their status.` : ''}` : 'Up to date. No new offers to add to your selected cards.');
 }

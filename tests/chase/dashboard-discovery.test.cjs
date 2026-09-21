@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { createHarness, jsonResponse } = require('./helpers/userscript-harness.cjs');
 const { listing, endpoint, dashboardEndpoint, dashboardHeaders, sessionHeaders } = require('./fixtures/offers-response.cjs');
 
-test('Chase homepage default-card preview discovers cards without requests or automatic selection', async () => {
+test('Chase homepage default-card preview discovers cards with all cards selected and no requests', async () => {
     const harness = createHarness(() => jsonResponse(listing('202')), { seedSession: false });
     const preview = listing();
     preview.customerOffers[0].totalAvailableOfferCount = 37;
@@ -13,11 +13,11 @@ test('Chase homepage default-card preview discovers cards without requests or au
     assert.equal(harness.currentSession().accountId, '101');
     await harness.detectCards();
     assert.equal(harness.state.accounts.length, 2);
-    assert.equal(harness.state.selected.size, 0);
+    assert.equal(harness.state.selected.size, 2);
     assert.equal(harness.state.offers.length, 0, 'preview must not populate saved scan results');
     assert.equal(harness.requests.length, 0);
     assert.throws(() => harness.normalizeOffers(preview, '101'), /partial|incomplete/);
-    harness.setCardSelected('202', true);
+    harness.setCardSelected('101', false);
     await harness.scanOffers();
     assert.equal(harness.requests.length, 1);
     const request = harness.requests[0];
@@ -45,7 +45,7 @@ test('Chase empty requested-card lists are accepted only for the observed homepa
     }
 });
 
-test('Chase detection refreshes legacy shopping-based blocks without opting cards in', async () => {
+test('Chase detection refreshes legacy shopping-based blocks and selects all newly discovered cards', async () => {
     const harness = createHarness(() => jsonResponse(listing()), { seedSession: false });
     const payload = listing();
     payload.digitalProfileAccounts[0].shoppingEligibilityIndicator = false;
@@ -55,9 +55,9 @@ test('Chase detection refreshes legacy shopping-based blocks without opting card
     harness.state.accounts = [{ accountId: '101', name: 'Saved card', eligible: false }];
     await harness.detectCards();
     assert.equal(harness.state.accounts.every(card => card.eligible), true);
-    assert.equal(harness.state.selected.size, 0);
+    assert.equal(harness.state.selected.size, 2);
     assert.equal(harness.requests.length, 0);
-    harness.setCardSelected('101', true);
+    harness.setCardSelected('202', false);
     await harness.scanOffers();
     assert.equal(harness.requests.length, 1);
     assert.equal(harness.state.needsScan, false);

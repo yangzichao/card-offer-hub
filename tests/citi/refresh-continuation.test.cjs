@@ -19,7 +19,7 @@ test('one refresh updates all current cards, preserves opt-outs, removes old car
     harness.restoreWorkspace();
     await harness.refreshAllCardsAndOffers();
     assert.deepEqual(harness.requests.map(request => request.body), [{}, { accountId: 'card-a' }, { accountId: 'card-b' }, { accountId: 'card-c' }]);
-    assert.deepEqual(Array.from(harness.state.selected), ['card-a']);
+    assert.deepEqual(Array.from(harness.state.selected), ['card-a', 'card-c']);
     assert.deepEqual(Array.from(harness.state.offers, record => record.offerId), ['new-card-a', 'new-card-b', 'new-card-c']);
     assert.equal(harness.state.needsScan, false);
     assert.equal(harness.maximumActive(), 1);
@@ -29,7 +29,7 @@ test('one refresh updates all current cards, preserves opt-outs, removes old car
     }
     const restored = createHarness(() => { throw new Error('no startup requests'); }, { storage: harness.storage });
     restored.restoreWorkspace();
-    assert.deepEqual(Array.from(restored.state.selected), ['card-a']);
+    assert.deepEqual(Array.from(restored.state.selected), ['card-a', 'card-c']);
     assert.equal(restored.state.offers.length, 3);
     assert.equal(restored.requests.length, 0);
 });
@@ -95,7 +95,7 @@ test('continue refuses to enroll when the restored selections belong to another 
     await harness.addSavedOffers();
     assert.equal(harness.requests.length, 1);
     assert.deepEqual(harness.requests[0].body, {});
-    assert.equal(harness.state.selected.size, 0);
+    assert.equal(harness.state.selected.size, 1);
     assert.equal(harness.state.offers.length, 0);
     assert.match(harness.state.status, /do not match this login/);
 });
@@ -111,13 +111,14 @@ test('a failed continuation needs an explicit refresh before another attempt', a
     assert.match(harness.state.status, /HTTP 401/);
 });
 
-test('a previously unconfirmed enrollment requires a refresh and is not replayed', async () => {
+test('a previously unconfirmed enrollment is not replayed and can be resolved by refresh', async () => {
     const previous = await savedWorkspace();
+    previous.setCardSelected('removed', false);
     previous.markWorkspaceOfferPending(previous.state.offers[0]);
     const harness = createHarness(request => jsonResponse(request.body.accountId ? listing([offer('offer-a', 'ENROLLED')])
         : listing([], ['card-a', 'card-b', 'removed'].map(card))), { storage: previous.storage });
     harness.restoreWorkspace();
-    assert.equal(harness.canAddSavedOffers(), false);
+    assert.equal(harness.canAddSavedOffers(), true);
     await harness.addSavedOffers();
     assert.equal(harness.requests.length, 0);
     await harness.refreshAndAddOffers();
@@ -138,10 +139,11 @@ test('refresh and add discovers offers on all cards then enrolls only selected c
     await harness.refreshAndAddOffers();
     assert.deepEqual(harness.requests.map(request => request.body), [
         {}, { accountId: 'card-a' }, { accountId: 'card-b' }, { accountId: 'card-c' },
-        { accountId: 'card-a', offerId: 'new', oneClickEnroll: 'true' }
+        { accountId: 'card-a', offerId: 'new', oneClickEnroll: 'true' },
+        { accountId: 'card-c', offerId: 'new', oneClickEnroll: 'true' }
     ]);
-    assert.deepEqual(Array.from(harness.state.selected), ['card-a']);
-    assert.equal(harness.state.confirmed, 1);
+    assert.deepEqual(Array.from(harness.state.selected), ['card-a', 'card-c']);
+    assert.equal(harness.state.confirmed, 2);
     assert.equal(harness.maximumActive(), 1);
     for (let index = 1; index < harness.requests.length; index++) {
         assert.equal(harness.requests[index].startedAt - harness.requests[index - 1].finishedAt, 1000);

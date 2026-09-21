@@ -41,11 +41,11 @@ async function main() {
             const failed = await fixture(browser, mode);
             await failed.selectCard();
             await failed.page.getByRole('button', { name: 'Add saved offers', exact: true }).click();
-            await failed.advanceUntil(mode === '429' ? /HTTP 429/ : /not explicitly confirmed/);
-            assert.equal(failed.requests.length, 5);
+            await failed.advanceUntil(mode === '429' ? /HTTP 429/ : /Finished: 0\/2/);
+            assert.equal(failed.requests.length, mode === '429' ? 5 : 6);
             assert.equal(await failed.page.getByRole('button', { name: 'Add saved offers' }).isEnabled(), false);
             await failed.page.clock.runFor(60000);
-            assert.equal(failed.requests.length, 5, 'errors never trigger an automatic retry');
+            assert.equal(failed.requests.length, mode === '429' ? 5 : 6, 'errors never trigger an automatic retry');
             if (mode === '429') {
                 assert.equal(await failed.page.getByRole('button', { name: 'Refresh & add offers' }).isEnabled(), false);
                 assert.equal(failed.requests.length, 5, 'cooldown blocks manual scans too');

@@ -7,7 +7,7 @@ function renderCitiActions(panel) {
     const canUseSaved = canAddSavedOffers() && savedCount > 0;
     const refresh = panel.getElementById('scan');
     hubSetActionLabel(refresh, hasCards ? 'Refresh & add offers' : 'Load cards & offers');
-    refresh.title = hasCards ? 'Refresh every card and its offers, then add available offers to your selected cards.' : 'Load your cards and offers so you can choose which cards to use.';
+    refresh.title = hasCards ? 'Refresh every card and its offers, then add available offers to your selected cards.' : 'Load your cards and offers. All cards start selected; you can uncheck any card.';
     refresh.disabled = blocked || (hasCards && !hasSelection);
     refresh.classList.toggle('primary', !canUseSaved);
     const add = panel.getElementById('add');
@@ -24,6 +24,7 @@ function renderCitiActions(panel) {
         : coolingDown ? 'Citi is asking us to wait. Try again after the cooldown.'
         : !hasCards ? ''
         : savedOffersBlockReason() ? savedOffersBlockReason()
+        : savedOffersReviewNotice() ? savedOffersReviewNotice()
         : !savedCount ? 'No saved offers left to add. Refresh & add offers checks for new ones.'
         : '';
     reason.hidden = !reason.textContent;

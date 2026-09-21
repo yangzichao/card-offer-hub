@@ -45,3 +45,11 @@ Then('the disabled-action explanation contains {string}', async function (messag
 Then('no disabled-action explanation is visible', async function () {
     assert.equal(await this.fixture.page.locator('#hub-action-reason').isVisible(), false);
 });
+
+Then('all loaded cards are selected', async function () {
+    assert.equal(await this.fixture.page.getByRole('checkbox', { checked: true }).count(), this.fixture.bankState.cards.length);
+});
+Then('no enrollment request was repeated', function () {
+    const keys = enrollments(this.fixture).map(request => `${request.body.accountId}:${request.body.offerId}`);
+    assert.equal(new Set(keys).size, keys.length);
+});
