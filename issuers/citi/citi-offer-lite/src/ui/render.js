@@ -4,7 +4,13 @@ function renderOffers() {
     container.replaceChildren();
     const search = state.search;
     const visible = state.offers.filter(offer => state.selected.has(offer.accountId)).filter(offer => hubMatchesSearch(offer, search));
-    if (!visible.length) hubShowEmptyOffers(container, search);
+    if (!visible.length) {
+        const note = document.createElement('p');
+        note.className = 'muted';
+        note.textContent = search.trim() ? 'No offers match your search.'
+            : state.selected.size ? 'No saved offers on these cards. Use Refresh & add offers.' : 'Your selected cards’ offers will appear here.';
+        container.appendChild(note);
+    }
     for (const offer of visible.slice(0, 200)) {
         const row = document.createElement('div');
         row.className = 'offer';
@@ -25,23 +31,18 @@ function renderOffers() {
 function renderPanel() {
     if (!state.panel) return;
     const panel = state.panel;
-    const canContinue = canContinueSavedOffers();
-    panel.getElementById('workspace-cache').textContent = canContinue
-        ? `Last complete scan: ${new Date(state.lastScanAt).toLocaleString()}. Saved results restored. Continue adding, or optionally refresh all cards & offers.`
-        : workspaceCacheNotice().replace('scan again before adding', 'refresh all cards & offers before adding');
-    const blocked = state.busy || Boolean(state.storageError);
-    panel.getElementById('scan').disabled = blocked;
-    panel.getElementById('stop').disabled = !state.busy || state.stopRequested;
+    panel.getElementById('workspace-cache').textContent = state.lastScanAt
+        ? `Offers last refreshed: ${new Date(state.lastScanAt).toLocaleString()}` : '';
     panel.getElementById('status').textContent = state.status;
     panel.getElementById('storage-error').textContent = state.storageError;
     const scopeOffers = state.offers.filter(offer => state.selected.has(offer.accountId));
-    panel.getElementById('counts').textContent = `${scopeOffers.length} offers · ${scopeOffers.filter(offer => offer.status === 'AVAILABLE').length} available · ${state.confirmed}/${state.total} added this run`;
+    panel.getElementById('counts').textContent = `${scopeOffers.filter(offer => offer.status === 'AVAILABLE').length} available · ${scopeOffers.filter(offer => offer.status === 'ENROLLED').length} added`;
     const cards = panel.getElementById('cards');
     cards.replaceChildren();
     if (!state.accounts.length) {
         const note = document.createElement('p');
         note.className = 'muted';
-        note.textContent = 'Click Refresh all cards & offers to load your cards and offers together.';
+        note.textContent = 'Load your cards to get started.';
         cards.appendChild(note);
     }
     for (const card of state.accounts) {
@@ -56,17 +57,6 @@ function renderPanel() {
         label.append(checkbox, document.createTextNode(card.name));
         cards.appendChild(label);
     }
-    renderHubWorkflow(panel, { template: offerWorkflow, count: offerWorkflow.preview().length, hasScope: state.selected.size > 0,
-        needsScan: (state.needsScan && !canContinue) || !state.lastScanAt, busy: state.busy, storageError: state.storageError,
-        coolingDown: Date.now() < state.cooldownUntil, readOnly: !SETTINGS.capabilities.activation,
-        progress: state.activeAction === 'add' && state.total ? { completed: state.confirmed, total: state.total } : null });
-    const reason = panel.getElementById('hub-action-reason');
-    if (canContinue && !panel.getElementById('add').disabled) {
-        reason.textContent = 'Continue with your saved card choices. Add all offers checks the current login and offer status before adding what remains. Refreshing all cards is optional.';
-        reason.hidden = false;
-    } else {
-        reason.textContent = reason.textContent.replace('Refresh offers before adding', 'Refresh all cards & offers before adding')
-            .replace('Scan again to refresh', 'Refresh all cards & offers to check for new offers');
-    }
+    renderCitiActions(panel);
     renderOffers();
 }

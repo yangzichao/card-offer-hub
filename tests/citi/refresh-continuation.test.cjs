@@ -58,7 +58,7 @@ test('a failed refresh keeps old unscanned results and the last complete timesta
     assert.equal(harness.state.lastScanAt, timestamp);
     assert.equal(harness.state.needsScan, true);
     assert.ok(harness.state.offers.some(record => record.accountId === 'removed' && record.offerId === 'offer-a'));
-    await harness.addAllOffers();
+    await harness.addSavedOffers();
     assert.equal(harness.requests.length, 3);
 });
 
@@ -71,7 +71,7 @@ test('stopping an all-card refresh during pacing prevents any further card reque
     assert.match(harness.state.status, /Stopped/);
 });
 
-test('continue after reload verifies the login and current offers, skipping already added offers and unselected cards', async () => {
+test('cached continuation verifies the login but never refreshes or replaces saved offers', async () => {
     const previous = await savedWorkspace();
     previous.setCardSelected('removed', false);
     const harness = createHarness(request => jsonResponse(request.url.endsWith('/enrollMerchantOffer')
@@ -80,10 +80,10 @@ test('continue after reload verifies the login and current offers, skipping alre
             : listing([], ['card-a', 'card-b'].map(card))), { storage: previous.storage });
     harness.restoreWorkspace();
     harness.state.search = 'no matching offers';
-    assert.equal(harness.canContinueSavedOffers(), true);
-    await harness.addAllOffers();
+    assert.equal(harness.canAddSavedOffers(), true);
+    await harness.addSavedOffers();
     assert.deepEqual(harness.requests.map(request => request.body), [
-        {}, { accountId: 'card-a' }, { accountId: 'card-a', offerId: 'remaining', oneClickEnroll: 'true' }
+        {}, { accountId: 'card-a', offerId: 'offer-a', oneClickEnroll: 'true' }
     ]);
     assert.equal(harness.state.confirmed, 1);
 });
@@ -92,7 +92,7 @@ test('continue refuses to enroll when the restored selections belong to another 
     const previous = await savedWorkspace();
     const harness = createHarness(() => jsonResponse(listing([], [card('other-login')])) , { storage: previous.storage });
     harness.restoreWorkspace();
-    await harness.addAllOffers();
+    await harness.addSavedOffers();
     assert.equal(harness.requests.length, 1);
     assert.deepEqual(harness.requests[0].body, {});
     assert.equal(harness.state.selected.size, 0);
@@ -104,9 +104,9 @@ test('a failed continuation needs an explicit refresh before another attempt', a
     const previous = await savedWorkspace();
     const harness = createHarness(() => jsonResponse({}, 401), { storage: previous.storage });
     harness.restoreWorkspace();
-    await harness.addAllOffers();
-    assert.equal(harness.canContinueSavedOffers(), false);
-    await harness.addAllOffers();
+    await harness.addSavedOffers();
+    assert.equal(harness.canAddSavedOffers(), false);
+    await harness.addSavedOffers();
     assert.equal(harness.requests.length, 1);
     assert.match(harness.state.status, /HTTP 401/);
 });
@@ -117,11 +117,80 @@ test('a previously unconfirmed enrollment requires a refresh and is not replayed
     const harness = createHarness(request => jsonResponse(request.body.accountId ? listing([offer('offer-a', 'ENROLLED')])
         : listing([], ['card-a', 'card-b', 'removed'].map(card))), { storage: previous.storage });
     harness.restoreWorkspace();
-    assert.equal(harness.canContinueSavedOffers(), false);
-    await harness.addAllOffers();
+    assert.equal(harness.canAddSavedOffers(), false);
+    await harness.addSavedOffers();
     assert.equal(harness.requests.length, 0);
-    await harness.refreshAllCardsAndOffers();
+    await harness.refreshAndAddOffers();
     assert.equal(harness.requests.length, 4);
     assert.ok(harness.state.offers.every(record => record.status === 'ENROLLED'));
     assert.ok(harness.requests.every(request => request.url.endsWith('/retrieve')));
+});
+
+test('refresh and add discovers offers on all cards then enrolls only selected cards without a second scan', async () => {
+    const previous = await savedWorkspace();
+    previous.setCardSelected('removed', false);
+    const harness = createHarness(request => jsonResponse(request.url.endsWith('/enrollMerchantOffer')
+        ? confirmation(request)
+        : request.body.accountId ? listing([offer('offer-a', 'ENROLLED'), offer('new')])
+            : listing([], ['card-a', 'card-b', 'card-c'].map(card))), { storage: previous.storage, responseDelay: 700 });
+    harness.restoreWorkspace();
+    harness.state.search = 'nothing visible';
+    await harness.refreshAndAddOffers();
+    assert.deepEqual(harness.requests.map(request => request.body), [
+        {}, { accountId: 'card-a' }, { accountId: 'card-b' }, { accountId: 'card-c' },
+        { accountId: 'card-a', offerId: 'new', oneClickEnroll: 'true' }
+    ]);
+    assert.deepEqual(Array.from(harness.state.selected), ['card-a']);
+    assert.equal(harness.state.confirmed, 1);
+    assert.equal(harness.maximumActive(), 1);
+    for (let index = 1; index < harness.requests.length; index++) {
+        assert.equal(harness.requests[index].startedAt - harness.requests[index - 1].finishedAt, 500);
+    }
+});
+
+test('zero cached available offers can still refresh and add new offers in one action', async () => {
+    const previous = await savedWorkspace();
+    previous.setCardSelected('removed', false);
+    previous.state.offers.forEach(record => { record.status = 'ENROLLED'; });
+    previous.saveWorkspace();
+    const harness = createHarness(request => jsonResponse(request.url.endsWith('/enrollMerchantOffer')
+        ? confirmation(request) : request.body.accountId ? listing([offer('new')])
+            : listing([], [card('card-a')])), { storage: previous.storage });
+    harness.restoreWorkspace();
+    await harness.addSavedOffers();
+    assert.equal(harness.requests.length, 0);
+    await harness.refreshAndAddOffers();
+    assert.equal(harness.requests.length, 3);
+    assert.equal(harness.state.confirmed, 1);
+});
+
+test('refresh and add never writes after a partial refresh failure or a stop', async () => {
+    for (const interrupted of [false, true]) {
+        const previous = await savedWorkspace();
+        previous.setCardSelected('removed', false);
+        const harness = createHarness((request, access) => {
+            if (request.body.accountId === 'card-b') {
+                if (interrupted) access.stopRun();
+                else return jsonResponse({}, 500);
+            }
+            return jsonResponse(request.body.accountId ? listing([offer('new')])
+                : listing([], ['card-a', 'card-b'].map(card)));
+        }, { storage: previous.storage });
+        harness.restoreWorkspace();
+        await harness.refreshAndAddOffers();
+        assert.equal(harness.requests.length, 3);
+        assert.ok(harness.requests.every(request => request.url.endsWith('/retrieve')));
+        assert.equal(harness.state.needsScan, true);
+        await harness.addSavedOffers();
+        assert.equal(harness.requests.length, 3);
+    }
+});
+
+test('refresh and add stops if any selected card disappeared, even when another selected card remains', async () => {
+    const previous = await savedWorkspace();
+    const harness = createHarness(() => jsonResponse(listing([], [card('card-a')])) , { storage: previous.storage });
+    harness.restoreWorkspace();
+    await harness.refreshAndAddOffers();
+    assert.equal(harness.requests.length, 1);
+    assert.match(harness.state.status, /do not match this login/);
 });

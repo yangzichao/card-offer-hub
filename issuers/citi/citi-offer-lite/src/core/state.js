@@ -11,7 +11,7 @@ const state = {
     lastScanAt: 0, workspaceScope: '', restoredWorkspace: false,
     accounts: [], selected: new Set(), offers: [], activeAction: null, busy: false, stopRequested: false,
     needsScan: false, continuationBlocked: false, nextRequestAt: 0, cooldownUntil: 0, storageError: '',
-    status: 'Refresh all cards & offers to get started. Nothing runs automatically.',
+    status: '',
     confirmed: 0, completed: 0, total: 0, panel: null, collapsed: false, search: ''
 };
 function updateStatus(message) {
@@ -19,9 +19,9 @@ function updateStatus(message) {
     renderPanel();
 }
 function ensureRunning() {
-    if (state.stopRequested) throw new Error('Stopped. Scan again before adding more offers.');
+    if (state.stopRequested) throw new Error('Stopped. Use Refresh & add offers to continue.');
     if (location.origin !== 'https://online.citi.com' || !/^\/US\/(?:ag|nga)\//.test(location.pathname)) {
-        throw new Error('Open a signed-in Citi page and scan again.');
+        throw new Error('Open a signed-in Citi page and use Refresh & add offers.');
     }
 }
 function stopRun() {

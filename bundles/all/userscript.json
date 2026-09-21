@@ -1,7 +1,7 @@
 {
     "id": "card-offer-hub-all",
     "name": "Card Offer Hub — All Banks",
-    "version": "1.4.0",
+    "version": "1.4.1",
     "description": "All six Card Offer Hub tools in one install; manual scanning and activation on the matching bank website",
     "author": "Zichao Yang",
     "sources": [

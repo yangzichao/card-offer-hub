@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const { createBrowserStorageFixture } = require('../amex/helpers/browser-storage.cjs');
 
-async function verifyWorkspaceReload({ page, script, id, bank, requests, activationName, documentStart = false }) {
+async function verifyWorkspaceReload({ page, script, id, bank, requests, activationName, documentStart = false, restoredStatus = /Saved results and selections restored/, cacheNotice = /Last complete scan/ }) {
     const search = page.getByRole('searchbox');
     if (await search.count()) await search.fill('saved query');
     const before = await page.evaluate(key => GM_getValue(key), `${id}:workspace`);
@@ -23,9 +23,9 @@ async function verifyWorkspaceReload({ page, script, id, bank, requests, activat
     const toggle = page.getByRole('button', { name: `Expand ${bank} panel`, exact: true });
     assert.equal(await toggle.isVisible(), true, 'collapsed state restores on a new document');
     await toggle.click();
-    assert.match(await page.getByRole('status').innerText(), /Saved results and selections restored/);
+    assert.match(await page.getByRole('status').innerText(), restoredStatus);
     assert.equal(await page.getByRole('button', { name: activationName, exact: true, includeHidden: true }).isEnabled(), false);
-    assert.match(await page.locator('#workspace-cache, .workspace-cache').innerText(), /Last complete scan/);
+    assert.match(await page.locator('#workspace-cache, .workspace-cache').innerText(), cacheNotice);
     if (await search.count()) {
         assert.equal(await search.inputValue(), 'saved query');
         await search.fill('');

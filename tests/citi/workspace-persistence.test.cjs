@@ -1,17 +1,17 @@
 const { registerWorkspacePersistenceTests } = require('../helpers/workspace-persistence.cjs');
-const { createHarness, jsonResponse, listing, confirmation, selectCards } = require('./helpers/userscript-harness.cjs');
+const { createHarness, jsonResponse, listing, confirmation, selectCards, seedSavedOffers, offer } = require('./helpers/userscript-harness.cjs');
 function create(options = {}) {
     return createHarness(request => options.shouldFail?.() ? jsonResponse({}, 500)
         : jsonResponse(request.url.endsWith('/retrieve') ? listing(undefined, [{ accountId: 'card-a', displayProductName: 'Example card' }]) : confirmation(request)), options);
 }
 registerWorkspacePersistenceTests({ create, prepare: async harness => { selectCards(harness); await harness.scanOffers(); },
-    activate: harness => harness.addAllOffers(), secrets: ['synthetic-session', 'synthetic-client'],
+    activate: harness => harness.addSavedOffers(), secrets: ['synthetic-session', 'synthetic-client'],
     verifyRestoredActivation: async harness => {
-        assert.equal(harness.canContinueSavedOffers(), true);
-        await harness.addAllOffers();
+        assert.equal(harness.canAddSavedOffers(), true);
+        await harness.addSavedOffers();
         assert.deepEqual(harness.requests.map(request => request.body), [
-            {}, { accountId: 'card-a' }, { accountId: 'card-a', offerId: 'offer-a', oneClickEnroll: 'true' }
-        ], 'one explicit click verifies the login and current offers before adding');
+            {}, { accountId: 'card-a', offerId: 'offer-a', oneClickEnroll: 'true' }
+        ], 'one explicit click verifies the login and adds saved offers without rescanning');
         assert.equal(harness.state.confirmed, 1);
     } });
 module.exports = { create };
@@ -34,12 +34,12 @@ test('Citi writes pending state before sending, then persists confirmed results'
     let writeStarted;
     const started = new Promise(resolve => { writeStarted = resolve; });
     const first = createHarness(request => {
-        if (request.url.endsWith('/retrieve')) return jsonResponse(listing());
+        if (request.url.endsWith('/retrieve')) return jsonResponse(listing([], [{ accountId: 'card-a', displayProductName: 'Card A' }]));
         writeStarted();
         return new Promise(resolve => { completeWrite = () => resolve(jsonResponse(confirmation(request))); });
     });
-    selectCards(first);
-    const run = first.addAllOffers();
+    seedSavedOffers(first, ['card-a'], [offer('a')]);
+    const run = first.addSavedOffers();
     await started;
     const duringWrite = create({ storage: first.storage }); duringWrite.restoreWorkspace();
     assert.equal(duringWrite.state.offers[0].status, 'UNCONFIRMED');
@@ -52,7 +52,7 @@ test('failed pending checkpoint sends no enrollment request', async () => {
     const harness = create({ onSave(key, value) {
         if (key.endsWith(':workspace') && value.offers.some(offer => offer.status === 'UNCONFIRMED')) throw new Error('Cannot checkpoint');
     } });
-    selectCards(harness); await harness.addAllOffers();
+    seedSavedOffers(harness); await harness.addSavedOffers();
     assert.equal(harness.requests.length, 1);
     assert.match(harness.state.storageError, /Cannot save/);
 });

@@ -6,7 +6,7 @@
 
 <!-- published-scripts:start -->
 
-**[安装 / 更新 Card Offer Hub 1.4.0](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/card-offer-hub-all.user.js)** — 唯一安装包，包含下列 6 家银行。
+**[安装 / 更新 Card Offer Hub 1.4.1](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/card-offer-hub-all.user.js)** — 唯一安装包，包含下列 6 家银行。
 
 安装一次，按当前银行页面加载对应功能，所有银行共用一个发布版本。[使用说明](bundles/all/README.md)
 
@@ -27,7 +27,7 @@
 
 面板中的 **Search all banks** 可同时搜索六家银行已保存的 Offer，按银行或状态筛选，查看卡片、扫描时间和有效期，再打开对应银行页面。搜索条件会保留；**Reload saved results** 只读取本地缓存。各家银行需要先手动扫描一次。详见[使用说明](bundles/all/README.md#跨银行搜索)。
 
-六家银行使用统一的浅色界面和三步流程：**Choose scope → Scan offers → Review & add**。搜索只改变列表，**Add all offers** 始终覆盖所选范围中的全部可添加优惠。按钮会说明尚未选范围、需要扫描、冷却或只读等禁用原因。详见[统一操作流程](docs/unified-workflow.md)。
+六家银行使用统一的浅色界面，按每卡、账户和 Amex 组合三种业务模型组织流程。Citi 选卡后可直接 **Add saved offers** 使用缓存添加，或 **Refresh & add offers** 刷新后自动添加。搜索只改变列表，批量添加始终处理已选范围。详见[统一操作流程](docs/unified-workflow.md)。
 
 ## 安装与更新
 

@@ -50,7 +50,7 @@ function createHarness(respond, options = {}) {
     const probe = `globalThis.citiTestAccess = { state, SETTINGS, restoreWorkspace, saveWorkspace, requireWorkspaceSaved, markWorkspaceOfferPending, finishWorkspaceOffer,
         recordWorkspaceScan, workspaceScopeFingerprint, normalizeAccounts, normalizeOffers,
         enrollmentBody, enrollmentConfirmed, sessionHeaders, retryAfterMilliseconds, restorePacing,
-        requestJson, refreshAllCardsAndOffers, canContinueSavedOffers, setCardSelected, scanOffers, addAllOffers, stopRun };})();`;
+        requestJson, refreshAllCardsAndOffers, canAddSavedOffers, setCardSelected, scanOffers, addSavedOffers, refreshAndAddOffers, stopRun };})();`;
     if (!source.includes(marker)) throw new Error('Missing test initialization boundary');
     runInNewContext(source.slice(0, source.indexOf(marker)) + probe, context);
     return { ...context.citiTestAccess, requests, storage, context, maximumActive: () => maximumActive,
@@ -72,4 +72,9 @@ function selectCards(harness, ids = ['card-a']) {
     harness.state.accounts = ids.map(accountId => ({ accountId, name: `Synthetic ${accountId}` }));
     ids.forEach(id => harness.setCardSelected(id, true));
 }
-module.exports = { createHarness, cookieFixture, jsonResponse, offer, listing, confirmation, selectCards };
+function seedSavedOffers(harness, ids = ['card-a'], offers = [offer('a'), offer('b')]) {
+    selectCards(harness, ids);
+    harness.state.offers = ids.flatMap(id => Array.from(harness.normalizeOffers(listing(offers), id)));
+    harness.recordWorkspaceScan();
+}
+module.exports = { createHarness, cookieFixture, jsonResponse, offer, listing, confirmation, selectCards, seedSavedOffers };

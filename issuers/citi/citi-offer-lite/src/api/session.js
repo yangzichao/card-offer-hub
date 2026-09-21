@@ -11,12 +11,12 @@ function sessionHeaders() {
     for (const name of ['appVersion', 'businessCode', 'channelId', 'client_id', 'countryCode']) {
         const value = readCookie(name);
         if (!value || value === 'undefined' || value === 'null') {
-            throw new Error('Citi session configuration is unavailable. Open Merchant Offers after signing in, then scan again.');
+            throw new Error('Citi session configuration is unavailable. Open Merchant Offers after signing in, then use Refresh & add offers.');
         }
         headers[name] = value;
     }
     const sessionId = readCookie('tmx_sessionid');
-    if (!sessionId) throw new Error('Citi session is not ready. Open Merchant Offers and scan again.');
+    if (!sessionId) throw new Error('Citi session is not ready. Open Merchant Offers and use Refresh & add offers.');
     headers.TMXSessionId = sessionId;
     const xsrfToken = readCookie('XSRF-TOKEN');
     if (xsrfToken) headers['X-XSRF-TOKEN'] = xsrfToken;

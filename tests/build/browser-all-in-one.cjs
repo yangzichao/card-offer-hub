@@ -68,10 +68,10 @@ async function run() {
             assert.equal(await page.locator('.panel').getAttribute('data-workflow'), script.workflow);
             assert.deepEqual(await page.locator('.hub-step > h3').allTextContents(), headings[script.workflow]);
             assert.equal(await page.getByRole('button', { name: 'Stop', exact: true }).count(), 0);
-            for (const name of [script.issuer === 'citi' ? 'Refresh all cards & offers' : 'Scan offers', 'Clear search']) {
+            for (const name of [script.issuer === 'citi' ? 'Refresh & add offers' : 'Scan offers', 'Clear search']) {
                 assert.equal(await page.getByRole('button', { name, exact: true }).count(), 1);
             }
-            const bulk = page.getByRole('button', { name: 'Add all offers', exact: true, includeHidden: true });
+            const bulk = page.getByRole('button', { name: script.issuer === 'citi' ? 'Add saved offers' : 'Add all offers', exact: true, includeHidden: true });
             assert.equal(await bulk.isVisible(), script.capabilities.activation);
             const bulkBeforeSearch = await bulk.textContent();
             const panelIds = await page.evaluate(() => [...document.querySelectorAll('body > div')]

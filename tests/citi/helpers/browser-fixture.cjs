@@ -11,7 +11,7 @@ async function fixture(browser, mode = 'success') {
     }));
     const page = await context.newPage();
     const requests = [];
-    const bankState = { cards: ['card-a', 'card-b'], enrolled: new Set() };
+    const bankState = { cards: ['card-a', 'card-b'], enrolled: new Set(), offerIds: ['a', 'b', 'already', 'a'], mode };
     const errors = [];
     let active = 0;
     let maximumActive = 0;
@@ -44,15 +44,15 @@ async function fixture(browser, mode = 'success') {
         try {
             let payload;
             const enrollment = request.url().endsWith('/enrollMerchantOffer');
-            if (enrollment && mode === '429') {
+            if (enrollment && bankState.mode === '429') {
                 await route.fulfill({ status: 429, headers: { 'Retry-After': '600' }, contentType: 'application/json', body: '{}' });
                 return;
             }
             if (enrollment) {
-                payload = mode === 'unconfirmed' ? {} : confirmation(record);
-                if (mode !== 'unconfirmed') bankState.enrolled.add(`${record.body.accountId}:${record.body.offerId}`);
+                payload = bankState.mode === 'unconfirmed' ? {} : confirmation(record);
+                if (bankState.mode !== 'unconfirmed') bankState.enrolled.add(`${record.body.accountId}:${record.body.offerId}`);
             } else {
-                const offers = ['a', 'b', 'already', 'a'].map(id => offer(id,
+                const offers = bankState.offerIds.map(id => offer(id,
                     id === 'already' || bankState.enrolled.has(`${record.body.accountId}:${id}`) ? 'ENROLLED' : 'AVAILABLE'));
                 payload = listing(offers, record.body.accountId ? [] : bankState.cards.map(accountId => ({
                     accountId, displayProductName: `Synthetic Card ${accountId.slice(-1).toUpperCase()}`
@@ -72,8 +72,8 @@ async function fixture(browser, mode = 'success') {
         throw new Error(`Did not reach ${pattern}: ${await status()}`);
     }
     async function selectCard() {
-        await page.getByRole('button', { name: 'Refresh all cards & offers', exact: true }).click();
-        await advanceUntil(/Refresh complete/, 100);
+        await page.getByRole('button', { name: 'Load cards & offers', exact: true }).click();
+        await advanceUntil(/Loaded 2 cards/, 100);
         assert.equal(await page.getByRole('checkbox', { checked: true }).count(), 0);
         await page.getByRole('checkbox', { name: 'Select Synthetic Card A', exact: true }).check();
     }
