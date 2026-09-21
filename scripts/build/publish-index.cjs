@@ -17,7 +17,8 @@ function buildPublishIndex(scripts) {
             installUrl, updateUrl: installUrl,
             includes: scripts.map(script => ({
                 id: script.id, name: script.name, issuer: script.issuer,
-                matches: script.matches, sourceDirectory: script.toolDirectoryPath
+                matches: script.matches, adapterMatches: script.adapterMatches, offersUrl: script.offersUrl,
+                sourceDirectory: script.toolDirectoryPath
             }))
         }]
     }, null, 4)}\n`;

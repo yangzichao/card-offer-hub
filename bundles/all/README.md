@@ -6,6 +6,8 @@
 
 打开 Amex、Citi、Chase、BankAmeriDeals、US Bank 或 Wells Fargo 对应页面，只加载该网站的工具。扫描、添加仍需手动点击；Chase 目前仍只支持扫描。
 
+覆盖六家银行的主域名和所有子域名，不限制优惠路径。主站或登录域名显示 Offers 入口和缓存搜索；已支持的网银域名显示完整操作面板，并提供直接进入 Offers 的链接。网站切换页面或替换页面内容后恢复面板。详见[地址匹配说明](../../docs/website-matching.md)。
+
 ## 跨银行搜索
 
 在任一银行面板点击 **Search all banks**，即可搜索插件保存的六家银行结果。

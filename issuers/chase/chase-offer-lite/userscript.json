@@ -5,7 +5,7 @@
     "author": "Zichao Yang",
     "issuer": "chase",
     "matches": [
-        "https://secure.chase.com/web/auth/*"
+        "https://*.chase.com/*"
     ],
     "grants": [
         "GM_getValue",
@@ -57,5 +57,8 @@
         "activation": false,
         "scope": "card"
     },
-    "workflow": "per-card"
+    "workflow": "per-card",
+    "adapterMatches": [
+        "https://secure.chase.com/*"
+    ]
 }

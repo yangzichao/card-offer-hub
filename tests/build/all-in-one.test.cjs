@@ -38,27 +38,28 @@ test('all-in-one embeds every exact issuer body with a single install and update
 function probe(url, readyState = 'loading', inFrame = false) {
     let source = published;
     source = source.replace('installHubSearchLauncher(configuration);', '');
+    source = source.replace('() => installHubBankEntry(configuration)', '() => entries.push(configuration.id)');
     for (const script of scripts) {
         const issuerBody = bundleIssuerBody(script, manifest.version);
         source = source.replace(issuerBody,
             `started.push(${JSON.stringify(script.id)}); GM_setValue('shared-key', ${JSON.stringify(script.id)}); reads.push(GM_getValue('shared-key'));`);
     }
-    const callbacks = [], started = [], reads = [], stored = new Map();
+    const callbacks = [], started = [], entries = [], reads = [], stored = new Map();
     const window = {};
     window.self = window;
     window.top = inFrame ? {} : window;
-    const context = { location: new URL(url), window, started, reads,
+    const context = { location: new URL(url), window, started, entries, reads,
         document: { readyState, addEventListener: (event, callback) => { assert.equal(event, 'DOMContentLoaded'); callbacks.push(callback); } },
         GM_getValue: (key, fallback) => stored.get(key) ?? fallback,
         GM_setValue: (key, value) => stored.set(key, value) };
     const inject = () => runInNewContext(source, context);
     inject();
-    return { started, reads, stored, inject, ready: () => callbacks.forEach(callback => callback()) };
+    return { started, entries, reads, stored, inject, ready: () => callbacks.forEach(callback => callback()) };
 }
 
 test('routing selects only the correct issuer and preserves document-start vs DOM-ready startup', () => {
     for (const script of scripts) {
-        for (const match of script.matches) {
+        for (const match of script.adapterMatches) {
             const result = probe(match.replaceAll('*', 'sample'));
             assert.deepEqual(result.started, script.runAt === 'document-start' ? [script.id] : []);
             result.ready();
@@ -77,13 +78,38 @@ test('routing selects only the correct issuer and preserves document-start vs DO
 
 test('unrelated sites, misleading hostnames and unmatched bank paths do nothing', () => {
     for (const url of ['https://example.com/', 'https://secure.chase.com.evil.example/web/auth/home',
-        'https://secure.chase.com/public/', 'http://global.americanexpress.com/',
-        'https://web.secure.wellsfargo.com/auth/login', 'https://online.citi.com/other/']) {
+        'http://global.americanexpress.com/', 'https://notciti.com/', 'https://citi.com.evil.example/',
+        'https://evil.example/?next=https://www.citi.com/', 'https://merchant-rewards.com/']) {
         const result = probe(url, 'complete');
         assert.deepEqual(result.started, [], url);
+        assert.deepEqual(result.entries, [], url);
         assert.equal(result.stored.size, 0);
     }
     assert.throws(() => matchPatternExpression('*://*.example.com/*'), /Unsupported/);
+});
+
+const { bankUrlCases } = require('./fixtures/bank-url-cases.cjs');
+test('all bank entry domains and login-to-offers paths match both metadata and runtime', () => {
+    for (const bank of bankUrlCases) {
+        for (const [mode, urls] of Object.entries(bank.urls)) {
+            for (const url of urls) {
+                const withoutHash = url.split('#')[0];
+                assert.ok(metadata('match').some(pattern => new RegExp(matchPatternExpression(pattern)).test(withoutHash)), url);
+                const result = probe(url, 'complete');
+                assert.deepEqual(result.started, mode === 'adapter' ? [bank.id] : [], url);
+                assert.deepEqual(result.entries, mode === 'entry' ? [bank.id] : [], url);
+                const framed = probe(url, 'complete', true);
+                assert.deepEqual([...framed.started, ...framed.entries], [], 'no duplicate frame UI');
+            }
+        }
+    }
+});
+
+test('subdomain wildcards include apex and nested hosts without accepting lookalikes', () => {
+    const expression = new RegExp(matchPatternExpression('https://*.citi.com/*'));
+    for (const url of ['https://citi.com/', 'https://www.citi.com/', 'https://a.b.citi.com/offers?x=1']) assert.ok(expression.test(url));
+    for (const url of ['https://notciti.com/', 'https://citi.com.evil.test/', 'http://citi.com/', 'https://citi.com@evil.test/']) assert.equal(expression.test(url), false);
+    for (const pattern of ['https://*citi.com/*', 'https://*/offers', 'https://www.*.com/*', 'https://citi.com/*#offers']) assert.throws(() => matchPatternExpression(pattern), /Unsupported/);
 });
 
 test('one release version drives all modules; legacy outputs are removed and cannot return', () => {

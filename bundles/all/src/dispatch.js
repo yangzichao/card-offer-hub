@@ -1,8 +1,14 @@
 // All routing is local. Each adapter retains its original IIFE, constants and workflows.
 function dispatchIssuer(configuration, startIssuer) {
     const pageUrl = location.origin + location.pathname + location.search;
-    if (!configuration.patterns.some(pattern => new RegExp(pattern).test(pageUrl))) return;
+    if (!configuration.entryPatterns.some(pattern => new RegExp(pattern).test(pageUrl))) return;
     if (configuration.noFrames && window.top !== window.self) return;
+    if (!configuration.patterns.some(pattern => new RegExp(pattern).test(pageUrl))) {
+        const mountEntry = () => installHubBankEntry(configuration);
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mountEntry, { once: true });
+        else mountEntry();
+        return;
+    }
     const start = () => {
         const guardKey = `__cardOfferHubAllStarted_${configuration.id}`;
         if (window[guardKey]) return;

@@ -12,6 +12,7 @@
 - `src/` 模块最后被拼进银行自己的 IIFE：不写 `import` / `export`。公共定义在发布包外层只输出一次，公共名字必须唯一；通过工厂显式传入银行状态、配置和回调，不能读取银行隐含全局变量。
 - 银行清单声明 `capabilities`（`activation` 布尔值与 `scope: card|account`）。离线搜索读取器通过 `savedResultsSource` 指向 `sources` 内的一个文件；只定义无副作用的 `readIssuerSavedResults(bank, readValue)`，不访问会话、不发请求。
 - 银行清单必须声明 `workflow`，与 `shared/workflows/catalog.json` 中的模板和 scope 匹配。优惠归属、去重与目标分配属于模板；银行 `core/workflow.js` 只转换记录和选择。新增模板/银行前读 `docs/workflow-templates.md`，不要以添加能力或银行名称代替业务模型。
+- 地址优先避免漏匹配：`matches` 覆盖银行主域名及子域名，`adapterMatches` 列出有已知 API 合约的完整 HTTPS 域名并使用 `/*`。其他匹配域名显示优惠入口和缓存搜索。两层路由及 `offersUrl` 必须同步；参见 `docs/website-matching.md`。
 
 ## 发布产物
 

@@ -5,7 +5,7 @@
     "author": "Zichao Yang",
     "issuer": "usbank",
     "matches": [
-        "https://onlinebanking.usbank.com/*"
+        "https://*.usbank.com/*"
     ],
     "grants": [
         "GM_getValue",
@@ -56,5 +56,8 @@
         "activation": true,
         "scope": "account"
     },
-    "workflow": "account"
+    "workflow": "account",
+    "adapterMatches": [
+        "https://onlinebanking.usbank.com/*"
+    ]
 }

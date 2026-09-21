@@ -5,6 +5,7 @@
     "author": "Zichao Yang",
     "issuer": "bank-of-america",
     "matches": [
+        "https://*.bankofamerica.com/*",
         "https://deals.merchant-rewards.com/*"
     ],
     "grants": [
@@ -54,5 +55,8 @@
         "activation": true,
         "scope": "account"
     },
-    "workflow": "account"
+    "workflow": "account",
+    "adapterMatches": [
+        "https://deals.merchant-rewards.com/*"
+    ]
 }

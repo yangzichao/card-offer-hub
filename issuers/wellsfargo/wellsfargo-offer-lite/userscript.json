@@ -5,8 +5,7 @@
     "author": "Zichao Yang",
     "issuer": "wellsfargo",
     "matches": [
-        "https://web.secure.wellsfargo.com/auth/deals-portal*",
-        "https://web.secure.wellsfargo.com/deals-portal/*"
+        "https://*.wellsfargo.com/*"
     ],
     "grants": [
         "GM_getValue",
@@ -56,5 +55,8 @@
         "activation": true,
         "scope": "account"
     },
-    "workflow": "account"
+    "workflow": "account",
+    "adapterMatches": [
+        "https://web.secure.wellsfargo.com/*"
+    ]
 }

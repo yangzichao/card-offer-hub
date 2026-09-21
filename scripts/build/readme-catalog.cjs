@@ -9,17 +9,17 @@ const CATALOG_END_MARKER = '<!-- published-scripts:end -->';
 function buildCatalogTable(scripts) {
     const combined = loadAllInOneManifest(scripts);
     const rows = scripts.map((script) => {
-        return `| [${script.bankLabel}](${script.toolDirectoryPath}/README.md) | ${script.matches.join('<br>')} |`;
+        return `| [${script.bankLabel}](${script.toolDirectoryPath}/README.md) | ${script.matches.join('<br>')} | [打开 Offers](${script.offersUrl}) |`;
     });
     return [
         CATALOG_START_MARKER,
         '',
         `**[安装 / 更新 Card Offer Hub ${combined.version}](${publishedFileUrl(publishedUserscriptFileName(combined.id))})** — 唯一安装包，包含下列 ${scripts.length} 家银行。`,
         '',
-        '安装一次，按当前银行页面加载对应功能，所有银行共用一个发布版本。[使用说明](bundles/all/README.md)',
+        '安装一次，覆盖银行主域名和所有子域名；网银显示操作面板，其他页面提供 Offers 入口和缓存搜索。所有银行共用一个发布版本。[地址匹配说明](docs/website-matching.md)',
         '',
-        '| 银行 | 生效站点 |',
-        '| --- | --- |',
+        '| 银行 | 生效站点 | 优惠入口 |',
+        '| --- | --- | --- |',
         ...rows,
         '',
         CATALOG_END_MARKER

@@ -5,7 +5,7 @@
     "author": "Zichao Yang",
     "issuer": "amex",
     "matches": [
-        "https://global.americanexpress.com/*"
+        "https://*.americanexpress.com/*"
     ],
     "grants": [
         "GM_getValue",
@@ -63,5 +63,8 @@
         "activation": true,
         "scope": "card"
     },
-    "workflow": "amex-combination"
+    "workflow": "amex-combination",
+    "adapterMatches": [
+        "https://global.americanexpress.com/*"
+    ]
 }

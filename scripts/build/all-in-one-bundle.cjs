@@ -4,20 +4,18 @@ const { Script } = require('node:vm');
 const { bundleIssuerBody, bundleSharedRuntime, bundleSavedResultsReader } = require('./source-bundle.cjs');
 const { buildMetadataBlock, countMetadataBlocks } = require('./userscript-metadata.cjs');
 const { loadAllInOneManifest, allInOneDirectory } = require('./all-in-one-manifest.cjs');
-
-// Fail closed when a future adapter needs match syntax this router does not implement.
-function matchPatternExpression(pattern) {
-    if (!/^https:\/\/[a-z0-9.-]+\/[^\s]*$/.test(pattern)) throw new Error(`Unsupported all-in-one match pattern: ${pattern}`);
-    return '^' + pattern.split('*').map(part => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*') + '$';
-}
+const { matchPatternExpression } = require('./match-patterns.cjs');
 
 function buildAllInOneBundle(scripts) {
     const manifest = loadAllInOneManifest(scripts);
     const runtimeSource = manifest.sources.map(source => readFileSync(join(allInOneDirectory, 'src', source), 'utf8').trim()).join('\n\n');
     const sharedSource = bundleSharedRuntime(scripts);
     const banks = scripts.map(script => {
-        const url = script.offersUrl || script.matches[0].replace(/\*.*$/, '');
-        if (!script.matches.some(pattern => new RegExp(matchPatternExpression(pattern)).test(url))) throw new Error(`${script.id}: offersUrl must match its own bank website.`);
+        const url = script.offersUrl;
+        const pageUrl = new URL(url).href.split('#')[0];
+        for (const patterns of [script.matches, script.adapterMatches]) {
+            if (!patterns.some(pattern => new RegExp(matchPatternExpression(pattern)).test(pageUrl))) throw new Error(`${script.id}: offersUrl must match its own bank website and adapter.`);
+        }
         const bank = { id: script.id, issuer: script.issuer, label: script.bankLabel, url };
         return `{ ...${JSON.stringify(bank)}, readSavedResults: ${bundleSavedResultsReader(script, manifest.version)} }`;
     });
@@ -30,7 +28,9 @@ function buildAllInOneBundle(scripts) {
             throw new Error(`${script.id}: review new grants for all-in-one storage isolation.`);
         }
         const body = bundleIssuerBody(script, manifest.version);
-        const config = { id: script.id, patterns: script.matches.map(matchPatternExpression), runAt: script.runAt, noFrames: script.noFrames };
+        const config = { id: script.id, label: script.bankLabel, offersUrl: script.offersUrl, version: manifest.version,
+            entryPatterns: script.matches.map(matchPatternExpression), patterns: script.adapterMatches.map(matchPatternExpression),
+            runAt: script.runAt, noFrames: script.noFrames };
         return `dispatchIssuer(${JSON.stringify(config)}, function (GM_getValue, GM_setValue) {\n// --- Issuer body: ${script.id} ---\n${body}// --- End issuer body: ${script.id} ---\n});`;
     });
     const header = buildMetadataBlock(manifest).replace('bundles/all/src', 'bundles/all and issuers');

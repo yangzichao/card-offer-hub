@@ -6,18 +6,18 @@
 
 <!-- published-scripts:start -->
 
-**[安装 / 更新 Card Offer Hub 1.4.1](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/card-offer-hub-all.user.js)** — 唯一安装包，包含下列 6 家银行。
+**[安装 / 更新 Card Offer Hub 1.4.2](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/card-offer-hub-all.user.js)** — 唯一安装包，包含下列 6 家银行。
 
-安装一次，按当前银行页面加载对应功能，所有银行共用一个发布版本。[使用说明](bundles/all/README.md)
+安装一次，覆盖银行主域名和所有子域名；网银显示操作面板，其他页面提供 Offers 入口和缓存搜索。所有银行共用一个发布版本。[地址匹配说明](docs/website-matching.md)
 
-| 银行 | 生效站点 |
-| --- | --- |
-| [Amex](issuers/amex/amex-offer-lite/README.md) | https://global.americanexpress.com/* |
-| [BankAmeriDeals](issuers/bank-of-america/bofa-offer-lite/README.md) | https://deals.merchant-rewards.com/* |
-| [Chase](issuers/chase/chase-offer-lite/README.md) | https://secure.chase.com/web/auth/* |
-| [Citi](issuers/citi/citi-offer-lite/README.md) | https://online.citi.com/US/* |
-| [US Bank](issuers/usbank/usbank-offer-lite/README.md) | https://onlinebanking.usbank.com/* |
-| [Wells Fargo](issuers/wellsfargo/wellsfargo-offer-lite/README.md) | https://web.secure.wellsfargo.com/auth/deals-portal*<br>https://web.secure.wellsfargo.com/deals-portal/* |
+| 银行 | 生效站点 | 优惠入口 |
+| --- | --- | --- |
+| [Amex](issuers/amex/amex-offer-lite/README.md) | https://*.americanexpress.com/* | [打开 Offers](https://global.americanexpress.com/offers) |
+| [BankAmeriDeals](issuers/bank-of-america/bofa-offer-lite/README.md) | https://*.bankofamerica.com/*<br>https://deals.merchant-rewards.com/* | [打开 Offers](https://deals.merchant-rewards.com/) |
+| [Chase](issuers/chase/chase-offer-lite/README.md) | https://*.chase.com/* | [打开 Offers](https://secure.chase.com/web/auth/dashboard) |
+| [Citi](issuers/citi/citi-offer-lite/README.md) | https://*.citi.com/* | [打开 Offers](https://online.citi.com/US/nga/products-offers/merchantoffers) |
+| [US Bank](issuers/usbank/usbank-offer-lite/README.md) | https://*.usbank.com/* | [打开 Offers](https://onlinebanking.usbank.com/digital/servicing/dominjection/cashback-deals) |
+| [Wells Fargo](issuers/wellsfargo/wellsfargo-offer-lite/README.md) | https://*.wellsfargo.com/* | [打开 Offers](https://web.secure.wellsfargo.com/auth/deals-portal) |
 
 <!-- published-scripts:end -->
 

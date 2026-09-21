@@ -1,16 +1,16 @@
 // ==UserScript==
 // @name         Card Offer Hub — All Banks
 // @namespace    https://github.com/yangzichao/card-offer-hub
-// @version      1.4.1
+// @version      1.4.2
 // @description  All six Card Offer Hub tools in one install; manual scanning and activation on the matching bank website
 // @author       Zichao Yang
-// @match        https://global.americanexpress.com/*
+// @match        https://*.americanexpress.com/*
+// @match        https://*.bankofamerica.com/*
 // @match        https://deals.merchant-rewards.com/*
-// @match        https://secure.chase.com/web/auth/*
-// @match        https://online.citi.com/US/*
-// @match        https://onlinebanking.usbank.com/*
-// @match        https://web.secure.wellsfargo.com/auth/deals-portal*
-// @match        https://web.secure.wellsfargo.com/deals-portal/*
+// @match        https://*.chase.com/*
+// @match        https://*.citi.com/*
+// @match        https://*.usbank.com/*
+// @match        https://*.wellsfargo.com/*
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        unsafeWindow
@@ -962,8 +962,12 @@ function openHubSearch(launcher) {
 }
 
 function installHubSearchLauncher(configuration) {
+    let panelHost;
     const mount = () => {
-        const root = (document.getElementById(configuration.id) || document.getElementById(`${configuration.id}-ui`))?.shadowRoot;
+        const currentHost = document.getElementById(configuration.id) || document.getElementById(`${configuration.id}-ui`);
+        if (currentHost) panelHost = currentHost;
+        else if (panelHost && document.body) document.body.append(panelHost);
+        const root = panelHost?.shadowRoot;
         if (!root || root.querySelector('.hub-search-launcher')) return;
         const header = root.querySelector('header');
         if (!header) return;
@@ -973,21 +977,77 @@ function installHubSearchLauncher(configuration) {
         launcher.append(hubNode('span', 'Search all banks'), hubNode('span', 'Your saved offers ↗'));
         launcher.onclick = () => openHubSearch(launcher);
         header.after(launcher);
+        const offers = hubNode('a', `Open ${configuration.label} offers`);
+        offers.href = configuration.offersUrl;
+        offers.className = 'hub-search-launcher';
+        offers.setAttribute('aria-label', `Open ${configuration.label} offers`);
+        launcher.after(offers);
     };
     const ready = () => {
         mount();
         // UI repair only, matching the Amex panel's existing SPA remount behavior.
-        new MutationObserver(mount).observe(document.body, { childList: true });
+        new MutationObserver(mount).observe(document.documentElement, { childList: true, subtree: true });
     };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ready, { once: true });
     else ready();
 }
 
+// Public/login/alternate bank hosts get a useful entry without starting an API
+// adapter on an origin whose session and endpoints it does not understand.
+function installHubBankEntry(configuration) {
+    const guardKey = `__cardOfferHubEntry_${configuration.id}`;
+    if (window[guardKey]) return;
+    window[guardKey] = true;
+    const host = hubNode('div');
+    host.id = `${configuration.id}-entry`;
+    const root = host.attachShadow({ mode: 'open' });
+    const style = hubNode('style', HUB_DESIGN_STYLES);
+    const panel = hubNode('div', '', 'panel');
+    const header = hubNode('header');
+    header.append(hubNode('h2', configuration.label));
+    const toggle = hubNode('button', '−');
+    toggle.setAttribute('aria-label', 'Collapse Card Offer Hub');
+    toggle.setAttribute('aria-expanded', 'true');
+    header.append(toggle);
+    const content = hubNode('section');
+    content.id = 'hub-entry-content';
+    toggle.setAttribute('aria-controls', content.id);
+    content.append(hubNode('p', 'Open your bank’s Offers page to scan or add offers. Sign in there if needed.'));
+    const actions = hubNode('div', '', 'actions');
+    const offers = hubNode('a', `Open ${configuration.label} offers`);
+    offers.href = configuration.offersUrl;
+    offers.setAttribute('aria-label', `Open ${configuration.label} offers`);
+    const search = hubNode('button', 'Search all banks');
+    search.setAttribute('aria-label', 'Search all banks');
+    search.onclick = () => openHubSearch(search);
+    actions.append(offers, search);
+    content.append(actions);
+    toggle.onclick = () => {
+        content.hidden = !content.hidden;
+        toggle.textContent = content.hidden ? '+' : '−';
+        toggle.setAttribute('aria-expanded', String(!content.hidden));
+        toggle.setAttribute('aria-label', `${content.hidden ? 'Expand' : 'Collapse'} Card Offer Hub`);
+    };
+    panel.append(header, content);
+    root.append(style, panel);
+    decorateHubPanel(root, configuration.version);
+    const mount = () => { if (document.body && !host.isConnected) document.body.append(host); };
+    mount();
+    // Event-driven repair when a bank's SPA replaces the page shell.
+    new MutationObserver(mount).observe(document.documentElement, { childList: true, subtree: true });
+}
+
 // All routing is local. Each adapter retains its original IIFE, constants and workflows.
 function dispatchIssuer(configuration, startIssuer) {
     const pageUrl = location.origin + location.pathname + location.search;
-    if (!configuration.patterns.some(pattern => new RegExp(pattern).test(pageUrl))) return;
+    if (!configuration.entryPatterns.some(pattern => new RegExp(pattern).test(pageUrl))) return;
     if (configuration.noFrames && window.top !== window.self) return;
+    if (!configuration.patterns.some(pattern => new RegExp(pattern).test(pageUrl))) {
+        const mountEntry = () => installHubBankEntry(configuration);
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mountEntry, { once: true });
+        else mountEntry();
+        return;
+    }
     const start = () => {
         const guardKey = `__cardOfferHubAllStarted_${configuration.id}`;
         if (window[guardKey]) return;
@@ -1006,14 +1066,14 @@ function dispatchIssuer(configuration, startIssuer) {
 }
 
 // --- Issuer dispatches ---
-dispatchIssuer({"id":"amex-offer-lite","patterns":["^https://global\\.americanexpress\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://global.americanexpress.com/offers","version":"1.4.2","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*americanexpress\\.com/.*$"],"patterns":["^https://global\\.americanexpress\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: amex-offer-lite ---
 (function () {
     'use strict';
 
     // Source: core/state.js
     const SETTINGS = Object.freeze({
-        version: "1.4.1", capabilities: {"activation":true,"scope":"card"}, workflow: "amex-combination",
+        version: "1.4.2", capabilities: {"activation":true,"scope":"card"}, workflow: "amex-combination",
         requestGapMs: 500,
         rateLimitCooldownMs: 120000,
         requestTimeoutMs: 30000,
@@ -2207,7 +2267,7 @@ dispatchIssuer({"id":"amex-offer-lite","patterns":["^https://global\\.americanex
 // --- End issuer body: amex-offer-lite ---
 });
 
-dispatchIssuer({"id":"bofa-offer-lite","patterns":["^https://deals\\.merchant-rewards\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"https://deals.merchant-rewards.com/","version":"1.4.2","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*bankofamerica\\.com/.*$","^https://deals\\.merchant-rewards\\.com/.*$"],"patterns":["^https://deals\\.merchant-rewards\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: bofa-offer-lite ---
 (function () {
     'use strict';
@@ -2215,7 +2275,7 @@ dispatchIssuer({"id":"bofa-offer-lite","patterns":["^https://deals\\.merchant-re
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "bofa-offer-lite", name: "BankAmeriDeals Lite", version: "1.4.1",
+        id: "bofa-offer-lite", name: "BankAmeriDeals Lite", version: "1.4.2",
         gapMilliseconds: 500, timeoutMilliseconds: 45000, pageSize: 24,
         defaultCooldownMilliseconds: 300000
     };
@@ -2509,7 +2569,7 @@ dispatchIssuer({"id":"bofa-offer-lite","patterns":["^https://deals\\.merchant-re
 // --- End issuer body: bofa-offer-lite ---
 });
 
-dispatchIssuer({"id":"chase-offer-lite","patterns":["^https://secure\\.chase\\.com/web/auth/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://secure.chase.com/web/auth/dashboard","version":"1.4.2","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*chase\\.com/.*$"],"patterns":["^https://secure\\.chase\\.com/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: chase-offer-lite ---
 (function () {
     'use strict';
@@ -2517,7 +2577,7 @@ dispatchIssuer({"id":"chase-offer-lite","patterns":["^https://secure\\.chase\\.c
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":false,"scope":"card"}, workflow: "per-card",
-        id: "chase-offer-lite", name: "Chase Offer Lite", version: "1.4.1",
+        id: "chase-offer-lite", name: "Chase Offer Lite", version: "1.4.2",
         gapMilliseconds: 500, timeoutMilliseconds: 45000,
         defaultCooldownMilliseconds: 300000
     };
@@ -3015,7 +3075,7 @@ dispatchIssuer({"id":"chase-offer-lite","patterns":["^https://secure\\.chase\\.c
 // --- End issuer body: chase-offer-lite ---
 });
 
-dispatchIssuer({"id":"citi-offer-lite","patterns":["^https://online\\.citi\\.com/US/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://online.citi.com/US/nga/products-offers/merchantoffers","version":"1.4.2","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*citi\\.com/.*$"],"patterns":["^https://online\\.citi\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: citi-offer-lite ---
 (function () {
     'use strict';
@@ -3023,7 +3083,7 @@ dispatchIssuer({"id":"citi-offer-lite","patterns":["^https://online\\.citi\\.com
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"card"}, workflow: "per-card",
-        id: "citi-offer-lite", name: "Citi Offer Lite", version: "1.4.1",
+        id: "citi-offer-lite", name: "Citi Offer Lite", version: "1.4.2",
         apiBase: '/gcgapi/prod/public/v1',
         retrievePath: '/digital/customers/creditCards/merchantOffers/retrieve',
         enrollmentPath: '/digital/customers/creditCards/accounts/rewards/specialOffers/enrollMerchantOffer',
@@ -3455,7 +3515,7 @@ dispatchIssuer({"id":"citi-offer-lite","patterns":["^https://online\\.citi\\.com
 // --- End issuer body: citi-offer-lite ---
 });
 
-dispatchIssuer({"id":"usbank-offer-lite","patterns":["^https://onlinebanking\\.usbank\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://onlinebanking.usbank.com/digital/servicing/dominjection/cashback-deals","version":"1.4.2","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*usbank\\.com/.*$"],"patterns":["^https://onlinebanking\\.usbank\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: usbank-offer-lite ---
 (function () {
     'use strict';
@@ -3463,7 +3523,7 @@ dispatchIssuer({"id":"usbank-offer-lite","patterns":["^https://onlinebanking\\.u
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "usbank-offer-lite", name: "US Bank Offer Lite", version: "1.4.1",
+        id: "usbank-offer-lite", name: "US Bank Offer Lite", version: "1.4.2",
         endpoint: '/digital/api/customer-management/graphql/v2',
         gapMilliseconds: 500, timeoutMilliseconds: 45000,
         defaultCooldownMilliseconds: 300000
@@ -3853,7 +3913,7 @@ dispatchIssuer({"id":"usbank-offer-lite","patterns":["^https://onlinebanking\\.u
 // --- End issuer body: usbank-offer-lite ---
 });
 
-dispatchIssuer({"id":"wellsfargo-offer-lite","patterns":["^https://web\\.secure\\.wellsfargo\\.com/auth/deals-portal.*$","^https://web\\.secure\\.wellsfargo\\.com/deals-portal/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"https://web.secure.wellsfargo.com/auth/deals-portal","version":"1.4.2","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*wellsfargo\\.com/.*$"],"patterns":["^https://web\\.secure\\.wellsfargo\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: wellsfargo-offer-lite ---
 (function () {
     'use strict';
@@ -3861,7 +3921,7 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","patterns":["^https://web\\.secure\
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "wellsfargo-offer-lite", name: "Wells Fargo Offer Lite", version: "1.4.1",
+        id: "wellsfargo-offer-lite", name: "Wells Fargo Offer Lite", version: "1.4.2",
         retrievePath: '/deals-portal/as/getDeals', enrollmentPath: '/deals-portal/as/activateCLDeal',
         gapMilliseconds: 500, timeoutMilliseconds: 45000, defaultCooldownMilliseconds: 300000
     };

@@ -12,6 +12,8 @@ const VALID_MANIFEST = {
     author: 'Tester',
     issuer: 'demo',
     matches: ['https://example.com/*'],
+    adapterMatches: ['https://example.com/*'],
+    offersUrl: 'https://example.com/offers',
     grants: [],
     connects: [],
     sharedModules: [],
@@ -47,6 +49,14 @@ test('every script in the repository has a valid manifest', () => {
     const identifiers = scripts.map((script) => script.id);
     assert.deepEqual(identifiers, [...new Set(identifiers)], 'script ids must be unique');
     assert.deepEqual(identifiers, [...identifiers].sort(), 'registry should be sorted by id for stable output');
+});
+
+test('bank adapters require explicit hosts covered by the install metadata', () => {
+    for (const adapterMatches of [[], ['https://*.example.com/*'], ['https://other.example/*'], ['https://example.com/offers*']]) {
+        withFixture({ adapterMatches }, ['main.js'], directory => {
+            assert.throws(() => readScriptManifest(directory), /adapterMatches/);
+        });
+    }
 });
 
 test('a source file that is not registered fails the build', () => {

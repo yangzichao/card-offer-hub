@@ -1,6 +1,7 @@
 const { readdirSync, readFileSync, existsSync } = require('node:fs');
 const { resolve, join, relative, posix, sep } = require('node:path');
 const { resolveWorkflow } = require('./workflow-registry.cjs');
+const { matchPatternExpression } = require('./match-patterns.cjs');
 
 const projectRoot = resolve(__dirname, '../..');
 const issuersDirectory = resolve(projectRoot, 'issuers');
@@ -106,6 +107,17 @@ function readScriptManifest(toolDirectory) {
         throw new Error(`${manifestPath}: capabilities must declare activation and card/account scope.`);
     }
     const workflowModules = resolveWorkflow(manifestPath, manifest);
+    const matches = requireStringArray(manifestPath, manifest, 'matches');
+    const adapterMatches = requireStringArray(manifestPath, manifest, 'adapterMatches');
+    const entryExpressions = matches.map(pattern => new RegExp(matchPatternExpression(pattern)));
+    for (const pattern of adapterMatches) {
+        // Initialize before same-origin SPA navigation; never run a bank adapter
+        // on an unreviewed wildcard host with different session/API contracts.
+        if (!/^https:\/\/[a-z0-9.-]+\/\*$/.test(pattern)) throw new Error(`${manifestPath}: adapterMatches must use exact HTTPS hosts with /*.`);
+        if (!entryExpressions.some(expression => expression.test(pattern.slice(0, -1)))) {
+            throw new Error(`${manifestPath}: adapterMatches must be covered by matches.`);
+        }
+    }
     const resolvedSharedModules = [...new Set([...sharedModules, ...workflowModules])];
     validateSharedModules(manifestPath, resolvedSharedModules);
     return {
@@ -115,8 +127,9 @@ function readScriptManifest(toolDirectory) {
         author: requireString(manifestPath, manifest, 'author'),
         issuer: requireString(manifestPath, manifest, 'issuer'),
         bankLabel: manifest.bankLabel || manifest.name,
-        offersUrl: manifest.offersUrl || null,
-        matches: requireStringArray(manifestPath, manifest, 'matches'),
+        offersUrl: requireString(manifestPath, manifest, 'offersUrl'),
+        matches,
+        adapterMatches,
         grants: requireStringArray(manifestPath, manifest, 'grants', { allowEmpty: true }),
         connects: requireStringArray(manifestPath, manifest, 'connects', { allowEmpty: true }),
         runAt: manifest.runAt ?? 'document-idle',

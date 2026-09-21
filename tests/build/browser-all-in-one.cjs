@@ -55,10 +55,12 @@ async function run() {
                     sessionStorage.setItem('fixture-storage', JSON.stringify(window.syntheticStore));
                 };
                 ${userscript}` });
-            await page.goto(script.matches[0].replaceAll('*', 'sample'));
+            await page.goto(new URL(script.offersUrl).origin + '/');
             await page.clock.runFor(5000);
             const hostId = script.id + (script.issuer === 'amex' ? '-ui' : '');
             await page.locator(`[id="${hostId}"]`).waitFor();
+            await page.evaluate(url => history.pushState({}, '', url), script.offersUrl);
+            assert.equal(await page.locator(`[id="${hostId}"]`).count(), 1, 'starting outside Offers must not miss later SPA navigation');
             assert.equal(await page.locator('.hub-eyebrow').innerText(), 'CARD OFFER HUB');
             assert.equal(await page.getByRole('button', { name: 'Search all banks', exact: true }).count(), 1);
             const accent = await page.locator(`[id="${hostId}"]`).evaluate(element => getComputedStyle(element).getPropertyValue('--hub-accent').trim());
@@ -108,6 +110,17 @@ async function run() {
             const overflow = await page.locator('.panel').evaluate(panel => panel.scrollWidth > panel.clientWidth);
             assert.equal(overflow, false, 'template controls do not overflow horizontally');
             assert.deepEqual(errors, []);
+            // A bank can replace its application shell during same-document navigation.
+            // Keep the existing panel, saved choices and handlers attached.
+            await page.evaluate(() => {
+                history.pushState({}, '', '/');
+                document.body.replaceChildren(document.createElement('main'));
+            });
+            await page.locator(`[id="${hostId}"]`).waitFor();
+            assert.equal(await page.getByRole('link', { name: `Open ${script.bankLabel} offers`, exact: true }).getAttribute('href'), script.offersUrl);
+            await page.evaluate(url => history.replaceState({}, '', url), script.offersUrl);
+            assert.equal(await page.locator(`[id="${hostId}"]`).count(), 1);
+            assert.deepEqual(requests, [], 'SPA navigation and panel repair do not scan');
             await page.close();
         }
         console.log('PASS: all-in-one on six synthetic bank sites, early Chase observer, one matching panel, isolated storage, saved results and choices, reload, and no automatic requests.');

@@ -6,16 +6,16 @@
         {
             "id": "card-offer-hub-all",
             "name": "Card Offer Hub — All Banks",
-            "version": "1.4.1",
+            "version": "1.4.2",
             "description": "All six Card Offer Hub tools in one install; manual scanning and activation on the matching bank website",
             "matches": [
-                "https://global.americanexpress.com/*",
+                "https://*.americanexpress.com/*",
+                "https://*.bankofamerica.com/*",
                 "https://deals.merchant-rewards.com/*",
-                "https://secure.chase.com/web/auth/*",
-                "https://online.citi.com/US/*",
-                "https://onlinebanking.usbank.com/*",
-                "https://web.secure.wellsfargo.com/auth/deals-portal*",
-                "https://web.secure.wellsfargo.com/deals-portal/*"
+                "https://*.chase.com/*",
+                "https://*.citi.com/*",
+                "https://*.usbank.com/*",
+                "https://*.wellsfargo.com/*"
             ],
             "publishedFile": "dist/card-offer-hub-all.user.js",
             "installUrl": "https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/card-offer-hub-all.user.js",
@@ -26,8 +26,12 @@
                     "name": "Amex Offer Lite",
                     "issuer": "amex",
                     "matches": [
+                        "https://*.americanexpress.com/*"
+                    ],
+                    "adapterMatches": [
                         "https://global.americanexpress.com/*"
                     ],
+                    "offersUrl": "https://global.americanexpress.com/offers",
                     "sourceDirectory": "issuers/amex/amex-offer-lite"
                 },
                 {
@@ -35,8 +39,13 @@
                     "name": "BankAmeriDeals Lite",
                     "issuer": "bank-of-america",
                     "matches": [
+                        "https://*.bankofamerica.com/*",
                         "https://deals.merchant-rewards.com/*"
                     ],
+                    "adapterMatches": [
+                        "https://deals.merchant-rewards.com/*"
+                    ],
+                    "offersUrl": "https://deals.merchant-rewards.com/",
                     "sourceDirectory": "issuers/bank-of-america/bofa-offer-lite"
                 },
                 {
@@ -44,8 +53,12 @@
                     "name": "Chase Offer Lite",
                     "issuer": "chase",
                     "matches": [
-                        "https://secure.chase.com/web/auth/*"
+                        "https://*.chase.com/*"
                     ],
+                    "adapterMatches": [
+                        "https://secure.chase.com/*"
+                    ],
+                    "offersUrl": "https://secure.chase.com/web/auth/dashboard",
                     "sourceDirectory": "issuers/chase/chase-offer-lite"
                 },
                 {
@@ -53,8 +66,12 @@
                     "name": "Citi Offer Lite",
                     "issuer": "citi",
                     "matches": [
-                        "https://online.citi.com/US/*"
+                        "https://*.citi.com/*"
                     ],
+                    "adapterMatches": [
+                        "https://online.citi.com/*"
+                    ],
+                    "offersUrl": "https://online.citi.com/US/nga/products-offers/merchantoffers",
                     "sourceDirectory": "issuers/citi/citi-offer-lite"
                 },
                 {
@@ -62,8 +79,12 @@
                     "name": "US Bank Offer Lite",
                     "issuer": "usbank",
                     "matches": [
+                        "https://*.usbank.com/*"
+                    ],
+                    "adapterMatches": [
                         "https://onlinebanking.usbank.com/*"
                     ],
+                    "offersUrl": "https://onlinebanking.usbank.com/digital/servicing/dominjection/cashback-deals",
                     "sourceDirectory": "issuers/usbank/usbank-offer-lite"
                 },
                 {
@@ -71,9 +92,12 @@
                     "name": "Wells Fargo Offer Lite",
                     "issuer": "wellsfargo",
                     "matches": [
-                        "https://web.secure.wellsfargo.com/auth/deals-portal*",
-                        "https://web.secure.wellsfargo.com/deals-portal/*"
+                        "https://*.wellsfargo.com/*"
                     ],
+                    "adapterMatches": [
+                        "https://web.secure.wellsfargo.com/*"
+                    ],
+                    "offersUrl": "https://web.secure.wellsfargo.com/auth/deals-portal",
                     "sourceDirectory": "issuers/wellsfargo/wellsfargo-offer-lite"
                 }
             ]
