@@ -1,5 +1,6 @@
 const { readdirSync, readFileSync, existsSync } = require('node:fs');
 const { resolve, join, relative, posix, sep } = require('node:path');
+const { resolveWorkflow } = require('./workflow-registry.cjs');
 
 const projectRoot = resolve(__dirname, '../..');
 const issuersDirectory = resolve(projectRoot, 'issuers');
@@ -104,6 +105,9 @@ function readScriptManifest(toolDirectory) {
     if (capabilities && (typeof capabilities.activation !== 'boolean' || !['card', 'account'].includes(capabilities.scope))) {
         throw new Error(`${manifestPath}: capabilities must declare activation and card/account scope.`);
     }
+    const workflowModules = resolveWorkflow(manifestPath, manifest);
+    const resolvedSharedModules = [...new Set([...sharedModules, ...workflowModules])];
+    validateSharedModules(manifestPath, resolvedSharedModules);
     return {
         id: identifier,
         name: requireString(manifestPath, manifest, 'name'),
@@ -117,7 +121,8 @@ function readScriptManifest(toolDirectory) {
         connects: requireStringArray(manifestPath, manifest, 'connects', { allowEmpty: true }),
         runAt: manifest.runAt ?? 'document-idle',
         noFrames: manifest.noFrames !== false,
-        sharedModules,
+        sharedModules: resolvedSharedModules,
+        workflow: manifest.workflow,
         savedResultsSource,
         capabilities,
         sources,

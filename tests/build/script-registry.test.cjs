@@ -15,6 +15,8 @@ const VALID_MANIFEST = {
     grants: [],
     connects: [],
     sharedModules: [],
+    workflow: 'per-card',
+    capabilities: { activation: true, scope: 'card' },
     sources: ['main.js']
 };
 
@@ -101,4 +103,17 @@ test('invalid issuer capabilities cannot silently enable activation or invent a 
             assert.throws(() => readScriptManifest(toolDirectory), /capabilities must declare/);
         });
     }
+});
+
+test('workflow declarations are required, registered, and compatible with bank scope', () => {
+    for (const workflow of [undefined, 'unknown', 'account']) {
+        withFixture({ workflow }, ['main.js'], toolDirectory => {
+            assert.throws(() => readScriptManifest(toolDirectory), /workflow/);
+        });
+    }
+    withFixture({ workflow: 'per-card', capabilities: { activation: false, scope: 'card' } }, ['main.js'], toolDirectory => {
+        const script = readScriptManifest(toolDirectory);
+        assert.equal(script.workflow, 'per-card', 'activation capability never chooses a different template');
+        assert.ok(script.sharedModules.includes('workflows/per-card/planner.js'));
+    });
 });

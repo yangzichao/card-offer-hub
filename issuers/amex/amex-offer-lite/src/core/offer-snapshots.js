@@ -14,7 +14,8 @@ function offerSnapshotValue(offer) {
 }
 
 function validateOfferSnapshot(snapshot) {
-    if (!snapshot || snapshot.schemaVersion !== 1 || !Array.isArray(snapshot.cards)) {
+    snapshot = hubMigrateWorkflowSnapshot(snapshot, SETTINGS.workflow);
+    if (!Array.isArray(snapshot.cards)) {
         throw new Error('Saved offers have an unrecognized format.');
     }
     const accounts = new Set();

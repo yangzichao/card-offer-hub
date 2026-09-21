@@ -1,4 +1,5 @@
 function persistOfferResults() {
+    if (state.savedOffersRestoreBlocked) return false;
     try {
         const cards = [...state.offersByAccount].map(([accountToken, offers]) => ({
             accountToken,
@@ -12,7 +13,7 @@ function persistOfferResults() {
                 return snapshot;
             })
         }));
-        GM_setValue(SETTINGS.savedOffersKey, { schemaVersion: 1, cards });
+        GM_setValue(SETTINGS.savedOffersKey, { schemaVersion: 2, workflowType: SETTINGS.workflow, cards });
         state.savedOffersError = '';
         return true;
     } catch {
@@ -37,6 +38,7 @@ function restoreSavedOffers() {
             log('Saved offer results restored without sending requests.');
         }
     } catch {
+        state.savedOffersRestoreBlocked = true;
         state.savedOffersError = 'Could not restore saved offers. Saved data was not overwritten.';
         log(state.savedOffersError);
     }

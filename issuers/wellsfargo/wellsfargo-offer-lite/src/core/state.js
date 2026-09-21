@@ -1,5 +1,5 @@
 const SETTINGS = {
-    capabilities: __USERSCRIPT_CAPABILITIES__,
+    capabilities: __USERSCRIPT_CAPABILITIES__, workflow: __USERSCRIPT_WORKFLOW__,
     id: __USERSCRIPT_ID__, name: __USERSCRIPT_NAME__, version: __USERSCRIPT_VERSION__,
     retrievePath: '/deals-portal/as/getDeals', enrollmentPath: '/deals-portal/as/activateCLDeal',
     gapMilliseconds: 500, timeoutMilliseconds: 45000, defaultCooldownMilliseconds: 300000

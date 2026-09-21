@@ -1,5 +1,5 @@
 const SETTINGS = {
-    capabilities: __USERSCRIPT_CAPABILITIES__,
+    capabilities: __USERSCRIPT_CAPABILITIES__, workflow: __USERSCRIPT_WORKFLOW__,
     id: __USERSCRIPT_ID__, name: __USERSCRIPT_NAME__, version: __USERSCRIPT_VERSION__,
     apiBase: '/gcgapi/prod/public/v1',
     retrievePath: '/digital/customers/creditCards/merchantOffers/retrieve',

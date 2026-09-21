@@ -11,6 +11,7 @@ function updateEnrollmentStatus(account, offer, status) {
 function enrollPlannedOffer({ account, offer }) {
     return withRequestSlot(async () => {
         assertWhitelisted(account.token);
+        offerWorkflow.assertAction(offer);
         if (offer.status !== 'ELIGIBLE' || !offer.enrollable || !state.scanReports.get(account.token)?.startsWith('Complete')) {
             throw new Error('This offer is no longer eligible on the chosen card. Scan again.');
         }

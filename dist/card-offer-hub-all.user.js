@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Card Offer Hub — All Banks
 // @namespace    https://github.com/yangzichao/card-offer-hub
-// @version      1.3.3
+// @version      1.4.0
 // @description  All six Card Offer Hub tools in one install; manual scanning and activation on the matching bank website
 // @author       Zichao Yang
 // @match        https://global.americanexpress.com/*
@@ -62,23 +62,24 @@
     }
 
     // Source: shared/ui/workflow-layout.js
-    function hubWorkflowMarkup(scopeMarkup, { bank, extraReviewMarkup = '', readOnly = false,
+    function hubWorkflowMarkup(scopeMarkup, { bank, template, extraReviewMarkup = '', readOnly = false,
         scanLabel = 'Scan offers', scanDescription = 'Scan to refresh saved offers. Nothing runs until you click.' } = {}) {
-        return `<div class="panel">
+        const view = template.view;
+        return `<div class="panel" data-workflow="${template.type}">
           <header><h2></h2><button id="collapse" aria-label="Minimize ${bank} panel" aria-expanded="true">−</button></header>
           <div id="body">
-            <section class="hub-step" data-step="scope"><h3>1. Choose scope</h3>${scopeMarkup}</section>
-            <section class="hub-step" data-step="scan"><h3>2. Scan offers</h3>
-              <p class="muted">${scanDescription}</p>
-              <div class="actions"><button id="scan" aria-label="${scanLabel}">${scanLabel}</button><button id="stop" class="stop" aria-label="Stop">Stop</button></div>
-            </section>
-            <section class="hub-step" data-step="review"><h3>3. Review & add</h3>
-              <input id="search" type="search" aria-label="Search saved offers" placeholder="Search saved offers">
-              <button id="hub-clear-search" class="hub-clear-search" aria-label="Clear search">Clear search</button>
-              <p class="muted hub-search-rule">Search changes the list only. Add all includes offers hidden by search within your chosen scope.</p>
-              <p id="counts" class="muted"></p><div class="actions"><button id="add" class="primary" aria-label="Add all offers" aria-describedby="hub-action-reason">Add all offers</button>${extraReviewMarkup}</div>
+            <section class="hub-step" data-step="scope"><h3>${view.scopeTitle}</h3>
+              <p class="muted hub-scope-hint">${view.scopeHint}</p>${scopeMarkup}</section>
+            <section class="hub-step" data-step="review"><h3>${view.offersTitle}</h3>
+              <div class="actions hub-primary-actions"><button id="scan" aria-label="${scanLabel}" title="${scanDescription}">${scanLabel}</button>
+                <button id="add" class="primary" aria-label="Add all offers" aria-describedby="hub-action-reason" ${readOnly ? 'hidden' : ''}>Add all offers</button>
+                <button id="stop" class="stop" aria-label="Stop" hidden>Stop</button></div>
               <p id="hub-action-reason" class="hub-action-reason" role="note"></p>
-              ${readOnly ? `<p id="enrollment-notice" class="notice">${bank} is read-only here. Add offers on the bank website.</p>` : ''}
+              ${readOnly ? `<p id="enrollment-notice" class="notice">Add offers on the ${bank} website.</p>` : ''}
+              <input id="search" type="search" aria-label="Search saved offers" placeholder="Search saved offers">
+              <button id="hub-clear-search" class="hub-clear-search" aria-label="Clear search" hidden>Clear search</button>
+              <p class="muted hub-search-rule" hidden>${view.searchRule}</p>
+              <p id="counts" class="muted"></p>${extraReviewMarkup ? `<div class="actions">${extraReviewMarkup}</div>` : ''}
               <div id="offers" class="offers"></div>
             </section>
             <footer><p id="workspace-cache" class="muted"></p><div id="status" role="status" aria-live="polite"></div><div id="storage-error" class="error" role="alert"></div></footer>
@@ -105,20 +106,31 @@
         control.textContent = count === null ? label : `${label} (${count})`;
         control.setAttribute('aria-label', label);
     }
-    function renderHubWorkflow(root, { count, hasScope = true, needsScan = false, busy = false,
+    function renderHubWorkflow(root, { template, count, hasScope = true, needsScan = false, busy = false,
         storageError = '', readOnly = false, coolingDown = false, progress = null } = {}) {
         const add = root.getElementById('add') || root.getElementById('btn-enroll-all');
         hubSetActionLabel(add, 'Add all offers', busy ? null : count);
         add.disabled = Boolean(busy || storageError || readOnly || coolingDown || !hasScope || needsScan || !count);
+        const stop = root.getElementById('stop') || root.getElementById('btn-stop');
+        stop.hidden = !busy;
         const reason = root.getElementById('hub-action-reason');
         reason.textContent = storageError ? 'Resolve the storage error before continuing.'
             : busy ? progress ? `Adding ${progress.completed} of ${progress.total}. The task keeps its original scope while you search or switch tabs.` : 'Working. Use Stop to end the current task.'
-            : readOnly ? 'Adding is unavailable for this bank. You can still scan and search.'
+            : readOnly ? ''
             : coolingDown ? 'Waiting for the bank cooldown. Start again manually when it ends.'
-            : !hasScope ? 'Choose or confirm your scope in step 1.'
-            : needsScan ? 'Scan offers in step 2 before adding.'
+            : !hasScope ? template.view.emptyScope
+            : needsScan ? 'Refresh offers before adding.'
             : !count ? 'No available offers in this scope. Scan again to refresh.'
-            : `Ready to add ${count} available ${count === 1 ? 'offer' : 'offers'} in your chosen scope. Search does not change this total.`;
+            : '';
+        reason.hidden = !reason.textContent;
+        hubRenderSearchControls(root, readOnly);
+    }
+
+    function hubRenderSearchControls(root, readOnly = false) {
+        const search = root.getElementById('search') || root.getElementById('input-search');
+        const hasQuery = Boolean(search.value.trim());
+        root.getElementById('hub-clear-search').hidden = !hasQuery;
+        root.querySelector('.hub-search-rule').hidden = !hasQuery || readOnly;
     }
 
     // Source: shared/runtime/request-scheduler.js
@@ -193,8 +205,10 @@
             incomplete: Boolean(context.incomplete), status: offer.displayStatus,
             expires: hubText(offer.expires), category: hubText(offer.category), url: bank.url };
     }
-    function hubWorkspaceDisplayRecords(bank, snapshot, normalizeOffer, cardScoped = false) {
-        if (snapshot.schemaVersion !== 1 || !Array.isArray(snapshot.offers) || !Array.isArray(snapshot.accounts)) {
+    function hubWorkspaceDisplayRecords(bank, snapshot, normalizeOffer, workflowType) {
+        snapshot = hubMigrateWorkflowSnapshot(snapshot, workflowType);
+        const cardScoped = HUB_WORKFLOW_TEMPLATES[workflowType].scope === 'card';
+        if (!Array.isArray(snapshot.offers) || !Array.isArray(snapshot.accounts)) {
             throw new Error('Unsupported saved results');
         }
         const accounts = new Map(snapshot.accounts.map(account => {
@@ -220,6 +234,115 @@
         } finally {
             finish();
         }
+    }
+
+    // Source: shared/workflows/contract.js
+    // Canonical records are transient: source points to the issuer's record and is
+    // never persisted. Ownership fields are strict so one model cannot mimic another.
+    function hubRequireWorkflowId(value, label) {
+        if (typeof value !== 'string' || !value.trim()) throw new Error(`Workflow requires ${label}.`);
+        return value;
+    }
+    function hubValidateWorkflowRecord(record, ownershipFields) {
+        if (!record || typeof record !== 'object') throw new Error('Invalid workflow offer.');
+        hubRequireWorkflowId(record.offerId, 'offerId');
+        if (!['available', 'added', 'unconfirmed', 'unavailable'].includes(record.status)) {
+            throw new Error('Invalid workflow offer status.');
+        }
+        for (const field of ['cardId', 'accountId', 'groupId']) {
+            if (ownershipFields.includes(field)) hubRequireWorkflowId(record[field], field);
+            else if (Object.hasOwn(record, field)) throw new Error(`This workflow does not accept ${field}.`);
+        }
+        return record;
+    }
+    function hubWorkflowSelection(context, field) {
+        const identifiers = context[field];
+        if (!Array.isArray(identifiers) || new Set(identifiers).size !== identifiers.length) {
+            throw new Error(`Workflow requires unique ${field}.`);
+        }
+        identifiers.forEach(identifier => hubRequireWorkflowId(identifier, field));
+        return new Set(identifiers);
+    }
+    function hubUniqueWorkflowRecords(records, identity) {
+        const unique = new Map();
+        for (const record of records) {
+            const key = identity(record);
+            if (unique.has(key) && unique.get(key).status !== record.status) {
+                throw new Error('Conflicting offer states. Refresh offers before adding.');
+            }
+            if (!unique.has(key)) unique.set(key, record);
+        }
+        return [...unique.values()];
+    }
+
+    // Source: shared/workflows/controller.js
+    function createHubWorkflow({ type, capabilities, readRecords, readContext }) {
+        const template = HUB_WORKFLOW_TEMPLATES[type];
+        if (!template || capabilities?.scope !== template.scope || typeof capabilities.activation !== 'boolean') {
+            throw new Error('Workflow and bank capabilities do not match.');
+        }
+        function preview() {
+            const records = readRecords();
+            if (!Array.isArray(records)) throw new Error('Workflow requires an offer list.');
+            records.forEach(template.validateRecord);
+            return template.plan(records, readContext());
+        }
+        function plan() {
+            if (!capabilities.activation) throw new Error('Adding is unavailable for this bank.');
+            return preview();
+        }
+        return Object.freeze({
+            type, view: template.view, preview, plan,
+            assertAction(source) {
+                if (!plan().some(record => record.source === source)) {
+                    throw new Error('The offer or its target changed. Refresh offers before adding.');
+                }
+            }
+        });
+    }
+
+    // Source: shared/workflows/snapshot.js
+    // Version 1 belongs to the bank's established namespace. Migrate in memory,
+    // preserving every field; write version 2 only on the next explicit save.
+    function hubMigrateWorkflowSnapshot(snapshot, workflowType) {
+        if (!snapshot || ![1, 2].includes(snapshot.schemaVersion)
+            || (snapshot.schemaVersion === 2 && snapshot.workflowType !== workflowType)
+            || (snapshot.workflowType !== undefined && snapshot.workflowType !== workflowType)) {
+            throw new Error('Saved results belong to an unsupported workflow.');
+        }
+        return { ...snapshot, schemaVersion: 2, workflowType };
+    }
+
+    // Source: shared/workflows/amex-combination/model.js
+    function createHubAmexCombinationTemplate() {
+        return Object.freeze({ scope: 'card', view: hubAmexCombinationView(),
+            validateRecord: record => hubValidateWorkflowRecord(record, ['cardId', 'groupId']), plan: hubPlanCombinedOffers });
+    }
+
+    // Source: shared/workflows/amex-combination/planner.js
+    function hubPlanCombinedOffers(records, context) {
+        const selectedCards = hubWorkflowSelection(context, 'selectedCardIds');
+        const priority = hubWorkflowSelection(context, 'priorityCardIds');
+        if ([...selectedCards].some(cardId => !priority.has(cardId))) throw new Error('Selected cards need a priority order.');
+        const ranks = new Map([...priority].map((cardId, index) => [cardId, index]));
+        const selected = records.filter(record => selectedCards.has(record.cardId));
+        const settled = new Set(selected.filter(record => ['added', 'unconfirmed'].includes(record.status)).map(record => record.groupId));
+        const chosen = new Map();
+        for (const record of selected) {
+            if (record.status !== 'available' || settled.has(record.groupId)) continue;
+            const previous = chosen.get(record.groupId);
+            if (!previous || ranks.get(record.cardId) < ranks.get(previous.cardId)) chosen.set(record.groupId, record);
+        }
+        return [...chosen.values()].sort((left, right) => ranks.get(left.cardId) - ranks.get(right.cardId)
+            || (left.label || left.groupId).localeCompare(right.label || right.groupId));
+    }
+
+    // Source: shared/workflows/amex-combination/view.js
+    function hubAmexCombinationView() {
+        return Object.freeze({ scopeTitle: 'Cards & priority', offersTitle: 'Offers & target cards',
+            scopeHint: 'Choose and order your cards. Each shared offer goes to the first eligible card.',
+            emptyScope: 'Choose at least one card above and set its priority.',
+            searchRule: 'Add all follows your card priority for every planned offer, including results hidden by search.' });
     }
 
     // Source: shared/persistence/workspace-records.js
@@ -250,8 +373,13 @@
     function workspaceOfferKey(offer) {
         return JSON.stringify([offer.accountId || '', offer.offerId || offer.id]);
     }
-    function validateWorkspaceSnapshot(saved, fields) {
-        if (!saved || saved.schemaVersion !== 1 || !Number.isFinite(saved.savedAt) || saved.savedAt < 0
+    function validateWorkspaceSnapshot(saved, fields, workflowType) {
+        if (!HUB_WORKFLOW_TEMPLATES[workflowType]
+            || (HUB_WORKFLOW_TEMPLATES[workflowType].scope === 'card') !== Boolean(fields.accounts)) {
+            throw new Error('Workspace fields do not match its workflow.');
+        }
+        saved = hubMigrateWorkflowSnapshot(saved, workflowType);
+        if (!Number.isFinite(saved.savedAt) || saved.savedAt < 0
             || !Number.isFinite(saved.lastScanAt) || saved.lastScanAt < 0
             || typeof saved.scopeIdentity !== 'string' || typeof saved.consent !== 'boolean'
             || typeof saved.search !== 'string' || typeof saved.collapsed !== 'boolean'
@@ -274,7 +402,7 @@
     }
 
     // Source: shared/persistence/workspace-storage.js
-    function createHubWorkspaceStore({ state, fields, storage, storageKey, onError = () => {},
+    function createHubWorkspaceStore({ state, fields, storage, storageKey, workflowType, onError = () => {},
         readConsent = () => false, writeConsent = () => {},
         markPendingRecord = record => { record.status = 'UNCONFIRMED'; } }) {
         const pendingWorkspaceOffers = new Set();
@@ -289,11 +417,11 @@
                     return record;
                 });
                 const snapshot = validateWorkspaceSnapshot({
-                    schemaVersion: 1, savedAt: Date.now(), lastScanAt: state.lastScanAt,
+                    schemaVersion: 2, workflowType, savedAt: Date.now(), lastScanAt: state.lastScanAt,
                     scopeIdentity: state.workspaceScope, accounts: (state.accounts || []).map(account => serializeWorkspaceRecord(account, fields.accounts)),
                     offers, selected: [...(state.selected || [])], consent: readConsent(),
                     search: state.search || '', collapsed: state.collapsed
-                }, fields);
+                }, fields, workflowType);
                 storage.set(storageKey, snapshot);
                 return true;
             } catch {
@@ -309,7 +437,7 @@
             try {
                 const saved = storage.get(storageKey, null);
                 if (saved === null) return; // Older releases only saved pacing; keep it intact.
-                const snapshot = validateWorkspaceSnapshot(saved, fields);
+                const snapshot = validateWorkspaceSnapshot(saved, fields, workflowType);
                 if (fields.accounts) state.accounts = snapshot.accounts;
                 state.offers = snapshot.offers;
                 if (state.selected) state.selected = new Set(snapshot.selected);
@@ -499,21 +627,23 @@
     }
 
     // Source: shared/ui/workflow-panel.js
-    function createHubWorkflowPanel({ state, settings, bank, styles, scopeMarkup, workflow = {},
+    function createHubWorkflowPanel({ state, settings, bank, styles, scopeMarkup, template, workflow = {},
         onScan, onAdd, onStop, saveWorkspace, renderOffers, supportsActivation = false }) {
         const host = document.createElement('div');
         host.id = settings.id;
         const panel = host.attachShadow({ mode: 'open' });
         panel.innerHTML = `<style>${styles}</style>` + hubWorkflowMarkup(scopeMarkup,
-            { ...workflow, bank, readOnly: !supportsActivation });
+            { ...workflow, template, bank, readOnly: !supportsActivation });
         panel.querySelector('h2').textContent = settings.name;
         panel.getElementById('scan').addEventListener('click', onScan);
         if (supportsActivation) panel.getElementById('add').addEventListener('click', onAdd);
         panel.getElementById('stop').addEventListener('click', onStop);
         const search = panel.getElementById('search');
-        search.addEventListener('input', event => { state.search = event.target.value; saveWorkspace(); renderOffers(); });
+        search.addEventListener('input', event => {
+            state.search = event.target.value; saveWorkspace(); renderOffers(); hubRenderSearchControls(panel, !supportsActivation);
+        });
         panel.getElementById('hub-clear-search').addEventListener('click', () => {
-            state.search = ''; search.value = ''; saveWorkspace(); renderOffers(); search.focus();
+            state.search = ''; search.value = ''; saveWorkspace(); renderOffers(); hubRenderSearchControls(panel, !supportsActivation); search.focus();
         });
         panel.getElementById('collapse').addEventListener('click', () => {
             state.collapsed = !state.collapsed;
@@ -524,6 +654,53 @@
         hubRestoreWorkspacePanel(panel, bank, state);
         return { host, panel };
     }
+
+    // Source: shared/workflows/account/model.js
+    function createHubAccountTemplate() {
+        return Object.freeze({ scope: 'account', view: hubAccountView(),
+            validateRecord: record => hubValidateWorkflowRecord(record, ['accountId']), plan: hubPlanAccountOffers });
+    }
+
+    // Source: shared/workflows/account/planner.js
+    function hubPlanAccountOffers(records, context) {
+        if (records.length) hubRequireWorkflowId(context.accountId, 'current account');
+        if (records.some(record => record.accountId !== context.accountId)) {
+            throw new Error('Offers do not belong to the current account.');
+        }
+        if (typeof context.consent !== 'boolean') throw new Error('Workflow requires account consent.');
+        const unique = hubUniqueWorkflowRecords(records, record => JSON.stringify([record.accountId, record.offerId]));
+        return context.consent ? unique.filter(record => record.status === 'available') : [];
+    }
+
+    // Source: shared/workflows/account/view.js
+    function hubAccountView() {
+        return Object.freeze({ scopeTitle: 'Your account', offersTitle: 'Account offers',
+            scopeHint: 'Offers apply to the current signed-in account.',
+            emptyScope: 'Confirm the account above before adding.',
+            searchRule: 'Add all includes every available account offer, including results hidden by search.' });
+    }
+
+    // Source: shared/workflows/per-card/model.js
+    function createHubPerCardTemplate() {
+        return Object.freeze({ scope: 'card', view: hubPerCardView(),
+            validateRecord: record => hubValidateWorkflowRecord(record, ['cardId']), plan: hubPlanPerCardOffers });
+    }
+
+    // Source: shared/workflows/per-card/planner.js
+    function hubPlanPerCardOffers(records, context) {
+        const selectedCards = hubWorkflowSelection(context, 'selectedCardIds');
+        const unique = hubUniqueWorkflowRecords(records, record => JSON.stringify([record.cardId, record.offerId]));
+        return unique.filter(record => selectedCards.has(record.cardId) && record.status === 'available');
+    }
+
+    // Source: shared/workflows/per-card/view.js
+    function hubPerCardView() {
+        return Object.freeze({ scopeTitle: 'Your cards', offersTitle: 'Offers by card',
+            scopeHint: 'Choose the cards you want to use. Each card has its own offers.',
+            emptyScope: 'Choose at least one card above.',
+            searchRule: 'Add all includes every available offer on your selected cards, including results hidden by search.' });
+    }
+const HUB_WORKFLOW_TEMPLATES = Object.freeze({ "amex-combination": createHubAmexCombinationTemplate(), "account": createHubAccountTemplate(), "per-card": createHubPerCardTemplate() });
 // --- End shared runtime ---
 const HUB_BANKS = [{ ...{"id":"amex-offer-lite","issuer":"amex","label":"Amex","url":"https://global.americanexpress.com/offers"}, readSavedResults: (function () {
     // Source: amex/snapshots/saved-results.js
@@ -533,7 +710,8 @@ const HUB_BANKS = [{ ...{"id":"amex-offer-lite","issuer":"amex","label":"Amex","
         return amexSavedDisplayRecords(bank, snapshot, readValue('card_offer_hub_amex_saved_cards_v1', null));
     }
     function amexSavedDisplayRecords(bank, snapshot, savedCards) {
-        if (snapshot.schemaVersion !== 1 || !Array.isArray(snapshot.cards)) throw new Error('Unsupported saved results');
+        snapshot = hubMigrateWorkflowSnapshot(snapshot, "amex-combination");
+        if (!Array.isArray(snapshot.cards)) throw new Error('Unsupported saved results');
         const accounts = new Map();
         if (savedCards) {
             if (![1, 2].includes(savedCards.schemaVersion) || !Array.isArray(savedCards.accounts)) throw new Error('Unsupported saved cards');
@@ -565,7 +743,7 @@ return readIssuerSavedResults;
         return hubWorkspaceDisplayRecords(bank, snapshot, offer => ({
             merchant: offer.name, description: offer.headline,
             displayStatus: offer.result === 'Unconfirmed' ? 'review' : offer.activated === true ? 'added' : offer.eligible === true ? 'available' : 'other'
-        }), {"activation":true,"scope":"account"}.scope === 'card');
+        }), "account");
     }
 return readIssuerSavedResults;
 })() },
@@ -577,7 +755,7 @@ return readIssuerSavedResults;
         return hubWorkspaceDisplayRecords(bank, snapshot, offer => ({
             merchant: offer.merchant, description: offer.title, displayStatus: hubStatus(offer.status),
             expires: offer.expires, category: offer.category
-        }), {"activation":false,"scope":"card"}.scope === 'card');
+        }), "per-card");
     }
 return readIssuerSavedResults;
 })() },
@@ -589,7 +767,7 @@ return readIssuerSavedResults;
         return hubWorkspaceDisplayRecords(bank, snapshot, offer => ({
             merchant: offer.merchant, description: offer.title, displayStatus: hubStatus(offer.status),
             expires: offer.expires, category: offer.category
-        }), {"activation":true,"scope":"card"}.scope === 'card');
+        }), "per-card");
     }
 return readIssuerSavedResults;
 })() },
@@ -601,7 +779,7 @@ return readIssuerSavedResults;
         return hubWorkspaceDisplayRecords(bank, snapshot, offer => ({
             merchant: offer.merchant, description: offer.title, displayStatus: hubStatus(offer.status),
             expires: offer.expires, category: offer.category
-        }), {"activation":true,"scope":"account"}.scope === 'card');
+        }), "account");
     }
 return readIssuerSavedResults;
 })() },
@@ -613,7 +791,7 @@ return readIssuerSavedResults;
         return hubWorkspaceDisplayRecords(bank, snapshot, offer => ({
             merchant: offer.merchant, description: offer.title, displayStatus: hubStatus(offer.status),
             expires: offer.expires, category: offer.category
-        }), {"activation":true,"scope":"account"}.scope === 'card');
+        }), "account");
     }
 return readIssuerSavedResults;
 })() }];
@@ -835,7 +1013,7 @@ dispatchIssuer({"id":"amex-offer-lite","patterns":["^https://global\\.americanex
 
     // Source: core/state.js
     const SETTINGS = Object.freeze({
-        version: "1.3.3", capabilities: {"activation":true,"scope":"card"},
+        version: "1.4.0", capabilities: {"activation":true,"scope":"card"}, workflow: "amex-combination",
         requestGapMs: 500,
         rateLimitCooldownMs: 120000,
         requestTimeoutMs: 30000,
@@ -857,6 +1035,7 @@ dispatchIssuer({"id":"amex-offer-lite","patterns":["^https://global\\.americanex
         offerScanTimes: new Map(),
         pendingEnrollments: new Set(),
         savedOffersError: '',
+        savedOffersRestoreBlocked: false,
         busy: null,
         enrollmentProgress: { total: 0, completed: 0 },
         cancelRequested: false,
@@ -894,6 +1073,19 @@ dispatchIssuer({"id":"amex-offer-lite","patterns":["^https://global\\.americanex
             throw new Error('This card is not in the detected whitelist.');
         }
     }
+
+    // Source: core/workflow.js
+    const offerWorkflow = createHubWorkflow({
+        type: SETTINGS.workflow, capabilities: SETTINGS.capabilities,
+        readContext: () => ({ selectedCardIds: selectedAccounts().map(account => account.token),
+            priorityCardIds: prioritizedAccounts().map(account => account.token) }),
+        readRecords: () => selectedAccounts().flatMap(account => (state.offersByAccount.get(account.token) || []).map(offer => ({
+            cardId: account.token, offerId: offer.id, groupId: offer.groupKey, label: offer.name, source: offer, account,
+            status: offer.status === 'ENROLLED' ? 'added' : offer.status === 'UNCONFIRMED' ? 'unconfirmed'
+                : offer.status === 'ELIGIBLE' && offer.enrollable && state.scanReports.get(account.token)?.startsWith('Complete')
+                    ? 'available' : 'unavailable'
+        })))
+    });
 
     // Source: core/card-priority.js
     // The priority order decides which card receives an offer that several cards
@@ -1091,7 +1283,8 @@ dispatchIssuer({"id":"amex-offer-lite","patterns":["^https://global\\.americanex
     }
 
     function validateOfferSnapshot(snapshot) {
-        if (!snapshot || snapshot.schemaVersion !== 1 || !Array.isArray(snapshot.cards)) {
+        snapshot = hubMigrateWorkflowSnapshot(snapshot, SETTINGS.workflow);
+        if (!Array.isArray(snapshot.cards)) {
             throw new Error('Saved offers have an unrecognized format.');
         }
         const accounts = new Set();
@@ -1108,6 +1301,7 @@ dispatchIssuer({"id":"amex-offer-lite","patterns":["^https://global\\.americanex
 
     // Source: core/saved-offers.js
     function persistOfferResults() {
+        if (state.savedOffersRestoreBlocked) return false;
         try {
             const cards = [...state.offersByAccount].map(([accountToken, offers]) => ({
                 accountToken,
@@ -1121,7 +1315,7 @@ dispatchIssuer({"id":"amex-offer-lite","patterns":["^https://global\\.americanex
                     return snapshot;
                 })
             }));
-            GM_setValue(SETTINGS.savedOffersKey, { schemaVersion: 1, cards });
+            GM_setValue(SETTINGS.savedOffersKey, { schemaVersion: 2, workflowType: SETTINGS.workflow, cards });
             state.savedOffersError = '';
             return true;
         } catch {
@@ -1146,6 +1340,7 @@ dispatchIssuer({"id":"amex-offer-lite","patterns":["^https://global\\.americanex
                 log('Saved offer results restored without sending requests.');
             }
         } catch {
+            state.savedOffersRestoreBlocked = true;
             state.savedOffersError = 'Could not restore saved offers. Saved data was not overwritten.';
             log(state.savedOffersError);
         }
@@ -1615,33 +1810,11 @@ dispatchIssuer({"id":"amex-offer-lite","patterns":["^https://global\\.americanex
             });
     }
 
-    // An offer already added to one whitelist card, or left unconfirmed on one, is
-    // finished with: adding it again on a lower card would break the one-card rule.
-    // A card that definitively refused it (FAILED) does not block the next card.
-    function settledOfferGroups() {
-        return new Set(groupedOffers({ applyDisplayFilter: false })
-            .filter((group) => group.accounts.some(({ offer }) => ['ENROLLED', 'UNCONFIRMED'].includes(offer.status)))
-            .map((group) => group.offer.groupKey));
-    }
-
-    // One offer is added to exactly one card. When several cards are eligible for the
-    // same offer, the highest card in your priority order takes it; an offer that only
-    // one card has is therefore always allocated to that card.
-    function enrollmentPlan(groupKey = null) {
-        const ranks = cardPriorityRanks();
-        const settled = settledOfferGroups();
-        const chosenByOffer = new Map();
-        for (const candidate of enrollmentCandidates(groupKey)) {
-            if (settled.has(candidate.offer.groupKey)) continue;
-            const chosen = chosenByOffer.get(candidate.offer.groupKey);
-            if (!chosen || ranks.get(candidate.account.token) < ranks.get(chosen.account.token)) {
-                chosenByOffer.set(candidate.offer.groupKey, candidate);
-            }
-        }
-        // Work through the highest-priority card first, and keep a stable order so a
-        // run that is stopped and restarted resumes where the offers left off.
-        return [...chosenByOffer.values()].sort((left, right) =>
-            ranks.get(left.account.token) - ranks.get(right.account.token) || left.offer.name.localeCompare(right.offer.name));
+    // The combination template owns cross-card deduplication and target allocation.
+    function enrollmentPlan(groupKey = null, { forExecution = false } = {}) {
+        const records = forExecution ? offerWorkflow.plan() : offerWorkflow.preview();
+        return records.filter(record => !groupKey || record.groupId === groupKey)
+            .map(record => ({ account: record.account, offer: record.source }));
     }
 
     // Source: workflows/enrollment-requests.js
@@ -1658,6 +1831,7 @@ dispatchIssuer({"id":"amex-offer-lite","patterns":["^https://global\\.americanex
     function enrollPlannedOffer({ account, offer }) {
         return withRequestSlot(async () => {
             assertWhitelisted(account.token);
+            offerWorkflow.assertAction(offer);
             if (offer.status !== 'ELIGIBLE' || !offer.enrollable || !state.scanReports.get(account.token)?.startsWith('Complete')) {
                 throw new Error('This offer is no longer eligible on the chosen card. Scan again.');
             }
@@ -1693,7 +1867,7 @@ dispatchIssuer({"id":"amex-offer-lite","patterns":["^https://global\\.americanex
     // minimum gap between them, no retries, and a stop that takes effect immediately.
     async function startEnrollment(groupKey = null) {
         if (!SETTINGS.capabilities.activation || state.busy || Date.now() < state.cooldownUntil) return;
-        const plan = enrollmentPlan(groupKey);
+        const plan = enrollmentPlan(groupKey, { forExecution: true });
         if (!plan.length) return;
         state.enrollmentProgress = { total: plan.length, completed: 0 };
         let addedCount = 0;
@@ -1749,10 +1923,10 @@ dispatchIssuer({"id":"amex-offer-lite","patterns":["^https://global\\.americanex
         panelRoot = element('div');
         panelRoot.id = PANEL_ELEMENT_ID;
         const shadow = panelRoot.attachShadow({ mode: 'open' });
-        const scope = `<p class="muted">Choose your cards. Drag or use the arrows to set priority: a shared offer goes to one eligible card, in this order.</p>
+        const scope = `<p class="muted">Drag cards or use the arrows to change priority.</p>
             <div class="actions"><button id="btn-detect" aria-label="Detect cards">Detect cards</button><button id="btn-refresh-cards" aria-label="Refresh cards">Refresh cards</button></div>
             <p id="whitelist-summary" class="muted"></p><p id="saved-cards-status" class="muted" role="status"></p><div id="card-list" class="cards"></div>`;
-        let markup = hubWorkflowMarkup(scope, { bank: 'Amex' });
+        let markup = hubWorkflowMarkup(scope, { bank: 'Amex', template: offerWorkflow });
         for (const [from, to] of Object.entries({ body: 'content', scan: 'btn-scan', stop: 'btn-stop', search: 'input-search', add: 'btn-enroll-all', offers: 'offer-list', counts: 'offer-summary', 'workspace-cache': 'saved-offers-status' })) {
             markup = markup.replace(`id="${from}"`, `id="${to}"`);
         }
@@ -1977,7 +2151,7 @@ dispatchIssuer({"id":"amex-offer-lite","patterns":["^https://global\\.americanex
         const scan = uiElement('btn-scan');
         scan.disabled = Boolean(state.busy) || !state.detected || !selectedAccounts().length || coolingDown;
         hubSetActionLabel(scan, 'Scan offers');
-        renderHubWorkflow(panelRoot.shadowRoot, { readOnly: !SETTINGS.capabilities.activation, count: enrollmentPlan().length,
+        renderHubWorkflow(panelRoot.shadowRoot, { template: offerWorkflow, readOnly: !SETTINGS.capabilities.activation, count: enrollmentPlan().length,
             hasScope: selectedAccounts().length > 0, busy: Boolean(state.busy), coolingDown,
             storageError: state.savedCardsError || state.savedOffersError,
             needsScan: selectedAccounts().length > 0 && !selectedAccounts().some(account => state.scanReports.get(account.token)?.startsWith('Complete')),
@@ -2040,8 +2214,8 @@ dispatchIssuer({"id":"bofa-offer-lite","patterns":["^https://deals\\.merchant-re
 
     // Source: core/state.js
     const SETTINGS = {
-        capabilities: {"activation":true,"scope":"account"},
-        id: "bofa-offer-lite", name: "BankAmeriDeals Lite", version: "1.3.3",
+        capabilities: {"activation":true,"scope":"account"}, workflow: "account",
+        id: "bofa-offer-lite", name: "BankAmeriDeals Lite", version: "1.4.0",
         gapMilliseconds: 500, timeoutMilliseconds: 45000, pageSize: 24,
         defaultCooldownMilliseconds: 300000
     };
@@ -2069,6 +2243,17 @@ dispatchIssuer({"id":"bofa-offer-lite","patterns":["^https://deals\\.merchant-re
         updateStatus('Stopping after the current request. Any unverified activation requires a new scan.');
     }
 
+    // Source: core/workflow.js
+    const offerWorkflow = createHubWorkflow({
+        type: SETTINGS.workflow, capabilities: SETTINGS.capabilities,
+        readContext: () => ({ accountId: state.workspaceScope, consent: state.consent }),
+        readRecords: () => state.offers.map(offer => ({
+            accountId: state.workspaceScope, offerId: offer.id, source: offer,
+            status: offer.result === 'Unconfirmed' ? 'unconfirmed' : offer.activated ? 'added'
+                : offer.eligible ? 'available' : 'unavailable'
+        }))
+    });
+
     // Source: core/storage.js
     // Existing keys and schema remain readable after the runtime refactor.
     const issuerStorage = { get: (key, fallback) => GM_getValue(key, fallback), set: (key, value) => GM_setValue(key, value) };
@@ -2093,7 +2278,7 @@ dispatchIssuer({"id":"bofa-offer-lite","patterns":["^https://deals\\.merchant-re
     // Source: core/workspace.js
     const { saveWorkspace, requireWorkspaceSaved, restoreWorkspace, recordWorkspaceScan,
         markWorkspaceOfferPending, finishWorkspaceOffer, bindWorkspaceScope } = createHubWorkspaceStore({
-        state, fields: WORKSPACE_FIELDS, storage: issuerStorage, storageKey: `${SETTINGS.id}:workspace`,
+        state, workflowType: SETTINGS.workflow, fields: WORKSPACE_FIELDS, storage: issuerStorage, storageKey: `${SETTINGS.id}:workspace`,
         onError: () => renderPanel(),
         readConsent: () => state.consent, writeConsent: value => { state.consent = value; },
         markPendingRecord: record => { record.result = 'Unconfirmed'; record.eligible = false; }
@@ -2229,7 +2414,7 @@ dispatchIssuer({"id":"bofa-offer-lite","patterns":["^https://deals\\.merchant-re
         if (state.needsScan || !state.consent) return;
         return runExclusive(async () => {
             ensureRunning();
-            const queue = state.offers.filter(offer => offer.eligible && !offer.activated);
+            const queue = offerWorkflow.plan().map(record => record.source);
             state.total = queue.length;
             state.needsScan = true;
             state.confirmed = 0;
@@ -2241,6 +2426,7 @@ dispatchIssuer({"id":"bofa-offer-lite","patterns":["^https://deals\\.merchant-re
                     Object.assign(offer, current);
                     throw new Error('Offer eligibility changed since scanning. Scan again before continuing.');
                 }
+                offerWorkflow.assertAction(offer);
                 offer.result = 'Unconfirmed';
                 markWorkspaceOfferPending(offer);
                 updateStatus(`Activating offer ${state.confirmed + 1}/${queue.length}…`);
@@ -2262,8 +2448,8 @@ dispatchIssuer({"id":"bofa-offer-lite","patterns":["^https://deals\\.merchant-re
     function mountPanel() {
         if (document.getElementById(SETTINGS.id)) return;
         const { host, panel } = createHubWorkflowPanel({
-            state, settings: SETTINGS, bank: "Deals", styles: HUB_DESIGN_STYLES,
-            scopeMarkup: "<p class=\"muted\">Current signed-in Deals profile. Activation can start an expiry window; review terms first.</p><label class=\"card\"><input id=\"consent\" type=\"checkbox\" aria-label=\"Confirm activation for current Deals profile\">Allow adding offers to this profile</label>",
+            state, settings: SETTINGS, template: offerWorkflow, bank: "Deals", styles: HUB_DESIGN_STYLES,
+            scopeMarkup: "<p class=\"muted\">Activation can start an expiry window; review terms first.</p><label class=\"card\"><input id=\"consent\" type=\"checkbox\" aria-label=\"Confirm activation for current Deals profile\">Allow adding offers to this profile</label>",
             workflow: { bank: "Deals", extraReviewMarkup: "", readOnly: !SETTINGS.capabilities.activation },
             onScan: scanOffers, onAdd: activateOffers, onStop: stopRun,
             saveWorkspace, renderOffers, supportsActivation: SETTINGS.capabilities.activation
@@ -2308,7 +2494,7 @@ dispatchIssuer({"id":"bofa-offer-lite","patterns":["^https://deals\\.merchant-re
         panel.getElementById('stop').disabled = !state.busy || state.stopRequested;
         const available = state.offers.filter(offer => offer.eligible && !offer.activated).length;
         panel.getElementById('counts').textContent = `${state.offers.length} offers · ${available} available · ${state.confirmed}/${state.total} added this run`;
-        renderHubWorkflow(panel, { readOnly: !SETTINGS.capabilities.activation, count: available, hasScope: state.consent, needsScan: state.needsScan,
+        renderHubWorkflow(panel, { template: offerWorkflow, readOnly: !SETTINGS.capabilities.activation, count: offerWorkflow.preview().length, hasScope: state.consent, needsScan: state.needsScan,
             busy: state.busy, storageError: state.storageError, coolingDown: Date.now() < state.cooldownUntil,
             progress: state.activeAction === 'add' && state.total ? { completed: state.confirmed, total: state.total } : null });
         renderOffers();
@@ -2330,8 +2516,8 @@ dispatchIssuer({"id":"chase-offer-lite","patterns":["^https://secure\\.chase\\.c
 
     // Source: core/state.js
     const SETTINGS = {
-        capabilities: {"activation":false,"scope":"card"},
-        id: "chase-offer-lite", name: "Chase Offer Lite", version: "1.3.3",
+        capabilities: {"activation":false,"scope":"card"}, workflow: "per-card",
+        id: "chase-offer-lite", name: "Chase Offer Lite", version: "1.4.0",
         gapMilliseconds: 500, timeoutMilliseconds: 45000,
         defaultCooldownMilliseconds: 300000
     };
@@ -2357,6 +2543,16 @@ dispatchIssuer({"id":"chase-offer-lite","patterns":["^https://secure\\.chase\\.c
         state.stopRequested = true;
         updateStatus('Stopping after the current request settles.');
     }
+
+    // Source: core/workflow.js
+    const offerWorkflow = createHubWorkflow({
+        type: SETTINGS.workflow, capabilities: SETTINGS.capabilities,
+        readContext: () => ({ selectedCardIds: [...state.selected] }),
+        readRecords: () => state.offers.map(offer => ({
+            cardId: offer.accountId, offerId: offer.offerId, source: offer,
+            status: offer.status === 'NEW' ? 'available' : offer.status === 'ACTIVATED' ? 'added' : 'unavailable'
+        }))
+    });
 
     // Source: core/storage.js
     // Existing keys and schema remain readable after the runtime refactor.
@@ -2387,7 +2583,7 @@ dispatchIssuer({"id":"chase-offer-lite","patterns":["^https://secure\\.chase\\.c
     // Source: core/workspace.js
     const { saveWorkspace, requireWorkspaceSaved, restoreWorkspace, recordWorkspaceScan,
         markWorkspaceOfferPending, finishWorkspaceOffer, bindWorkspaceScope } = createHubWorkspaceStore({
-        state, fields: WORKSPACE_FIELDS, storage: issuerStorage, storageKey: `${SETTINGS.id}:workspace`,
+        state, workflowType: SETTINGS.workflow, fields: WORKSPACE_FIELDS, storage: issuerStorage, storageKey: `${SETTINGS.id}:workspace`,
         onError: () => renderPanel()
     });
     function workspaceCacheNotice() { return hubWorkspaceCacheNotice(state); }
@@ -2727,7 +2923,7 @@ dispatchIssuer({"id":"chase-offer-lite","patterns":["^https://secure\\.chase\\.c
     function mountPanel() {
         if (document.getElementById(SETTINGS.id)) return;
         const { host, panel } = createHubWorkflowPanel({
-            state, settings: SETTINGS, bank: "Chase", styles: PANEL_STYLES,
+            state, settings: SETTINGS, template: offerWorkflow, bank: "Chase", styles: PANEL_STYLES,
             scopeMarkup: "<p class=\"muted\">Open Chase Offers, then detect and choose your cards. Your choices stay saved.</p><button id=\"detect\" aria-label=\"Detect cards\">Detect cards</button><div id=\"cards\" class=\"cards\"></div>",
             workflow: { bank: "Chase", extraReviewMarkup: "", readOnly: !SETTINGS.capabilities.activation },
             onScan: scanOffers, onAdd: addAllOffers, onStop: stopRun,
@@ -2801,7 +2997,7 @@ dispatchIssuer({"id":"chase-offer-lite","patterns":["^https://secure\\.chase\\.c
             label.append(checkbox, document.createTextNode(`${cardName}${card.eligible === false ? ' · Detect cards to refresh' : ''}`));
             cards.appendChild(label);
         }
-        renderHubWorkflow(panel, { count: state.offers.filter(offer => state.selected.has(offer.accountId) && offer.status === 'NEW').length, hasScope: state.selected.size > 0,
+        renderHubWorkflow(panel, { template: offerWorkflow, count: offerWorkflow.preview().length, hasScope: state.selected.size > 0,
             needsScan: state.needsScan, busy: state.busy, storageError: state.storageError,
             coolingDown: Date.now() < state.cooldownUntil, readOnly: !state.enrollmentSupported,
             progress: state.total ? { completed: state.confirmed, total: state.total } : null });
@@ -2826,8 +3022,8 @@ dispatchIssuer({"id":"citi-offer-lite","patterns":["^https://online\\.citi\\.com
 
     // Source: core/state.js
     const SETTINGS = {
-        capabilities: {"activation":true,"scope":"card"},
-        id: "citi-offer-lite", name: "Citi Offer Lite", version: "1.3.3",
+        capabilities: {"activation":true,"scope":"card"}, workflow: "per-card",
+        id: "citi-offer-lite", name: "Citi Offer Lite", version: "1.4.0",
         apiBase: '/gcgapi/prod/public/v1',
         retrievePath: '/digital/customers/creditCards/merchantOffers/retrieve',
         enrollmentPath: '/digital/customers/creditCards/accounts/rewards/specialOffers/enrollMerchantOffer',
@@ -2856,6 +3052,17 @@ dispatchIssuer({"id":"citi-offer-lite","patterns":["^https://online\\.citi\\.com
         updateStatus('Stopping after the current request settles. Its result may still be confirmed.');
     }
 
+    // Source: core/workflow.js
+    const offerWorkflow = createHubWorkflow({
+        type: SETTINGS.workflow, capabilities: SETTINGS.capabilities,
+        readContext: () => ({ selectedCardIds: [...state.selected] }),
+        readRecords: () => state.offers.map(offer => ({
+            cardId: offer.accountId, offerId: offer.offerId, source: offer,
+            status: offer.status === 'AVAILABLE' ? 'available' : offer.status === 'ENROLLED' ? 'added'
+                : offer.status === 'UNCONFIRMED' ? 'unconfirmed' : 'unavailable'
+        }))
+    });
+
     // Source: core/storage.js
     // Existing keys and schema remain readable after the runtime refactor.
     const issuerStorage = { get: (key, fallback) => GM_getValue(key, fallback), set: (key, value) => GM_setValue(key, value) };
@@ -2883,7 +3090,7 @@ dispatchIssuer({"id":"citi-offer-lite","patterns":["^https://online\\.citi\\.com
     // Source: core/workspace.js
     const { saveWorkspace, requireWorkspaceSaved, restoreWorkspace, recordWorkspaceScan,
         markWorkspaceOfferPending, finishWorkspaceOffer, bindWorkspaceScope } = createHubWorkspaceStore({
-        state, fields: WORKSPACE_FIELDS, storage: issuerStorage, storageKey: `${SETTINGS.id}:workspace`,
+        state, workflowType: SETTINGS.workflow, fields: WORKSPACE_FIELDS, storage: issuerStorage, storageKey: `${SETTINGS.id}:workspace`,
         onError: () => renderPanel()
     });
     function workspaceCacheNotice() { return hubWorkspaceCacheNotice(state); }
@@ -3068,12 +3275,13 @@ dispatchIssuer({"id":"citi-offer-lite","patterns":["^https://online\\.citi\\.com
         if (!accounts.length || (state.needsScan && !canContinueSavedOffers())) return;
         return runExclusive(async () => {
             await scanCardOffers(accounts);
-            const queue = state.offers.filter(offer => state.selected.has(offer.accountId) && offer.status === 'AVAILABLE');
+            const queue = offerWorkflow.plan().map(record => record.source);
             state.total = queue.length;
             for (const offer of queue) {
                 ensureRunning();
                 updateStatus(`Adding ${state.completed + 1}/${state.total}: ${offer.merchant}. Waiting for the next request slot…`);
                 try {
+                    offerWorkflow.assertAction(offer);
                     markWorkspaceOfferPending(offer);
                     const payload = await requestJson(SETTINGS.enrollmentPath, enrollmentBody(offer));
                     if (!enrollmentConfirmed(payload, offer)) throw new Error('Enrollment was not explicitly confirmed. Scan again before continuing.');
@@ -3099,8 +3307,8 @@ dispatchIssuer({"id":"citi-offer-lite","patterns":["^https://online\\.citi\\.com
     function mountPanel() {
         if (document.getElementById(SETTINGS.id)) return;
         const { host, panel } = createHubWorkflowPanel({
-            state, settings: SETTINGS, bank: "Citi", styles: PANEL_STYLES,
-            scopeMarkup: '<p class="muted">Choose cards for adding offers. Your choices stay saved; new cards start unselected.</p><div id="cards" class="cards"></div>',
+            state, settings: SETTINGS, template: offerWorkflow, bank: "Citi", styles: PANEL_STYLES,
+            scopeMarkup: '<p class="muted">Your choices stay saved; new cards start unselected.</p><div id="cards" class="cards"></div>',
             workflow: { bank: 'Citi', scanLabel: 'Refresh all cards & offers',
                 scanDescription: 'Optional: refresh every card and its offers in one click, including unselected cards. Your saved choices stay selected; refreshing does not add offers.' },
             onScan: refreshAllCardsAndOffers, onAdd: addAllOffers, onStop: stopRun,
@@ -3170,15 +3378,16 @@ dispatchIssuer({"id":"citi-offer-lite","patterns":["^https://online\\.citi\\.com
             label.append(checkbox, document.createTextNode(card.name));
             cards.appendChild(label);
         }
-        renderHubWorkflow(panel, { count: state.offers.filter(offer => state.selected.has(offer.accountId) && offer.status === 'AVAILABLE').length, hasScope: state.selected.size > 0,
+        renderHubWorkflow(panel, { template: offerWorkflow, count: offerWorkflow.preview().length, hasScope: state.selected.size > 0,
             needsScan: (state.needsScan && !canContinue) || !state.lastScanAt, busy: state.busy, storageError: state.storageError,
             coolingDown: Date.now() < state.cooldownUntil, readOnly: !SETTINGS.capabilities.activation,
             progress: state.activeAction === 'add' && state.total ? { completed: state.confirmed, total: state.total } : null });
         const reason = panel.getElementById('hub-action-reason');
         if (canContinue && !panel.getElementById('add').disabled) {
             reason.textContent = 'Continue with your saved card choices. Add all offers checks the current login and offer status before adding what remains. Refreshing all cards is optional.';
+            reason.hidden = false;
         } else {
-            reason.textContent = reason.textContent.replace('Scan offers in step 2', 'Refresh all cards & offers in step 2')
+            reason.textContent = reason.textContent.replace('Refresh offers before adding', 'Refresh all cards & offers before adding')
                 .replace('Scan again to refresh', 'Refresh all cards & offers to check for new offers');
         }
         renderOffers();
@@ -3205,8 +3414,8 @@ dispatchIssuer({"id":"usbank-offer-lite","patterns":["^https://onlinebanking\\.u
 
     // Source: core/state.js
     const SETTINGS = {
-        capabilities: {"activation":true,"scope":"account"},
-        id: "usbank-offer-lite", name: "US Bank Offer Lite", version: "1.3.3",
+        capabilities: {"activation":true,"scope":"account"}, workflow: "account",
+        id: "usbank-offer-lite", name: "US Bank Offer Lite", version: "1.4.0",
         endpoint: '/digital/api/customer-management/graphql/v2',
         gapMilliseconds: 500, timeoutMilliseconds: 45000,
         defaultCooldownMilliseconds: 300000
@@ -3234,6 +3443,19 @@ dispatchIssuer({"id":"usbank-offer-lite","patterns":["^https://onlinebanking\\.u
         updateStatus('Stopping after the current request settles. Unverified activations remain unconfirmed.');
     }
 
+    // Source: core/workflow.js
+    const offerWorkflow = createHubWorkflow({
+        type: SETTINGS.workflow, capabilities: SETTINGS.capabilities,
+        // The manually clicked Add action is this issuer's account confirmation.
+        // Individual offer selection narrows that plan; it is never card selection.
+        readContext: () => ({ accountId: state.workspaceScope, consent: true }),
+        readRecords: () => state.offers.map(offer => ({
+            accountId: state.workspaceScope, offerId: offer.offerId, source: offer,
+            status: offer.status === 'AVAILABLE' ? 'available' : offer.status === 'ACTIVATED' ? 'added'
+                : offer.status === 'UNCONFIRMED' ? 'unconfirmed' : 'unavailable'
+        }))
+    });
+
     // Source: core/storage.js
     // Existing keys and schema remain readable after the runtime refactor.
     const issuerStorage = { get: (key, fallback) => GM_getValue(key, fallback), set: (key, value) => GM_setValue(key, value) };
@@ -3258,7 +3480,7 @@ dispatchIssuer({"id":"usbank-offer-lite","patterns":["^https://onlinebanking\\.u
     // Source: core/workspace.js
     const { saveWorkspace, requireWorkspaceSaved, restoreWorkspace, recordWorkspaceScan,
         markWorkspaceOfferPending, finishWorkspaceOffer, bindWorkspaceScope } = createHubWorkspaceStore({
-        state, fields: WORKSPACE_FIELDS, storage: issuerStorage, storageKey: `${SETTINGS.id}:workspace`,
+        state, workflowType: SETTINGS.workflow, fields: WORKSPACE_FIELDS, storage: issuerStorage, storageKey: `${SETTINGS.id}:workspace`,
         onError: () => renderPanel()
     });
     function workspaceCacheNotice() { return hubWorkspaceCacheNotice(state); }
@@ -3453,11 +3675,11 @@ dispatchIssuer({"id":"usbank-offer-lite","patterns":["^https://onlinebanking\\.u
     }
     function activateSelectedOffers() {
         if (state.needsScan || !state.selected.size) return;
-        return activateOfferIds([...state.selected]);
+        return activateOfferIds(offerWorkflow.plan().filter(record => state.selected.has(record.offerId)).map(record => record.offerId));
     }
     function addAllOffers() {
         if (state.needsScan) return;
-        return activateOfferIds(state.offers.filter(offer => offer.status === 'AVAILABLE').map(offer => offer.offerId));
+        return activateOfferIds(offerWorkflow.plan().map(record => record.offerId));
     }
     function activateOfferIds(selectedIds) {
         if (!selectedIds.length) return;
@@ -3477,6 +3699,7 @@ dispatchIssuer({"id":"usbank-offer-lite","patterns":["^https://onlinebanking\\.u
                 if (!offer || offer.status !== 'AVAILABLE') throw new Error('A selected offer changed or disappeared. Scan and select again.');
                 updateStatus(`Activating ${offer.merchant}; each request waits ${SETTINGS.gapMilliseconds / 1000} seconds after the previous response…`);
                 try {
+                    offerWorkflow.assertAction(offer);
                     markWorkspaceOfferPending(offer);
                     const payload = await requestGraphql(ACTIVATE_OFFER_QUERY, () => activationBody(offer, listing), state.session);
                     offer.status = 'UNCONFIRMED';
@@ -3510,8 +3733,8 @@ dispatchIssuer({"id":"usbank-offer-lite","patterns":["^https://onlinebanking\\.u
     function mountPanel() {
         if (document.getElementById(SETTINGS.id)) return;
         const { host, panel } = createHubWorkflowPanel({
-            state, settings: SETTINGS, bank: "US Bank", styles: PANEL_STYLES,
-            scopeMarkup: "<p class=\"muted\">Current signed-in US Bank customer. Add all covers every available offer. You can also select individual offers below.</p>",
+            state, settings: SETTINGS, template: offerWorkflow, bank: "US Bank", styles: PANEL_STYLES,
+            scopeMarkup: "<p class=\"muted\">Add all available offers, or select individual offers below.</p>",
             workflow: { bank: "US Bank", extraReviewMarkup: "<button id=\"activate\" aria-label=\"Add selected offers\">Add selected offers</button><button id=\"select-all\" aria-label=\"Select all available offers\">Select all</button><button id=\"clear\" aria-label=\"Clear offer selection\">Clear selection</button>", readOnly: !SETTINGS.capabilities.activation },
             onScan: scanOffers, onAdd: addAllOffers, onStop: stopRun,
             saveWorkspace, renderOffers, supportsActivation: SETTINGS.capabilities.activation
@@ -3566,7 +3789,7 @@ dispatchIssuer({"id":"usbank-offer-lite","patterns":["^https://onlinebanking\\.u
         panel.getElementById('status').textContent = state.status;
         panel.getElementById('storage-error').textContent = state.storageError;
         panel.getElementById('counts').textContent = `${state.offers.length} offers · ${available} available · ${state.selected.size} selected · ${state.confirmed}/${state.total} newly confirmed`;
-        renderHubWorkflow(panel, { readOnly: !SETTINGS.capabilities.activation, count: available, needsScan: state.needsScan, busy: state.busy,
+        renderHubWorkflow(panel, { template: offerWorkflow, readOnly: !SETTINGS.capabilities.activation, count: offerWorkflow.preview().length, needsScan: state.needsScan, busy: state.busy,
             storageError: state.storageError, coolingDown: Date.now() < state.cooldownUntil,
             progress: state.activeAction === 'add' && state.total ? { completed: state.confirmed, total: state.total } : null });
         hubSetActionLabel(panel.getElementById('activate'), 'Add selected offers', state.selected.size);
@@ -3589,8 +3812,8 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","patterns":["^https://web\\.secure\
 
     // Source: core/state.js
     const SETTINGS = {
-        capabilities: {"activation":true,"scope":"account"},
-        id: "wellsfargo-offer-lite", name: "Wells Fargo Offer Lite", version: "1.3.3",
+        capabilities: {"activation":true,"scope":"account"}, workflow: "account",
+        id: "wellsfargo-offer-lite", name: "Wells Fargo Offer Lite", version: "1.4.0",
         retrievePath: '/deals-portal/as/getDeals', enrollmentPath: '/deals-portal/as/activateCLDeal',
         gapMilliseconds: 500, timeoutMilliseconds: 45000, defaultCooldownMilliseconds: 300000
     };
@@ -3617,6 +3840,17 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","patterns":["^https://web\\.secure\
         updateStatus('Stopping after the current request settles. Its result may still be confirmed.');
     }
 
+    // Source: core/workflow.js
+    const offerWorkflow = createHubWorkflow({
+        type: SETTINGS.workflow, capabilities: SETTINGS.capabilities,
+        readContext: () => ({ accountId: state.workspaceScope, consent: state.accountConsent }),
+        readRecords: () => state.offers.map(offer => ({
+            accountId: state.workspaceScope, offerId: offer.offerId, source: offer,
+            status: offer.status === 'AVAILABLE' ? 'available' : offer.status === 'ACTIVATED' ? 'added'
+                : offer.status === 'UNCONFIRMED' ? 'unconfirmed' : 'unavailable'
+        }))
+    });
+
     // Source: core/storage.js
     // Existing keys and schema remain readable after the runtime refactor.
     const issuerStorage = { get: (key, fallback) => GM_getValue(key, fallback), set: (key, value) => GM_setValue(key, value) };
@@ -3639,7 +3873,7 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","patterns":["^https://web\\.secure\
     // Source: core/workspace.js
     const { saveWorkspace, requireWorkspaceSaved, restoreWorkspace, recordWorkspaceScan,
         markWorkspaceOfferPending, finishWorkspaceOffer, bindWorkspaceScope } = createHubWorkspaceStore({
-        state, fields: WORKSPACE_FIELDS, storage: issuerStorage, storageKey: `${SETTINGS.id}:workspace`,
+        state, workflowType: SETTINGS.workflow, fields: WORKSPACE_FIELDS, storage: issuerStorage, storageKey: `${SETTINGS.id}:workspace`,
         onError: () => renderPanel(),
         readConsent: () => state.accountConsent, writeConsent: value => { state.accountConsent = value; }
     });
@@ -3779,12 +4013,13 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","patterns":["^https://web\\.secure\
             activationUrl();
             await scanCurrentAccount();
             if (!state.accountConsent) throw new Error('The signed-in account session changed. Confirm account activation again.');
-            const queue = state.offers.filter(offer => offer.status === 'AVAILABLE');
+            const queue = offerWorkflow.plan().map(record => record.source);
             state.total = queue.length;
             for (const offer of queue) {
                 ensureRunning();
                 updateStatus(`Activating ${state.completed + 1}/${state.total}: ${offer.merchant}. Waiting for the next request slot…`);
                 try {
+                    offerWorkflow.assertAction(offer);
                     markWorkspaceOfferPending(offer);
                     const payload = await requestJson(SETTINGS.enrollmentPath, enrollmentBody(offer));
                     if (!enrollmentConfirmed(payload)) throw new Error('Activation was not explicitly confirmed. Scan again before continuing.');
@@ -3810,8 +4045,8 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","patterns":["^https://web\\.secure\
     function mountPanel() {
         if (document.getElementById(SETTINGS.id)) return;
         const { host, panel } = createHubWorkflowPanel({
-            state, settings: SETTINGS, bank: "Wells Fargo", styles: PANEL_STYLES,
-            scopeMarkup: "<p class=\"muted\">Current signed-in Wells Fargo account. Offers needing an individual card choice are skipped.</p><label class=\"card\"><input id=\"consent\" type=\"checkbox\" aria-label=\"Allow account-wide Wells Fargo activation\">Allow adding offers to this account</label>",
+            state, settings: SETTINGS, template: offerWorkflow, bank: "Wells Fargo", styles: PANEL_STYLES,
+            scopeMarkup: "<p class=\"muted\">Offers needing an individual card choice are skipped.</p><label class=\"card\"><input id=\"consent\" type=\"checkbox\" aria-label=\"Allow account-wide Wells Fargo activation\">Allow adding offers to this account</label>",
             workflow: { bank: "Wells Fargo", extraReviewMarkup: "", readOnly: !SETTINGS.capabilities.activation },
             onScan: scanOffers, onAdd: addAllOffers, onStop: stopRun,
             saveWorkspace, renderOffers, supportsActivation: SETTINGS.capabilities.activation
@@ -3862,7 +4097,7 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","patterns":["^https://web\\.secure\
         panel.getElementById('status').textContent = state.status;
         panel.getElementById('storage-error').textContent = state.storageError;
         panel.getElementById('counts').textContent = `${state.offers.length} offers · ${state.offers.filter(offer => offer.status === 'AVAILABLE').length} eligible · ${state.offers.filter(offer => ['UNSUPPORTED', 'CONFLICT'].includes(offer.status)).length} skipped · ${state.confirmed}/${state.total} added this run`;
-        renderHubWorkflow(panel, { count: state.offers.filter(offer => offer.status === 'AVAILABLE').length, hasScope: state.accountConsent,
+        renderHubWorkflow(panel, { template: offerWorkflow, count: offerWorkflow.preview().length, hasScope: state.accountConsent,
             needsScan: state.needsScan, busy: state.busy, storageError: state.storageError,
             coolingDown: Date.now() < state.cooldownUntil, readOnly: !SETTINGS.capabilities.activation,
             progress: state.activeAction === 'add' && state.total ? { completed: state.confirmed, total: state.total } : null });

@@ -21,11 +21,11 @@ function scanOffers() {
 }
 function activateSelectedOffers() {
     if (state.needsScan || !state.selected.size) return;
-    return activateOfferIds([...state.selected]);
+    return activateOfferIds(offerWorkflow.plan().filter(record => state.selected.has(record.offerId)).map(record => record.offerId));
 }
 function addAllOffers() {
     if (state.needsScan) return;
-    return activateOfferIds(state.offers.filter(offer => offer.status === 'AVAILABLE').map(offer => offer.offerId));
+    return activateOfferIds(offerWorkflow.plan().map(record => record.offerId));
 }
 function activateOfferIds(selectedIds) {
     if (!selectedIds.length) return;
@@ -45,6 +45,7 @@ function activateOfferIds(selectedIds) {
             if (!offer || offer.status !== 'AVAILABLE') throw new Error('A selected offer changed or disappeared. Scan and select again.');
             updateStatus(`Activating ${offer.merchant}; each request waits ${SETTINGS.gapMilliseconds / 1000} seconds after the previous response…`);
             try {
+                offerWorkflow.assertAction(offer);
                 markWorkspaceOfferPending(offer);
                 const payload = await requestGraphql(ACTIVATE_OFFER_QUERY, () => activationBody(offer, listing), state.session);
                 offer.status = 'UNCONFIRMED';

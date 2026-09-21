@@ -37,7 +37,7 @@ function renderPanel() {
     panel.getElementById('status').textContent = state.status;
     panel.getElementById('storage-error').textContent = state.storageError;
     panel.getElementById('counts').textContent = `${state.offers.length} offers · ${available} available · ${state.selected.size} selected · ${state.confirmed}/${state.total} newly confirmed`;
-    renderHubWorkflow(panel, { readOnly: !SETTINGS.capabilities.activation, count: available, needsScan: state.needsScan, busy: state.busy,
+    renderHubWorkflow(panel, { template: offerWorkflow, readOnly: !SETTINGS.capabilities.activation, count: offerWorkflow.preview().length, needsScan: state.needsScan, busy: state.busy,
         storageError: state.storageError, coolingDown: Date.now() < state.cooldownUntil,
         progress: state.activeAction === 'add' && state.total ? { completed: state.confirmed, total: state.total } : null });
     hubSetActionLabel(panel.getElementById('activate'), 'Add selected offers', state.selected.size);

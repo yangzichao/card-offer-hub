@@ -25,8 +25,13 @@ function workspaceRecord(record, fields) {
 function workspaceOfferKey(offer) {
     return JSON.stringify([offer.accountId || '', offer.offerId || offer.id]);
 }
-function validateWorkspaceSnapshot(saved, fields) {
-    if (!saved || saved.schemaVersion !== 1 || !Number.isFinite(saved.savedAt) || saved.savedAt < 0
+function validateWorkspaceSnapshot(saved, fields, workflowType) {
+    if (!HUB_WORKFLOW_TEMPLATES[workflowType]
+        || (HUB_WORKFLOW_TEMPLATES[workflowType].scope === 'card') !== Boolean(fields.accounts)) {
+        throw new Error('Workspace fields do not match its workflow.');
+    }
+    saved = hubMigrateWorkflowSnapshot(saved, workflowType);
+    if (!Number.isFinite(saved.savedAt) || saved.savedAt < 0
         || !Number.isFinite(saved.lastScanAt) || saved.lastScanAt < 0
         || typeof saved.scopeIdentity !== 'string' || typeof saved.consent !== 'boolean'
         || typeof saved.search !== 'string' || typeof saved.collapsed !== 'boolean'

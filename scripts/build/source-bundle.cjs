@@ -2,6 +2,7 @@ const { readFileSync } = require('node:fs');
 const { join } = require('node:path');
 const { Script } = require('node:vm');
 const { sharedDirectory } = require('./script-registry.cjs');
+const { bundleWorkflowRegistry } = require('./workflow-registry.cjs');
 
 const BUNDLE_INDENT = '    ';
 const BUILD_CONSTANT_PATTERN = /__USERSCRIPT_[A-Z_]+__/g;
@@ -14,6 +15,7 @@ function buildConstants(script, releaseVersion) {
         __USERSCRIPT_ID__: script.id,
         __USERSCRIPT_NAME__: script.name,
         __USERSCRIPT_CAPABILITIES__: script.capabilities,
+        __USERSCRIPT_WORKFLOW__: script.workflow,
         __USERSCRIPT_VERSION__: releaseVersion
     };
 }
@@ -56,7 +58,7 @@ function bundleSharedRuntime(scripts) {
     const sharedModules = [...new Set(scripts.flatMap(script => script.sharedModules))];
     // No issuer identity or mutable issuer state may be captured in this scope.
     const sections = sharedModules.map(source => readBundleSection(join(sharedDirectory, source), `shared/${source}`, {}));
-    const output = sections.join('\n\n');
+    const output = sections.join('\n\n') + '\n' + bundleWorkflowRegistry(scripts);
     new Script(output, { filename: 'shared-runtime.js' });
     return output;
 }

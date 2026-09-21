@@ -26,6 +26,7 @@
     "sources": [
         "snapshots/saved-results.js",
         "core/state.js",
+        "core/workflow.js",
         "core/card-priority.js",
         "core/storage.js",
         "core/view-settings.js",
@@ -61,5 +62,6 @@
     "capabilities": {
         "activation": true,
         "scope": "card"
-    }
+    },
+    "workflow": "amex-combination"
 }

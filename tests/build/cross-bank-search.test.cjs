@@ -54,6 +54,22 @@ test('uncertain BOFA and informational Amex offers cannot appear as available', 
     assert.equal(records.find(row => row.bankName === 'BankAmeriDeals').status, 'review');
     assert.equal(records.find(row => row.bankName === 'Amex').status, 'other');
 });
+
+test('search reads new workflow snapshots and excludes a mismatched bank without changing storage', () => {
+    const h = harness();
+    for (const [key, value] of h.storage) {
+        if (!key.endsWith(':workspace') && !key.endsWith('saved_offers_v1')) continue;
+        value.schemaVersion = 2;
+        value.workflowType = key.includes('amex') ? 'amex-combination'
+            : key.includes('citi') || key.includes('chase') ? 'per-card' : 'account';
+    }
+    assert.equal(h.hubReadSavedResults().records.length, 7);
+    h.storage.get('issuer:citi-offer-lite:citi-offer-lite:workspace').workflowType = 'account';
+    const before = structuredClone(h.storage);
+    const result = h.hubReadSavedResults();
+    assert.equal(result.coverage.filter(entry => entry.state === 'error').length, 1);
+    assert.deepEqual(h.storage, before);
+});
 test('search preferences survive reload and unsupported preferences and save failures are visible', () => {
     const h = harness();
     const preferences = filters({ query: 'market', bank: 'amex-offer-lite', status: 'available' });

@@ -24,7 +24,7 @@ async function verifyWorkspaceReload({ page, script, id, bank, requests, activat
     assert.equal(await toggle.isVisible(), true, 'collapsed state restores on a new document');
     await toggle.click();
     assert.match(await page.getByRole('status').innerText(), /Saved results and selections restored/);
-    assert.equal(await page.getByRole('button', { name: activationName, exact: true }).isEnabled(), false);
+    assert.equal(await page.getByRole('button', { name: activationName, exact: true, includeHidden: true }).isEnabled(), false);
     assert.match(await page.locator('#workspace-cache, .workspace-cache').innerText(), /Last complete scan/);
     if (await search.count()) {
         assert.equal(await search.inputValue(), 'saved query');

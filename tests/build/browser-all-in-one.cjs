@@ -21,7 +21,7 @@ for (const script of scripts) {
         : { accountId: 'card-a', offerId: 'offer-a', status: 'AVAILABLE', merchant: 'synthetic', title: 'Synthetic offer', category: '', starts: '', expires: '' };
     seeds[prefix + `${script.id}:workspace`] = {
         schemaVersion: 1, savedAt: 1800000000000, lastScanAt: 1800000000000,
-        scopeIdentity: '', consent: true, search: 'synthetic', collapsed: false,
+        scopeIdentity: 'synthetic-scope', consent: true, search: 'synthetic', collapsed: false,
         accounts: perCard ? [{ accountId: 'card-a', name: 'Synthetic card', lastFour: '0000', eligible: true }] : [],
         offers: [offer], selected: perCard ? ['card-a'] : script.issuer === 'usbank' ? ['offer-a'] : []
     };
@@ -63,11 +63,17 @@ async function run() {
             assert.equal(await page.getByRole('button', { name: 'Search all banks', exact: true }).count(), 1);
             const accent = await page.locator(`[id="${hostId}"]`).evaluate(element => getComputedStyle(element).getPropertyValue('--hub-accent').trim());
             assert.equal(accent, '#176653', 'all banks share the same design tokens');
-            assert.deepEqual(await page.locator('.hub-step > h3').allTextContents(), ['1. Choose scope', '2. Scan offers', '3. Review & add']);
-            for (const name of [script.issuer === 'citi' ? 'Refresh all cards & offers' : 'Scan offers', 'Stop', 'Add all offers', 'Clear search']) {
+            const headings = { 'per-card': ['Your cards', 'Offers by card'], 'account': ['Your account', 'Account offers'],
+                'amex-combination': ['Cards & priority', 'Offers & target cards'] };
+            assert.equal(await page.locator('.panel').getAttribute('data-workflow'), script.workflow);
+            assert.deepEqual(await page.locator('.hub-step > h3').allTextContents(), headings[script.workflow]);
+            assert.equal(await page.getByRole('button', { name: 'Stop', exact: true }).count(), 0);
+            for (const name of [script.issuer === 'citi' ? 'Refresh all cards & offers' : 'Scan offers', 'Clear search']) {
                 assert.equal(await page.getByRole('button', { name, exact: true }).count(), 1);
             }
-            const bulkBeforeSearch = await page.getByRole('button', { name: 'Add all offers', exact: true }).innerText();
+            const bulk = page.getByRole('button', { name: 'Add all offers', exact: true, includeHidden: true });
+            assert.equal(await bulk.isVisible(), script.capabilities.activation);
+            const bulkBeforeSearch = await bulk.textContent();
             const panelIds = await page.evaluate(() => [...document.querySelectorAll('body > div')]
                 .filter(node => node.shadowRoot).map(node => node.id));
             assert.deepEqual(panelIds, [hostId], 'only the matching issuer panel may mount');
@@ -80,7 +86,7 @@ async function run() {
             if (await search.count()) {
                 assert.equal(await search.inputValue(), 'synthetic');
                 await search.fill('changed query');
-                assert.equal(await page.getByRole('button', { name: 'Add all offers', exact: true }).innerText(), bulkBeforeSearch,
+                assert.equal(await bulk.textContent(), bulkBeforeSearch,
                     'display filtering never changes the bulk scope or label');
             } else {
                 await page.getByRole('checkbox').uncheck();
@@ -96,6 +102,11 @@ async function run() {
             await page.addScriptTag({ content: userscript });
             assert.equal(await page.locator(`[id="${hostId}"]`).count(), 1, 'reinjection is idempotent');
             assert.deepEqual(requests, [], 'reloading must never scan or resume');
+            await page.setViewportSize({ width: 390, height: 844 });
+            const bounds = await page.locator('.panel').boundingBox();
+            assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= 390, 'template fits a narrow viewport');
+            const overflow = await page.locator('.panel').evaluate(panel => panel.scrollWidth > panel.clientWidth);
+            assert.equal(overflow, false, 'template controls do not overflow horizontally');
             assert.deepEqual(errors, []);
             await page.close();
         }

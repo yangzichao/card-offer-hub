@@ -25,9 +25,9 @@
 
 ## 存储与升级
 
-五个新 workspace 使用各自的 `${script-id}:workspace`，`schemaVersion: 1`。它们复用小型共享读写/验证模块，每个银行声明自己的字段白名单，不直接序列化整个 state。
+五个 workspace 使用各自的 `${script-id}:workspace`。工作流模板引入后，结果从 schema 1 显式前向迁移至 `schemaVersion: 2`，增加 `workflowType`；读取时保留旧值，下一次明确保存才写入新格式。它们复用小型共享读写/验证模块，每个银行声明自己的字段白名单，不直接序列化整个 state。
 
-原有 `${script-id}:pacing` schema 1 完整保留，不更改等待/冷却期限。旧版没有 workspace 时按首次使用处理，第一次手动操作才创建结果快照，不触发网络迁移。Amex 既有卡片 schema 1 → 2 迁移和 Offer schema 不改；新增 `${script-id}:view` schema 1 保存视图偏好。
+原有 `${script-id}:pacing` schema 1 完整保留，不更改等待/冷却期限。旧版没有 workspace 时按首次使用处理，第一次手动操作才创建结果快照，不触发网络迁移。Amex 既有卡片 schema 1 → 2 迁移不变；优惠结果另从 schema 1 → 2，加入 `amex-combination` 标记；`${script-id}:view` schema 1 继续保存视图偏好。详见 [工作流模板](workflow-templates.md)。
 
 未来或损坏的 schema 保留原始值并提示错误，不用空快照覆盖。今后更改 workspace schema 必须添加显式前向迁移。
 

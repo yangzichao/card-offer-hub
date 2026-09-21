@@ -3,12 +3,13 @@ function addAllOffers() {
     if (!accounts.length || (state.needsScan && !canContinueSavedOffers())) return;
     return runExclusive(async () => {
         await scanCardOffers(accounts);
-        const queue = state.offers.filter(offer => state.selected.has(offer.accountId) && offer.status === 'AVAILABLE');
+        const queue = offerWorkflow.plan().map(record => record.source);
         state.total = queue.length;
         for (const offer of queue) {
             ensureRunning();
             updateStatus(`Adding ${state.completed + 1}/${state.total}: ${offer.merchant}. Waiting for the next request slot…`);
             try {
+                offerWorkflow.assertAction(offer);
                 markWorkspaceOfferPending(offer);
                 const payload = await requestJson(SETTINGS.enrollmentPath, enrollmentBody(offer));
                 if (!enrollmentConfirmed(payload, offer)) throw new Error('Enrollment was not explicitly confirmed. Scan again before continuing.');

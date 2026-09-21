@@ -34,7 +34,7 @@ function renderPanel() {
     panel.getElementById('status').textContent = state.status;
     panel.getElementById('storage-error').textContent = state.storageError;
     panel.getElementById('counts').textContent = `${state.offers.length} offers · ${state.offers.filter(offer => offer.status === 'AVAILABLE').length} eligible · ${state.offers.filter(offer => ['UNSUPPORTED', 'CONFLICT'].includes(offer.status)).length} skipped · ${state.confirmed}/${state.total} added this run`;
-    renderHubWorkflow(panel, { count: state.offers.filter(offer => offer.status === 'AVAILABLE').length, hasScope: state.accountConsent,
+    renderHubWorkflow(panel, { template: offerWorkflow, count: offerWorkflow.preview().length, hasScope: state.accountConsent,
         needsScan: state.needsScan, busy: state.busy, storageError: state.storageError,
         coolingDown: Date.now() < state.cooldownUntil, readOnly: !SETTINGS.capabilities.activation,
         progress: state.activeAction === 'add' && state.total ? { completed: state.confirmed, total: state.total } : null });

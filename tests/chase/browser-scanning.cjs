@@ -115,7 +115,8 @@ async function main() {
         assert.deepEqual(scans.map(request => request.accountIdentifier), ['101', '202']);
         assert.ok(scans.every(request => request.method === 'GET'));
         assert.ok(scans[1].time - scans[0].time >= 500);
-        assert.equal(await successful.page.getByRole('button', { name: 'Add all offers' }).isEnabled(), false);
+        assert.equal(await successful.page.getByRole('button', { name: 'Add all offers' }).count(), 0);
+        assert.equal(await successful.page.getByRole('button', { name: 'Add all offers', includeHidden: true }).isEnabled(), false);
         await successful.page.getByRole('searchbox', { name: 'Search saved offers' }).fill('');
         assert.equal(await successful.page.locator('.offer').count(), 6);
         await successful.page.screenshot({ path: resolve(outputDirectory, 'chase-scan-complete.png') });

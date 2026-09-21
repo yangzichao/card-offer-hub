@@ -1,5 +1,5 @@
 const SETTINGS = Object.freeze({
-    version: __USERSCRIPT_VERSION__, capabilities: __USERSCRIPT_CAPABILITIES__,
+    version: __USERSCRIPT_VERSION__, capabilities: __USERSCRIPT_CAPABILITIES__, workflow: __USERSCRIPT_WORKFLOW__,
     requestGapMs: 500,
     rateLimitCooldownMs: 120000,
     requestTimeoutMs: 30000,
@@ -21,6 +21,7 @@ const state = {
     offerScanTimes: new Map(),
     pendingEnrollments: new Set(),
     savedOffersError: '',
+    savedOffersRestoreBlocked: false,
     busy: null,
     enrollmentProgress: { total: 0, completed: 0 },
     cancelRequested: false,

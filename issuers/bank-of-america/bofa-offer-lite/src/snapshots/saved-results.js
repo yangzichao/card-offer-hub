@@ -4,5 +4,5 @@ function readIssuerSavedResults(bank, readValue) {
     return hubWorkspaceDisplayRecords(bank, snapshot, offer => ({
         merchant: offer.name, description: offer.headline,
         displayStatus: offer.result === 'Unconfirmed' ? 'review' : offer.activated === true ? 'added' : offer.eligible === true ? 'available' : 'other'
-    }), __USERSCRIPT_CAPABILITIES__.scope === 'card');
+    }), __USERSCRIPT_WORKFLOW__);
 }

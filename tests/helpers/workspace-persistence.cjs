@@ -41,6 +41,29 @@ function registerWorkspacePersistenceTests({ create, prepare, choose = () => {},
         assert.deepEqual(snapshot(harness).offers, saved.offers);
         assert.equal(snapshot(harness).lastScanAt, saved.lastScanAt);
     });
+    test('legacy workspaces migrate without requests and keep selections; wrong workflow data stays untouched', async () => {
+        const first = create(); await prepare(first); choose(first); first.saveWorkspace();
+        const key = `${first.SETTINGS.id}:workspace`;
+        const saved = structuredClone(snapshot(first));
+        assert.equal(saved.schemaVersion, 2);
+        assert.equal(saved.workflowType, first.SETTINGS.workflow);
+        const legacy = { ...saved, schemaVersion: 1 };
+        delete legacy.workflowType;
+        first.storage.set(key, legacy);
+        const next = restore(create({ storage: first.storage }));
+        assert.equal(next.requests.length, 0);
+        assert.deepEqual(first.storage.get(key), legacy, 'loading never writes a migration');
+        assert.deepEqual([...(next.state.selected || [])], saved.selected);
+        assert.equal(next.saveWorkspace(), true);
+        assert.equal(snapshot(next).workflowType, first.SETTINGS.workflow);
+        const mismatched = { ...saved, workflowType: saved.workflowType === 'account' ? 'per-card' : 'account' };
+        first.storage.set(key, mismatched);
+        const blocked = restore(create({ storage: first.storage }));
+        assert.match(blocked.state.storageError, /Cannot read saved/);
+        assert.equal(blocked.saveWorkspace(), false);
+        assert.equal(blocked.requests.length, 0);
+        assert.deepEqual(first.storage.get(key), mismatched);
+    });
     test('future and malformed snapshots are preserved and block writes', async () => {
         for (const bad of [{ schemaVersion: 99, retained: 'future data' }, { schemaVersion: 1, offers: 'broken' }]) {
             const harness = create();

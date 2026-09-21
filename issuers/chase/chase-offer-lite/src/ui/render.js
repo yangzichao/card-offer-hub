@@ -59,7 +59,7 @@ function renderPanel() {
         label.append(checkbox, document.createTextNode(`${cardName}${card.eligible === false ? ' · Detect cards to refresh' : ''}`));
         cards.appendChild(label);
     }
-    renderHubWorkflow(panel, { count: state.offers.filter(offer => state.selected.has(offer.accountId) && offer.status === 'NEW').length, hasScope: state.selected.size > 0,
+    renderHubWorkflow(panel, { template: offerWorkflow, count: offerWorkflow.preview().length, hasScope: state.selected.size > 0,
         needsScan: state.needsScan, busy: state.busy, storageError: state.storageError,
         coolingDown: Date.now() < state.cooldownUntil, readOnly: !state.enrollmentSupported,
         progress: state.total ? { completed: state.confirmed, total: state.total } : null });

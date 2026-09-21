@@ -56,15 +56,16 @@ function renderPanel() {
         label.append(checkbox, document.createTextNode(card.name));
         cards.appendChild(label);
     }
-    renderHubWorkflow(panel, { count: state.offers.filter(offer => state.selected.has(offer.accountId) && offer.status === 'AVAILABLE').length, hasScope: state.selected.size > 0,
+    renderHubWorkflow(panel, { template: offerWorkflow, count: offerWorkflow.preview().length, hasScope: state.selected.size > 0,
         needsScan: (state.needsScan && !canContinue) || !state.lastScanAt, busy: state.busy, storageError: state.storageError,
         coolingDown: Date.now() < state.cooldownUntil, readOnly: !SETTINGS.capabilities.activation,
         progress: state.activeAction === 'add' && state.total ? { completed: state.confirmed, total: state.total } : null });
     const reason = panel.getElementById('hub-action-reason');
     if (canContinue && !panel.getElementById('add').disabled) {
         reason.textContent = 'Continue with your saved card choices. Add all offers checks the current login and offer status before adding what remains. Refreshing all cards is optional.';
+        reason.hidden = false;
     } else {
-        reason.textContent = reason.textContent.replace('Scan offers in step 2', 'Refresh all cards & offers in step 2')
+        reason.textContent = reason.textContent.replace('Refresh offers before adding', 'Refresh all cards & offers before adding')
             .replace('Scan again to refresh', 'Refresh all cards & offers to check for new offers');
     }
     renderOffers();

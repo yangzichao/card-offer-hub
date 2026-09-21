@@ -111,7 +111,7 @@ test('workspace instances isolate pending requests and persist only declared fie
     function instance(storageKey) {
         const state = { offers: [{ offerId: 'same-id', status: 'AVAILABLE', merchant: 'Store', requestToken: 'never-save' }],
             lastScanAt: 1000, workspaceScope: 'scope', collapsed: false };
-        return { state, ...runtime.createHubWorkspaceStore({ state, fields, storageKey,
+        return { state, ...runtime.createHubWorkspaceStore({ state, fields, storageKey, workflowType: 'account',
             storage: { get: (key, fallback) => storage.get(key) ?? fallback, set: (key, value) => storage.set(key, value) } }) };
     }
     const first = instance('first'), second = instance('second');

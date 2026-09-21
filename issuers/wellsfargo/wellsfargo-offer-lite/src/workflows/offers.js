@@ -25,12 +25,13 @@ function addAllOffers() {
         activationUrl();
         await scanCurrentAccount();
         if (!state.accountConsent) throw new Error('The signed-in account session changed. Confirm account activation again.');
-        const queue = state.offers.filter(offer => offer.status === 'AVAILABLE');
+        const queue = offerWorkflow.plan().map(record => record.source);
         state.total = queue.length;
         for (const offer of queue) {
             ensureRunning();
             updateStatus(`Activating ${state.completed + 1}/${state.total}: ${offer.merchant}. Waiting for the next request slot…`);
             try {
+                offerWorkflow.assertAction(offer);
                 markWorkspaceOfferPending(offer);
                 const payload = await requestJson(SETTINGS.enrollmentPath, enrollmentBody(offer));
                 if (!enrollmentConfirmed(payload)) throw new Error('Activation was not explicitly confirmed. Scan again before continuing.');

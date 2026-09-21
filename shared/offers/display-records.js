@@ -16,8 +16,10 @@ function hubOfferRecord(bank, offer, context) {
         incomplete: Boolean(context.incomplete), status: offer.displayStatus,
         expires: hubText(offer.expires), category: hubText(offer.category), url: bank.url };
 }
-function hubWorkspaceDisplayRecords(bank, snapshot, normalizeOffer, cardScoped = false) {
-    if (snapshot.schemaVersion !== 1 || !Array.isArray(snapshot.offers) || !Array.isArray(snapshot.accounts)) {
+function hubWorkspaceDisplayRecords(bank, snapshot, normalizeOffer, workflowType) {
+    snapshot = hubMigrateWorkflowSnapshot(snapshot, workflowType);
+    const cardScoped = HUB_WORKFLOW_TEMPLATES[workflowType].scope === 'card';
+    if (!Array.isArray(snapshot.offers) || !Array.isArray(snapshot.accounts)) {
         throw new Error('Unsupported saved results');
     }
     const accounts = new Map(snapshot.accounts.map(account => {

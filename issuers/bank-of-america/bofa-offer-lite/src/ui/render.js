@@ -28,7 +28,7 @@ function renderPanel() {
     panel.getElementById('stop').disabled = !state.busy || state.stopRequested;
     const available = state.offers.filter(offer => offer.eligible && !offer.activated).length;
     panel.getElementById('counts').textContent = `${state.offers.length} offers · ${available} available · ${state.confirmed}/${state.total} added this run`;
-    renderHubWorkflow(panel, { readOnly: !SETTINGS.capabilities.activation, count: available, hasScope: state.consent, needsScan: state.needsScan,
+    renderHubWorkflow(panel, { template: offerWorkflow, readOnly: !SETTINGS.capabilities.activation, count: offerWorkflow.preview().length, hasScope: state.consent, needsScan: state.needsScan,
         busy: state.busy, storageError: state.storageError, coolingDown: Date.now() < state.cooldownUntil,
         progress: state.activeAction === 'add' && state.total ? { completed: state.confirmed, total: state.total } : null });
     renderOffers();

@@ -1,4 +1,4 @@
-function createHubWorkspaceStore({ state, fields, storage, storageKey, onError = () => {},
+function createHubWorkspaceStore({ state, fields, storage, storageKey, workflowType, onError = () => {},
     readConsent = () => false, writeConsent = () => {},
     markPendingRecord = record => { record.status = 'UNCONFIRMED'; } }) {
     const pendingWorkspaceOffers = new Set();
@@ -13,11 +13,11 @@ function createHubWorkspaceStore({ state, fields, storage, storageKey, onError =
                 return record;
             });
             const snapshot = validateWorkspaceSnapshot({
-                schemaVersion: 1, savedAt: Date.now(), lastScanAt: state.lastScanAt,
+                schemaVersion: 2, workflowType, savedAt: Date.now(), lastScanAt: state.lastScanAt,
                 scopeIdentity: state.workspaceScope, accounts: (state.accounts || []).map(account => serializeWorkspaceRecord(account, fields.accounts)),
                 offers, selected: [...(state.selected || [])], consent: readConsent(),
                 search: state.search || '', collapsed: state.collapsed
-            }, fields);
+            }, fields, workflowType);
             storage.set(storageKey, snapshot);
             return true;
         } catch {
@@ -33,7 +33,7 @@ function createHubWorkspaceStore({ state, fields, storage, storageKey, onError =
         try {
             const saved = storage.get(storageKey, null);
             if (saved === null) return; // Older releases only saved pacing; keep it intact.
-            const snapshot = validateWorkspaceSnapshot(saved, fields);
+            const snapshot = validateWorkspaceSnapshot(saved, fields, workflowType);
             if (fields.accounts) state.accounts = snapshot.accounts;
             state.offers = snapshot.offers;
             if (state.selected) state.selected = new Set(snapshot.selected);

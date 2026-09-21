@@ -33,6 +33,7 @@
     "sources": [
         "snapshots/saved-results.js",
         "core/state.js",
+        "core/workflow.js",
         "core/storage.js",
         "core/workspace-fields.js",
         "core/workspace.js",
@@ -52,5 +53,6 @@
     "capabilities": {
         "activation": true,
         "scope": "account"
-    }
+    },
+    "workflow": "account"
 }

@@ -2,7 +2,7 @@
 // minimum gap between them, no retries, and a stop that takes effect immediately.
 async function startEnrollment(groupKey = null) {
     if (!SETTINGS.capabilities.activation || state.busy || Date.now() < state.cooldownUntil) return;
-    const plan = enrollmentPlan(groupKey);
+    const plan = enrollmentPlan(groupKey, { forExecution: true });
     if (!plan.length) return;
     state.enrollmentProgress = { total: plan.length, completed: 0 };
     let addedCount = 0;

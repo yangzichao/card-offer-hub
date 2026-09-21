@@ -4,7 +4,8 @@ function readIssuerSavedResults(bank, readValue) {
     return amexSavedDisplayRecords(bank, snapshot, readValue('card_offer_hub_amex_saved_cards_v1', null));
 }
 function amexSavedDisplayRecords(bank, snapshot, savedCards) {
-    if (snapshot.schemaVersion !== 1 || !Array.isArray(snapshot.cards)) throw new Error('Unsupported saved results');
+    snapshot = hubMigrateWorkflowSnapshot(snapshot, __USERSCRIPT_WORKFLOW__);
+    if (!Array.isArray(snapshot.cards)) throw new Error('Unsupported saved results');
     const accounts = new Map();
     if (savedCards) {
         if (![1, 2].includes(savedCards.schemaVersion) || !Array.isArray(savedCards.accounts)) throw new Error('Unsupported saved cards');

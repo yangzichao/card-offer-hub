@@ -43,7 +43,7 @@ async function activateOffers() {
     if (state.needsScan || !state.consent) return;
     return runExclusive(async () => {
         ensureRunning();
-        const queue = state.offers.filter(offer => offer.eligible && !offer.activated);
+        const queue = offerWorkflow.plan().map(record => record.source);
         state.total = queue.length;
         state.needsScan = true;
         state.confirmed = 0;
@@ -55,6 +55,7 @@ async function activateOffers() {
                 Object.assign(offer, current);
                 throw new Error('Offer eligibility changed since scanning. Scan again before continuing.');
             }
+            offerWorkflow.assertAction(offer);
             offer.result = 'Unconfirmed';
             markWorkspaceOfferPending(offer);
             updateStatus(`Activating offer ${state.confirmed + 1}/${queue.length}…`);

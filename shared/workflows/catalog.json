@@ -1,0 +1,17 @@
+{
+    "per-card": {
+        "scope": "card",
+        "factory": "createHubPerCardTemplate",
+        "modules": ["workflows/per-card/model.js", "workflows/per-card/planner.js", "workflows/per-card/view.js"]
+    },
+    "account": {
+        "scope": "account",
+        "factory": "createHubAccountTemplate",
+        "modules": ["workflows/account/model.js", "workflows/account/planner.js", "workflows/account/view.js"]
+    },
+    "amex-combination": {
+        "scope": "card",
+        "factory": "createHubAmexCombinationTemplate",
+        "modules": ["workflows/amex-combination/model.js", "workflows/amex-combination/planner.js", "workflows/amex-combination/view.js"]
+    }
+}

@@ -173,3 +173,26 @@ test('failed offer writes are visible and a failed enrollment checkpoint sends n
     assert.match(nextVisit.state.status, /No enrollment request was sent/);
     assert.equal(reload(previousVisit).enrollmentCandidates().length, 2);
 });
+
+test('combination snapshots migrate legacy data and preserve a mismatched workflow even after a manual scan', async () => {
+    const previous = await savedScan();
+    const key = previous.SETTINGS.savedOffersKey;
+    const saved = structuredClone(previous.userscriptStorage.get(key));
+    assert.equal(saved.workflowType, 'amex-combination');
+    const legacy = { ...saved, schemaVersion: 1 };
+    delete legacy.workflowType;
+    previous.userscriptStorage.set(key, legacy);
+    const migrated = reload(previous);
+    assert.equal(migrated.enrollmentPlan().length, 1);
+    assert.equal(migrated.requests.length, 0);
+    assert.deepEqual(previous.userscriptStorage.get(key), legacy);
+    const mismatch = { ...saved, workflowType: 'per-card' };
+    previous.userscriptStorage.set(key, mismatch);
+    const blocked = reload(previous, scanResponse);
+    assert.match(blocked.state.savedOffersError, /Could not restore/);
+    await blocked.startScan();
+    assert.deepEqual(previous.userscriptStorage.get(key), mismatch);
+    const count = blocked.requests.length;
+    await blocked.startEnrollment();
+    assert.equal(blocked.requests.length, count, 'a mismatched snapshot cannot authorize enrollment');
+});
