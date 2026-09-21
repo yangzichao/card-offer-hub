@@ -16,7 +16,9 @@ function renderOffers() {
         title.textContent = [offer.merchant, offer.title].filter(Boolean).join(' · ');
         const detail = document.createElement('small');
         const card = state.accounts.find(account => account.accountId === offer.accountId);
-        detail.textContent = [card ? chaseCardDisplayName(card) : 'Card', hubOfferStatusLabel(offer.status), offer.expires].filter(Boolean).join(' · ');
+        const statusLabel = !state.needsScan && ['NEW', 'SERVED'].includes(offer.status) && !offer.activationParameters
+            ? 'Add on Chase: click details unavailable' : hubOfferStatusLabel(offer.status);
+        detail.textContent = [card ? chaseCardDisplayName(card) : 'Card', statusLabel, offer.expires].filter(Boolean).join(' · ');
         row.append(title, detail);
         container.appendChild(row);
     }
@@ -38,11 +40,12 @@ function renderPanel() {
     panel.getElementById('scan').disabled = blocked || !state.selected.size;
     panel.getElementById('add').disabled = blocked || !state.enrollmentSupported || !state.selected.size || state.needsScan;
     panel.getElementById('stop').disabled = !state.busy || state.stopRequested;
-    panel.getElementById('enrollment-notice').hidden = Boolean(state.enrollmentSupported);
+    const enrollmentNotice = panel.getElementById('enrollment-notice');
+    if (enrollmentNotice) enrollmentNotice.hidden = Boolean(state.enrollmentSupported);
     panel.getElementById('status').textContent = state.status;
     panel.getElementById('storage-error').textContent = state.storageError;
     const scopeOffers = state.offers.filter(offer => state.selected.has(offer.accountId));
-    const newCount = scopeOffers.filter(offer => offer.status === 'NEW').length;
+    const newCount = offerWorkflow.preview().length;
     const activatedCount = scopeOffers.filter(offer => offer.status === 'ACTIVATED').length;
     panel.getElementById('counts').textContent = `${scopeOffers.length} offers · ${newCount} available · ${activatedCount} added`;
     const cards = panel.getElementById('cards');

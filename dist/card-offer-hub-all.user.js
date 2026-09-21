@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Card Offer Hub — All Banks
 // @namespace    https://github.com/yangzichao/card-offer-hub
-// @version      1.5.3
+// @version      1.6.0
 // @description  All six Card Offer Hub tools in one install; manual scanning and activation on the matching bank website
 // @author       Zichao Yang
 // @match        https://*.americanexpress.com/*
@@ -817,7 +817,7 @@
     // Source: shared/runtime/json-transport.js
     // Request construction and response interpretation stay with the issuer.
     // The caller must hold its scheduler slot until this promise settles.
-    async function hubSendJsonRequest({ url, options, timeoutMilliseconds, label, onRateLimited, onResponse = () => {} }) {
+    async function hubSendJsonRequest({ url, options, timeoutMilliseconds, label, onRateLimited, onResponse = () => {}, allowEmptyResponse = false }) {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), timeoutMilliseconds);
         try {
@@ -833,12 +833,14 @@
             if (persistenceError) throw persistenceError;
             if (response.status === 429) throw new Error(`${label} returned HTTP 429. Cooling down; scan again later.`);
             if (!response.ok) throw new Error(`${label} returned HTTP ${response.status}. Sign in and scan again.`);
+            // Acknowledgement only: callers must verify the actual result separately.
+            if (allowEmptyResponse && response.status === 200 && responseText === '') return null;
             try { return JSON.parse(responseText); }
             catch { throw new Error(`${label} returned a non-JSON response. Sign in and scan again.`); }
         } catch (error) {
             // Browser network errors can include URLs or credentials. Never display them.
             if (error.name === 'AbortError') throw new Error('Request timed out; result is unconfirmed. Scan again.');
-            if (error instanceof TypeError) throw new Error('Network request failed; result is unconfirmed. Scan again.');
+            if (error instanceof TypeError || error.name === 'TypeError') throw new Error('Network request failed; result is unconfirmed. Scan again.');
             throw error;
         } finally {
             clearTimeout(timeout);
@@ -854,9 +856,9 @@
         }
         function sendRequest(prepareRequest) {
             return scheduler.withRequestSlot(async observe => {
-                const { url, options, validateResponse = () => {} } = await prepareRequest();
+                const { url, options, validateResponse = () => {}, allowEmptyResponse = false } = await prepareRequest();
                 ensureRunning();
-                const payload = await hubSendJsonRequest({ url, options, label: settings.name,
+                const payload = await hubSendJsonRequest({ url, options, label: settings.name, allowEmptyResponse,
                     timeoutMilliseconds: settings.timeoutMilliseconds,
                     onResponse: status => observe('neutral', status),
                     onRateLimited(value) {
@@ -1362,14 +1364,14 @@ function dispatchIssuer(configuration, startIssuer) {
 }
 
 // --- Issuer dispatches ---
-dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://global.americanexpress.com/offers","version":"1.5.3","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*americanexpress\\.com/.*$"],"patterns":["^https://global\\.americanexpress\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://global.americanexpress.com/offers","version":"1.6.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*americanexpress\\.com/.*$"],"patterns":["^https://global\\.americanexpress\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: amex-offer-lite ---
 (function () {
     'use strict';
 
     // Source: core/state.js
     const SETTINGS = Object.freeze({
-        version: "1.5.3", capabilities: {"activation":true,"scope":"card"}, workflow: "amex-combination",
+        version: "1.6.0", capabilities: {"activation":true,"scope":"card"}, workflow: "amex-combination",
         requestGapMs: 500,
         rateLimitCooldownMs: 120000,
         requestTimeoutMs: 30000,
@@ -2589,7 +2591,7 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
 // --- End issuer body: amex-offer-lite ---
 });
 
-dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"https://deals.merchant-rewards.com/","version":"1.5.3","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*bankofamerica\\.com/.*$","^https://deals\\.merchant-rewards\\.com/.*$"],"patterns":["^https://deals\\.merchant-rewards\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"https://deals.merchant-rewards.com/","version":"1.6.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*bankofamerica\\.com/.*$","^https://deals\\.merchant-rewards\\.com/.*$"],"patterns":["^https://deals\\.merchant-rewards\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: bofa-offer-lite ---
 (function () {
     'use strict';
@@ -2597,7 +2599,7 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "bofa-offer-lite", name: "BankAmeriDeals Lite", version: "1.5.3",
+        id: "bofa-offer-lite", name: "BankAmeriDeals Lite", version: "1.6.0",
         gapMilliseconds: 500, timeoutMilliseconds: 45000, pageSize: 24,
         defaultCooldownMilliseconds: 300000
     };
@@ -2899,15 +2901,15 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
 // --- End issuer body: bofa-offer-lite ---
 });
 
-dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://secure.chase.com/web/auth/dashboard","version":"1.5.3","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*chase\\.com/.*$"],"patterns":["^https://secure\\.chase\\.com/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://secure.chase.com/web/auth/dashboard","version":"1.6.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*chase\\.com/.*$"],"patterns":["^https://secure\\.chase\\.com/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: chase-offer-lite ---
 (function () {
     'use strict';
 
     // Source: core/state.js
     const SETTINGS = {
-        capabilities: {"activation":false,"scope":"card"}, workflow: "per-card",
-        id: "chase-offer-lite", name: "Chase Offer Lite", version: "1.5.3",
+        capabilities: {"activation":true,"scope":"card"}, workflow: "per-card",
+        id: "chase-offer-lite", name: "Chase Offer Lite", version: "1.6.0",
         gapMilliseconds: 500, timeoutMilliseconds: 45000,
         defaultCooldownMilliseconds: 300000
     };
@@ -2940,9 +2942,18 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
         readContext: () => ({ selectedCardIds: [...state.selected] }),
         readRecords: () => state.offers.map(offer => ({
             cardId: offer.accountId, offerId: offer.offerId, source: offer,
-            status: offer.status === 'NEW' ? 'available' : offer.status === 'ACTIVATED' ? 'added' : 'unavailable'
+            status: ['NEW', 'SERVED'].includes(offer.status) && offer.activationParameters ? 'available' : offer.status === 'ACTIVATED' ? 'added'
+                : offer.status === 'UNCONFIRMED' ? 'unconfirmed' : 'unavailable'
         }))
     });
+    function chaseUnsupportedClickCount() {
+        return state.offers.filter(offer => state.selected.has(offer.accountId)
+            && ['NEW', 'SERVED'].includes(offer.status) && !offer.activationParameters).length;
+    }
+    function chaseUnsupportedClickNotice() {
+        const count = chaseUnsupportedClickCount();
+        return count ? ` ${count} offers lack verified click details; add those on Chase.` : '';
+    }
 
     // Source: core/storage.js
     // Existing keys and schema remain readable after the runtime refactor.
@@ -2998,7 +3009,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
             const maskedNumber = typeof card.maskedAccountNumber === 'string' ? card.maskedAccountNumber : '';
             const lastFour = maskedNumber.match(/(\d{4})$/)?.[1] || '';
             if (accounts.has(accountId)) throw new Error('Chase returned duplicate card records.');
-            // Cards returned by the Offers profile can be selected for a read-only
+            // Cards returned by the Offers profile can be selected for a
             // scan. shoppingEligibilityIndicator is not an Offers eligibility flag:
             // Chase displays card-linked offers even when that field is false.
             // Keep the existing snapshot field; detection refreshes stale false values.
@@ -3028,13 +3039,15 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
                 throw new Error('Chase returned an incomplete offer record.');
             }
             const status = raw.offerStatusName;
+            const activationParameters = readChaseClickParameters(raw, account, payload.primaryIndividualEnterprisePartyIdentifier);
             const existing = offers.get(raw.offerIdentifier);
             if (existing) {
                 if (existing.status !== status) existing.status = 'CONFLICT';
+                if (existing.activationParameters !== activationParameters) existing.activationParameters = null;
                 continue;
             }
             offers.set(raw.offerIdentifier, {
-                accountId, offerId: raw.offerIdentifier, status,
+                accountId, offerId: raw.offerIdentifier, status, activationParameters,
                 merchant: typeof raw.merchantDetails?.merchantName === 'string' ? raw.merchantDetails.merchantName : 'Merchant',
                 title: typeof raw.offerDisplayDetails?.shortMessageText === 'string' ? raw.offerDisplayDetails.shortMessageText : '',
                 category: Array.isArray(raw.offerCategories) ? raw.offerCategories.map(value => typeof value === 'string' ? value : value?.offerCategoryName)
@@ -3055,6 +3068,56 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
             headers: { 'path-params': JSON.stringify({ enterprisePartyIdentifier: session.enterprisePartyIdentifier,
                 primaryDigitalAccountIdentifierList: [chaseIdentifier(accountId)] }) }
         };
+    }
+
+    // Source: api/activation-contract.js
+    const CHASE_CLICK_URL = 'https://reco.chase.com/events/recoengine/public/recommendation/ccb/sales-relationship/crm/personalization-recommendation-interactions/v2/customer-interaction';
+    const CHASE_CLICK_SOURCE_PATH = '/ccb/sales-relationship/crm/personalization-recommendation-events/v2/events';
+    const CHASE_CLICK_PARAMETER_NAMES = [
+        'enterprise-party-identifier', 'recommendation-event-type-code', 'recommendation-identifier',
+        'source-application-system-name', 'source-request-component-name', 'request-context',
+        'digital-account-identifier', 'offer-identifier', 'offer-impression-token-identifier', 'offer-session-token-identifier'
+    ];
+    function validateChaseClickParameters(parameters, offer, identity) {
+        const names = [...parameters.keys()];
+        return names.length === CHASE_CLICK_PARAMETER_NAMES.length
+            && CHASE_CLICK_PARAMETER_NAMES.every(name => parameters.getAll(name).length === 1
+                && parameters.get(name)?.trim() && !/[\r\n]/.test(parameters.get(name)))
+            && parameters.get('enterprise-party-identifier') === identity
+            && parameters.get('digital-account-identifier') === offer.accountId
+            && parameters.get('offer-identifier') === offer.offerId
+            && parameters.get('recommendation-event-type-code') === 'CLICK'
+            && parameters.get('source-application-system-name') === 'CHASE_WEB'
+            && ['OFFERS_HUB_ALL', 'OFFERS_HUB_CAROUSELS'].includes(parameters.get('source-request-component-name'))
+            && parameters.get('request-context') === 'MERCHANT_OFFERS';
+    }
+    function readChaseClickParameters(rawOffer, account, identity) {
+        try {
+            if (!['NEW', 'SERVED'].includes(rawOffer.offerStatusName)) return null;
+            const destination = rawOffer.digitalInteractionDestUrlText;
+            if (typeof destination !== 'string' || !destination.startsWith(`${CHASE_CLICK_SOURCE_PATH}?`)) return null;
+            const url = new URL(destination, 'https://secure.chase.com');
+            const parameters = url.searchParams;
+            const offer = { accountId: chaseIdentifier(account.digitalAccountIdentifier), offerId: rawOffer.offerIdentifier };
+            if (url.pathname !== CHASE_CLICK_SOURCE_PATH || url.hash
+                || !validateChaseClickParameters(parameters, offer, chaseIdentifier(identity))
+                || parameters.get('recommendation-identifier') !== String(rawOffer.recommendationIdentifier)
+                || parameters.get('offer-impression-token-identifier') !== rawOffer.offerImpressionTokenIdentifier
+                || parameters.get('offer-session-token-identifier') !== account.customerOfferSessionTokenIdentifier) return null;
+            // Runtime only. Workspace persistence explicitly excludes these parameters.
+            return parameters.toString();
+        } catch { return null; }
+    }
+    function buildChaseClickRequest(offer) {
+        ensureSelectedSession(offer.accountId);
+        const parameters = new URLSearchParams(offer.activationParameters || '');
+        if (!['NEW', 'SERVED'].includes(offer.status)
+            || !validateChaseClickParameters(parameters, offer, state.sessionIdentity)) {
+            throw new Error('Chase click details are missing or changed. Scan offers again before adding.');
+        }
+        // The server supplies the event identity and tokens. The observed browser
+        // sends these to this fixed CORS endpoint; never follow arbitrary URLs.
+        return `${CHASE_CLICK_URL}?${parameters}`;
     }
 
     // Source: api/session.js
@@ -3240,6 +3303,26 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
         });
     }
 
+    // Source: api/activation-transport.js
+    function sendChaseOfferClick(offer) {
+        return sendRequest(() => {
+            // Recheck after waiting for pacing, immediately before sending.
+            offerWorkflow.assertAction(offer);
+            const url = buildChaseClickRequest(offer);
+            offer.status = 'UNCONFIRMED';
+            markWorkspaceOfferPending(offer);
+            return {
+                url, allowEmptyResponse: true,
+                options: { method: 'GET', mode: 'cors', credentials: 'omit', redirect: 'error', cache: 'no-store',
+                    referrerPolicy: 'strict-origin-when-cross-origin', headers: { Accept: '*/*' } },
+                validateResponse() {
+                    ensureSelectedSession(offer.accountId, { allowStopped: true });
+                    // Empty HTTP 200 is only acknowledgement, never enrollment proof.
+                }
+            };
+        });
+    }
+
     // Source: workflows/runner.js
     const runExclusive = createHubActionRunner({
         state, settings: SETTINGS, ensureRunning, restorePacing, saveWorkspace,
@@ -3304,11 +3387,44 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
             }
             state.needsScan = false;
             recordWorkspaceScan();
-            updateStatus(`Scan complete: ${state.offers.length} offers across ${accounts.length} selected cards. To add offers, use the Chase website.`);
+            updateStatus(`Scan complete: ${state.offers.length} offers across ${accounts.length} selected cards. Review your cards, then add offers.${chaseUnsupportedClickNotice()}`);
         });
     }
+
+    // Source: workflows/activation.js
     function addAllOffers() {
-        updateStatus('Adding offers is unavailable in this version. Use the Chase website to add offers.');
+        return runExclusive(async () => {
+            if (state.needsScan || state.restoredWorkspace) throw new Error('Scan offers before adding.');
+            const planned = offerWorkflow.plan().map(record => record.source);
+            if (!planned.length && chaseUnsupportedClickCount()) throw new Error('Chase click details are missing or changed. Scan again or add these offers on Chase.');
+            // Reject incomplete runtime credentials before any clicks leave.
+            planned.forEach(buildChaseClickRequest);
+            state.confirmed = 0;
+            state.completed = 0;
+            state.total = planned.length;
+            for (const target of planned) {
+                ensureSelectedSession(target.accountId);
+                // Verification refreshes this card's records and click tokens.
+                const offer = state.offers.find(candidate => candidate.accountId === target.accountId && candidate.offerId === target.offerId);
+                if (offer?.status === 'ACTIVATED') { state.completed++; continue; }
+                if (!offer) throw new Error('Chase offer disappeared. Scan offers again before adding.');
+                updateStatus(`Adding offer ${state.completed + 1}/${state.total}…`);
+                await sendChaseOfferClick(offer);
+                ensureSelectedSession(offer.accountId);
+                const payload = await requestJson(buildOffersRequest(offer.accountId));
+                ensureSelectedSession(offer.accountId, { allowStopped: true });
+                const refreshed = normalizeOffers(payload, offer.accountId, state.sessionIdentity);
+                const confirmed = refreshed.find(candidate => candidate.offerId === offer.offerId && candidate.status === 'ACTIVATED');
+                if (!confirmed) throw new Error('Chase did not confirm this offer as added. Scan again to verify; no click was retried.');
+                state.offers = state.offers.filter(candidate => candidate.accountId !== offer.accountId).concat(refreshed);
+                finishWorkspaceOffer(confirmed);
+                state.confirmed++;
+                state.completed++;
+                renderPanel();
+                ensureRunning();
+            }
+            updateStatus(`Finished: ${state.confirmed} offers confirmed added.${chaseUnsupportedClickNotice()}`);
+        }, 'add');
     }
 
     // Source: ui/styles.js
@@ -3349,7 +3465,9 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
             title.textContent = [offer.merchant, offer.title].filter(Boolean).join(' · ');
             const detail = document.createElement('small');
             const card = state.accounts.find(account => account.accountId === offer.accountId);
-            detail.textContent = [card ? chaseCardDisplayName(card) : 'Card', hubOfferStatusLabel(offer.status), offer.expires].filter(Boolean).join(' · ');
+            const statusLabel = !state.needsScan && ['NEW', 'SERVED'].includes(offer.status) && !offer.activationParameters
+                ? 'Add on Chase: click details unavailable' : hubOfferStatusLabel(offer.status);
+            detail.textContent = [card ? chaseCardDisplayName(card) : 'Card', statusLabel, offer.expires].filter(Boolean).join(' · ');
             row.append(title, detail);
             container.appendChild(row);
         }
@@ -3371,11 +3489,12 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
         panel.getElementById('scan').disabled = blocked || !state.selected.size;
         panel.getElementById('add').disabled = blocked || !state.enrollmentSupported || !state.selected.size || state.needsScan;
         panel.getElementById('stop').disabled = !state.busy || state.stopRequested;
-        panel.getElementById('enrollment-notice').hidden = Boolean(state.enrollmentSupported);
+        const enrollmentNotice = panel.getElementById('enrollment-notice');
+        if (enrollmentNotice) enrollmentNotice.hidden = Boolean(state.enrollmentSupported);
         panel.getElementById('status').textContent = state.status;
         panel.getElementById('storage-error').textContent = state.storageError;
         const scopeOffers = state.offers.filter(offer => state.selected.has(offer.accountId));
-        const newCount = scopeOffers.filter(offer => offer.status === 'NEW').length;
+        const newCount = offerWorkflow.preview().length;
         const activatedCount = scopeOffers.filter(offer => offer.status === 'ACTIVATED').length;
         panel.getElementById('counts').textContent = `${scopeOffers.length} offers · ${newCount} available · ${activatedCount} added`;
         const cards = panel.getElementById('cards');
@@ -3411,7 +3530,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
 // --- End issuer body: chase-offer-lite ---
 });
 
-dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://online.citi.com/US/nga/products-offers/merchantoffers","version":"1.5.3","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*citi\\.com/.*$"],"patterns":["^https://online\\.citi\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://online.citi.com/US/nga/products-offers/merchantoffers","version":"1.6.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*citi\\.com/.*$"],"patterns":["^https://online\\.citi\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: citi-offer-lite ---
 (function () {
     'use strict';
@@ -3419,7 +3538,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"card"}, workflow: "per-card",
-        id: "citi-offer-lite", name: "Citi Offer Lite", version: "1.5.3",
+        id: "citi-offer-lite", name: "Citi Offer Lite", version: "1.6.0",
         apiBase: '/gcgapi/prod/public/v1',
         retrievePath: '/digital/customers/creditCards/merchantOffers/retrieve',
         enrollmentPath: '/digital/customers/creditCards/accounts/rewards/specialOffers/enrollMerchantOffer',
@@ -3893,7 +4012,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
 // --- End issuer body: citi-offer-lite ---
 });
 
-dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://onlinebanking.usbank.com/digital/servicing/dominjection/cashback-deals","version":"1.5.3","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*usbank\\.com/.*$"],"patterns":["^https://onlinebanking\\.usbank\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://onlinebanking.usbank.com/digital/servicing/dominjection/cashback-deals","version":"1.6.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*usbank\\.com/.*$"],"patterns":["^https://onlinebanking\\.usbank\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: usbank-offer-lite ---
 (function () {
     'use strict';
@@ -3901,7 +4020,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "usbank-offer-lite", name: "US Bank Offer Lite", version: "1.5.3",
+        id: "usbank-offer-lite", name: "US Bank Offer Lite", version: "1.6.0",
         endpoint: '/digital/api/customer-management/graphql/v2',
         gapMilliseconds: 500, timeoutMilliseconds: 45000,
         defaultCooldownMilliseconds: 300000
@@ -4298,7 +4417,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
 // --- End issuer body: usbank-offer-lite ---
 });
 
-dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"https://web.secure.wellsfargo.com/auth/deals-portal","version":"1.5.3","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*wellsfargo\\.com/.*$"],"patterns":["^https://web\\.secure\\.wellsfargo\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"https://web.secure.wellsfargo.com/auth/deals-portal","version":"1.6.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*wellsfargo\\.com/.*$"],"patterns":["^https://web\\.secure\\.wellsfargo\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: wellsfargo-offer-lite ---
 (function () {
     'use strict';
@@ -4306,7 +4425,7 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "wellsfargo-offer-lite", name: "Wells Fargo Offer Lite", version: "1.5.3",
+        id: "wellsfargo-offer-lite", name: "Wells Fargo Offer Lite", version: "1.6.0",
         retrievePath: '/deals-portal/as/getDeals', enrollmentPath: '/deals-portal/as/activateCLDeal',
         gapMilliseconds: 500, timeoutMilliseconds: 45000, defaultCooldownMilliseconds: 300000
     };

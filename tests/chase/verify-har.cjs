@@ -1,6 +1,7 @@
 // Read the external capture in memory; never replay traffic or print private values.
 const { readFileSync } = require('node:fs');
 const { createHarness } = require('./helpers/userscript-harness.cjs');
+const { inspectClickEvidence } = require('./helpers/har-click-evidence.cjs');
 const expectedPath = '/svc/wr/profile/secure/gateway/ccb/marketing/offer-management/digital-customer-targeted-offers/v3/customer-offers';
 const capturePath = process.argv[2];
 if (!capturePath) {
@@ -11,7 +12,7 @@ if (!capturePath) {
         const entries = JSON.parse(readFileSync(capturePath, 'utf8')).log.entries;
         const harness = createHarness(undefined, { seedSession: false });
         const summary = { successfulReads: 0, completeLists: 0, dashboardPreviews: 0, categorySubsets: 0, partialLists: 0,
-            maximumDiscoveredCards: 0, observedNonGetRequests: 0, confirmedEnrollmentSamples: 0 };
+            maximumDiscoveredCards: 0, observedNonGetRequests: 0 };
         for (const entry of entries) {
             const url = new URL(entry.request.url);
             if (url.origin !== 'https://secure.chase.com' || url.pathname !== expectedPath) continue;
@@ -50,8 +51,8 @@ if (!capturePath) {
             if (!dashboardPreview && !categorySubset && !partial) summary.completeLists++;
         }
         if (!summary.successfulReads || !summary.completeLists) throw new Error('No successful full-list samples were found.');
-        console.log(JSON.stringify({ ...summary,
-            boundary: 'Local captured read-contract validation only. No account requests sent; activation remains unverified.' }, null, 2));
+        console.log(JSON.stringify({ ...summary, ...inspectClickEvidence(entries, harness),
+            boundary: 'Local HAR evidence only; no requests replayed. Click/count correlation does not replace exact per-offer ACTIVATED readback in the implementation.' }, null, 2));
         if (summary.observedNonGetRequests) {
             console.error('Non-GET samples require separate contract review; no activation success is inferred.');
             process.exitCode = 1;

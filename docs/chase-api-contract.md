@@ -1,96 +1,76 @@
-# Chase Offers read-only contract
+# Chase Offers scan and click activation contract
 
-This implementation was derived from the user's local HAR, inspected as data. No HAR, account identifiers, session headers, tokens, or real account fixtures are included in this repository. All tests use synthetic accounts and offers. Offline checks do not establish current logged-in Chase behavior.
+Current implementation: unified release 1.6.0. Evidence comes from local user-provided HAR files. No HAR, account identifiers, cookies, tokens or real-account fixtures are committed. Captured traffic is never replayed.
 
-## Evidence and scope
+## Click activation evidence (2026-09-21)
 
-The capture contains ten `GET` requests to:
+The updated capture has 155 requests. One complete list contains 134 offers, including 3 already activated. Three previously `NEW` offers then receive browser GET requests at:
+
+```text
+https://reco.chase.com/events/recoengine/public/recommendation/ccb/sales-relationship/crm/personalization-recommendation-interactions/v2/customer-interaction
+```
+
+Each uses `recommendation-event-type-code=CLICK`, `request-context=MERCHANT_OFFERS`, and `source-application-system-name=CHASE_WEB`. All three match the preceding list's customer, card, offer, recommendation, impression token and offer-session token. After each click, the same customer's same-card summary returns activated counts 4, 5, and 6. This supports the user's observed behavior: opening the offer adds it.
+
+The click responses are HTTP 200 with empty bodies. The CORS response allows `https://secure.chase.com`. The observed requests have no Cookie or bank CSRF headers. The implementation uses browser fetch with `mode: cors`, `credentials: omit`, `redirect: error`, `cache: no-store` and the fixed endpoint. It does not forward the bank's session headers to the click endpoint.
+
+Earlier analysis focused on the customer-offers endpoint and POST requests and missed this GET side effect. A GET method is not evidence that an endpoint is read-only. The `OFFERS_ACTIVATION` category-list GET remains a recommendation read; it is separate from the state-changing CLICK request.
+
+## Runtime activation credentials
+
+Each list row supplies `digitalInteractionDestUrlText`, `recommendationIdentifier`, and `offerImpressionTokenIdentifier`. Its account group supplies `customerOfferSessionTokenIdentifier`. The relative destination must use the exact observed source path:
+
+```text
+/ccb/sales-relationship/crm/personalization-recommendation-events/v2/events
+```
+
+Exactly ten event parameters are validated: customer, card, offer, recommendation, impression token, session token, CLICK event, CHASE_WEB application, MERCHANT_OFFERS context, and a known Offers component (`OFFERS_HUB_ALL` or `OFFERS_HUB_CAROUSELS`). Duplicate/unknown parameters, foreign identities, mismatched tokens, arbitrary destination URLs and unknown components are rejected. The source path is mapped to the fixed observed reco.chase.com endpoint; the script never follows a server-provided arbitrary URL.
+
+Parameters are retained only in the active page's normalized records. Workspace serialization continues to allow only existing display fields; no schema change or persisted token is introduced. Reloaded workspaces require a fresh scan before adding.
+
+The capture's clicks include extra carousel display-position/category telemetry. The implementation sends the ten server-supplied event parameters, without inventing carousel positions for its own UI. This omission, `OFFERS_HUB_ALL` click context, and adding `SERVED` rows require live verification. The captured successful clicks are all `NEW`; `SERVED` is included only when it has the same validated CLICK contract and is not already activated.
+
+Of 131 non-activated rows in the updated full list, 129 have internally consistent click credentials. Two `SERVED` rows have different impression tokens in the destination and the adjacent field. Those rows remain visible with an explanation to add on Chase and are excluded from the batch; they do not block other offers. Their tokens are not guessed or substituted.
+
+## Manual activation and confirmation
+
+The per-card workflow owns selection, deduplication and the immutable initial queue. Search affects display only. Both `NEW` and `SERVED` with verified click metadata are candidates; `ACTIVATED`, conflicting, unknown and unconfirmed records are not.
+
+Each request uses the existing shared serial scheduler, response-to-next-request pacing, durable cooldown and Web Lock. Immediately before sending a click, the adapter rechecks selection, current customer identity and template authorization, then durably marks that offer `UNCONFIRMED`. Storage failure prevents the request.
+
+An acknowledgement never counts as added. After each click, the script reads a complete same-card list and requires that exact offer ID to have `offerStatusName === ACTIVATED`. Only then does it replace the card's records and persist confirmation. Fresh list responses supply the next offer's current tokens. A summary count increase alone cannot settle an individual offer.
+
+A missing target, unchanged status, malformed/partial response, changed login, network error, HTTP error, or stop halts the batch and requires an explicit scan. There is no automatic retry or click replay. A stop during the click leaves it unconfirmed; a stop during verification can retain a result already confirmed by that in-flight read. A reload retains pending records as unconfirmed.
+
+## Session discovery and complete scans
+
+At document start, passive fetch/XHR observers watch exact-origin `https://secure.chase.com` requests to:
 
 ```text
 /svc/wr/profile/secure/gateway/ccb/marketing/offer-management/digital-customer-targeted-offers/v3/customer-offers
 ```
 
-It does **not** contain an activation/enrollment request or its response. Some requests carry `source-request-component-name=OFFERS_ACTIVATION`; they are category-filtered **GET** recommendations, not evidence of an activation write contract. The captured list states change across requests, but this cannot establish how the write was performed or what confirms success. This release therefore provides read-only discovery and selected-card scanning. It does not construct, guess, or issue any enrollment request.
+Installing the observer and clicking Detect cards send no requests. Native page traffic establishes the current customer, cards and allowlisted runtime request headers. Account/profile identifiers remain strings, including leading zeros. `shoppingEligibilityIndicator` does not determine Offers eligibility. On detection, new cards are selected by default and saved opt-outs are preserved.
 
-## Native session observation
+Dashboard discovery accepts an empty `primaryDigitalAccountIdentifierList` only for the observed `OVERVIEW_DASHBOARD`, `CHASE_WEB`, `offer-count=12`, `NEW,ACTIVATED,SERVED` query without a category filter. Dashboard previews do not become scan results, even when `partial=false`.
 
-The userscript installs passive fetch/XHR observers at document start. Installing them sends no request and schedules no timer. Loading the native dashboard Offers preview, opening Chase Offers, or switching cards allows the observer to see a normal Chase request and its successful JSON response. If that has not happened, Detect cards explains how to prepare the page; it does not issue an account-discovery request.
+Manual scans request exactly one selected card with the current enterprise identity in `path-params`, empty `offer-count`, `offerStatusNameList=NEW,ACTIVATED,SERVED`, `source-application-system-name=CHASE_WEB`, and `source-request-component-name=OFFERS_HUB_ALL`.
 
-Only exact-origin `https://secure.chase.com`, exact-path, GET requests are eligible. The request's `path-params` header contains:
+The response must match the current customer, contain exactly one group for the requested card, have `partial === false`, and return a row count equal to integer `totalAvailableOfferCount`. Category subsets are not complete lists. Contradictory duplicate statuses become `CONFLICT`. No guessed pagination is used.
 
-```json
-{
-  "enterprisePartyIdentifier": "900001",
-  "primaryDigitalAccountIdentifierList": ["100001"]
-}
-```
+## Verification boundary
 
-These are synthetic examples. The capture uses both numeric and string account identifiers. Code converts positive safe integers to strings and preserves digit-only string identifiers exactly, including leading zeros in enterprise identity. It rejects empty, all-zero, non-decimal, and unsafe numeric identifiers.
+`node tests/chase/verify-har.cjs /absolute/path/to/capture.har` validates local read contracts and correlates captured CLICK parameters with same-card summary increases. It prints only aggregate counts, never private values. It does not replay traffic or claim exact per-offer readback where the HAR has only summaries.
 
-Observed request headers include `channel-identifier`, `channel-type`, `x-jpmc-channel`, `path-params`, and `x-jpmc-csrf-token`. Their runtime values come from the current page's own request, never constants copied from the HAR. The HAR does not establish a cookie or DOM source for the CSRF value, so the code does not guess one. Browser-managed cookies accompany subsequent same-origin GETs. The observer retains only a header allowlist in memory, drops tracing and all unrelated headers, and does not persist session material.
+Synthetic unit and browser tests exercise the published all-bank artifact, cross-origin GET clicks, exact per-offer readback, both available statuses, same IDs on different cards, token rotation, storage-before-write, session changes, no retries, pacing, search-independent scope and restored uncertainty.
 
-A captured response is accepted only if it supplies recognizable account records, a customerOffers group for the request account, and `primaryIndividualEnterprisePartyIdentifier` matching the request's enterprise identifier. Account discovery retains only identifier, nickname, classification, and last four. Offer impression tokens, customer offer session tokens, and full response bodies are not retained by the observer.
+Pending live verification: installed Tampermonkey execution of 1.6.0; CORS and omitted carousel telemetry on current Chase; full-list readback propagation timing; current tokens across all selected cards; `SERVED` clicks and ALL context. The local implementation has not executed real account clicks. Earlier live evidence only established v1.3.1 discovery of four cards and the shopping-flag correction; offline tests do not establish current website operation.
 
-### Dashboard discovery correction (2026-09-19)
+### Local verification for 1.6.0
 
-A newer local capture contains five successful reads: one dashboard preview, two complete carousel lists, and two category subsets. The dashboard request uses `primaryDigitalAccountIdentifierList: []`, with `source-request-component-name=OVERVIEW_DASHBOARD`, `source-application-system-name=CHASE_WEB`, `offer-count=12`, and `offerStatusNameList=NEW,ACTIVATED,SERVED`. Earlier code required exactly one requested card, discarding this valid discovery response before reading its card list.
-
-Empty account lists are now accepted only for that observed dashboard query without a category filter. The response must match the requested enterprise identity, contain valid unique card records, and supply exactly one default-card group with an offers array and an identifier belonging to those records. That response establishes the default card and current session. It never selects cards, populates scan results, or sends another request. Unknown or ambiguous groups remain rejected; newer requests still supersede stale responses.
-
-The dashboard preview reports `partial=false` even though its returned row count is below the total. This is discovery evidence only, not a complete scan. A manual scan continues to construct the explicit selected-card, unfiltered `OFFERS_HUB_ALL` request and enforce complete-list counts. The HAR verifier reports dashboard previews separately from full lists.
-
-Synthetic regression coverage includes default-card discovery through fetch/XHR, manual selection and subsequent full scans, rejected foreign profiles/cards and ambiguous groups, stale responses, and no preview persistence. Real Tampermonkey execution on the current Chase site remains pending live verification.
-
-Verification for Chase 1.3.1 / All Banks 1.2.1: `npm run build` PASS; `npm run check` PASS; `npm test` PASS (290 tests); `npm run test:browser` PASS (12 scripts, using the bundled Playwright runtime). `node tests/chase/verify-har.cjs /absolute/path/to/capture.har` PASS for the newer external capture (5 successful reads, 4 discovered cards). No captured traffic was replayed and no real account requests were sent.
-
-## Account discovery
-
-`digitalProfileAccounts` provides the cards exposed by the native response. Relevant fields are:
-
-- `digitalAccountIdentifier`: request identity, normalized to a string.
-- `accountNickname` and `accountProductClassificationName`: display label.
-- `maskedAccountNumber`: only its final four digits are retained.
-- `shoppingEligibilityIndicator`: not a card-linked Offers eligibility signal; neither false nor its absence blocks read-only scanning of a returned profile card.
-
-Discovery does not opt cards in. Card selection is a separate explicit user action.
-
-### Live discovery and shopping-flag correction (2026-09-20)
-
-The logged-in dashboard still ran v1.3.0 until a reload loaded the published v1.3.1. Clicking Detect cards then discovered all four profile cards, verifying the document-start observer and dashboard discovery on this session. The published v1.3.1 artifact matched the local build byte for byte.
-
-Three cards were incorrectly disabled by mapping `shoppingEligibilityIndicator` directly to card-linked Offers eligibility. The native Offers account selector exposed all four cards, and a card disabled by the script displayed a populated native Offers list. This directly disproves the old eligibility interpretation; the exact meaning of the shopping flag remains unverified.
-
-Profile cards are now selectable for explicit read-only scans independently of that flag. The existing snapshot `eligible` field represents scan availability and is refreshed on Detect cards; existing selections remain opt-in. Older false values show a refresh instruction instead of an unsupported ineligibility claim. Identity validation, complete-list checks, no automatic requests/retries, and unavailable activation remain unchanged. Synthetic tests cover false/absent flags, legacy disabled cards, manual selection and browser scans. Live execution of this new correction is pending until the updated artifact is installed.
-
-Local v1.3.2 validation: `npm run build` PASS; `npm run check` PASS; `npm test` PASS (268 tests). With `PLAYWRIGHT_MODULE_PATH=/Users/zichaoyang/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright`, the initial `npm run test:browser` passed all 12 scripts. A later rebuild incorporating concurrent Citi/shared-UI edits passed build/check/unit tests, but the full browser suite failed in `tests/citi/browser-enrollment.cjs` waiting for its old `Detect cards` control. A focused rerun of `node tests/chase/browser-scanning.cjs` passed. Those unrelated edits were preserved. The browser security policy blocked extension-management access, so this session did not install the local correction or verify its full scan on Chase. No activation was performed and this change was not committed or pushed.
-
-## Complete offer scan
-
-Each explicitly selected card uses the observed full-list query:
-
-```text
-offer-count=
-offerStatusNameList=NEW,ACTIVATED,SERVED
-source-application-system-name=CHASE_WEB
-source-request-component-name=OFFERS_HUB_ALL
-```
-
-The `path-params` header keeps the current session enterprise identity and substitutes only the selected card identifier. The script sends one request at a time with its conservative response-to-next-request delay. Failure requires a new manual scan; there is no automatic retry.
-
-The response must contain exactly one `customerOffers` group for that card, an `offers` array, `partial === false`, and a nonnegative integer `totalAvailableOfferCount` equal to the returned full-list row count. In this capture, that total includes `ACTIVATED` rows; it is not the count of rows waiting to be added. No pagination cursor or follow-up page contract was observed. A partial or count-mismatched response is rejected rather than guessed complete.
-
-Category requests using `offer-count=12` and `offerCategoryCodeList` return subsets even when `partial` is false. They must not be used as complete scans. The userscript constructs only the unfiltered ALL request for scans.
-
-Each offer is identified by `offerIdentifier`. Raw statuses `NEW`, `SERVED`, and `ACTIVATED` remain distinct; only exactly `ACTIVATED` is displayed as already activated. Unknown statuses remain unknown. Contradictory duplicate statuses become `CONFLICT`, never a positive activation signal. Display text comes from `merchantDetails`, `offerDisplayDetails`, and `offerDetails`; category labels come from `offerCategories[].offerCategoryName`. Everything is rendered as text rather than inserted as HTML.
-
-## Pending live verification
-
-- The v1.3.2 shopping-flag correction in the installed Tampermonkey script (v1.3.1 dashboard discovery was verified on 2026-09-20).
-- Native request headers and responses still following this observed contract.
-- Session refresh, sign-out/sign-in, and native card switching behavior.
-- Full-list completeness and eligibility for accounts beyond the supplied capture.
-- Activation endpoint, request body, required current-session fields, and explicit success/identity confirmation: all unverified and intentionally unavailable in this release.
-
-## Local contract verification
-
-After building the bundle, run `node tests/chase/verify-har.cjs /absolute/path/to/capture.har`. This reads an external capture in memory through the built-script test harness and prints only aggregate counts. It performs no account requests and suppresses private values in failure output. Category subsets and explicit partial lists are distinguished from complete scans.
+- `npm run build`: PASS; regenerated the single all-bank artifact.
+- `npm run check`: PASS; syntax, manifest registration and generated output synchronized.
+- `npm test`: PASS, 401 tests.
+- `npm run test:browser`: PASS, all 16 browser scripts plus 12 Gherkin scenarios / 121 steps. All bank traffic was synthetic and intercepted.
+- `node tests/chase/verify-har.cjs /Users/zichaoyang/Downloads/secure.chase.com.har`: PASS; 4 successful list reads, 1 complete list, 4 cards, 129 of 131 non-activated rows with consistent click metadata, 3 matched clicks and 3 subsequent same-card count increases. No traffic replayed.
+- `git diff --check`: PASS. Source and generated artifact remain local until explicitly committed/pushed; installed Tampermonkey and real-site execution have not been verified.

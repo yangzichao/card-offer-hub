@@ -5,6 +5,7 @@ const { mkdirSync } = require('node:fs');
 const { resolve } = require('node:path');
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE_PATH || 'playwright');
 const { listing, offer, endpoint, sessionHeaders, dashboardEndpoint, dashboardHeaders } = require('./fixtures/offers-response.cjs');
+const { activationListing, clickEndpoint } = require('./fixtures/activation-response.cjs');
 
 const script = readPublishedIssuerSource('chase-offer-lite');
 const outputDirectory = resolve(__dirname, '../../work/browser');
@@ -15,6 +16,7 @@ async function fixture(browser, mode = 'success') {
     const page = await context.newPage();
     const requests = [];
     const errors = [];
+    const activated = new Set();
     page.on('pageerror', error => errors.push(error.message));
     await page.clock.install({ time: new Date('2026-09-19T12:00:00Z') });
     await page.clock.pauseAt(new Date('2026-09-19T12:00:01Z'));
@@ -38,6 +40,17 @@ async function fixture(browser, mode = 'success') {
             await route.fulfill({ contentType: 'text/html; charset=utf-8', body: '<!doctype html><html><head><meta charset="utf-8"><title>Synthetic Chase fixture</title></head><body style="background:#eef2f6;font-family:system-ui"><h1>Chase Offers · synthetic test page</h1></body></html>' });
             return;
         }
+        if (request.url().startsWith(clickEndpoint)) {
+            const parameters = new URL(request.url()).searchParams;
+            assert.equal(request.method(), 'GET');
+            assert.equal(parameters.get('recommendation-event-type-code'), 'CLICK');
+            const accountIdentifier = parameters.get('digital-account-identifier');
+            const offerId = parameters.get('offer-identifier');
+            requests.push({ accountIdentifier, offerId, click: true, method: request.method(), time: await page.evaluate(() => Date.now()) });
+            if (mode !== 'unconfirmed') activated.add(`${accountIdentifier}:${offerId}`);
+            await route.fulfill({ status: 200, headers: { 'Access-Control-Allow-Origin': 'https://secure.chase.com' }, body: '' });
+            return;
+        }
         if (!request.url().startsWith(endpoint)) {
             errors.push('Unexpected network destination');
             await route.abort();
@@ -51,7 +64,9 @@ async function fixture(browser, mode = 'success') {
             await route.fulfill({ status: 429, headers: { 'Retry-After': '600' }, contentType: 'application/json', body: '{}' });
             return;
         }
-        const payload = listing(accountIdentifier, [offer('a'), offer('b', 'SERVED'), offer('already', 'ACTIVATED'), offer('a')]);
+        const payload = activationListing(accountIdentifier,
+            [offer('a'), offer('b', 'SERVED'), offer('already', 'ACTIVATED'), offer('a')].map(row =>
+                activated.has(`${accountIdentifier}:${row.offerIdentifier}`) ? { ...row, offerStatusName: 'ACTIVATED' } : row));
         // Both cards appear in native Offers despite absent/false shopping flags.
         payload.digitalProfileAccounts[0].shoppingEligibilityIndicator = false;
         delete payload.digitalProfileAccounts[1].shoppingEligibilityIndicator;
@@ -115,8 +130,13 @@ async function main() {
         assert.deepEqual(scans.map(request => request.accountIdentifier), ['101', '202']);
         assert.ok(scans.every(request => request.method === 'GET'));
         assert.ok(scans[1].time - scans[0].time >= 500);
-        assert.equal(await successful.page.getByRole('button', { name: 'Add all offers' }).count(), 0);
-        assert.equal(await successful.page.getByRole('button', { name: 'Add all offers', includeHidden: true }).isEnabled(), false);
+        assert.equal(await successful.page.getByRole('button', { name: 'Add all offers', exact: true }).isEnabled(), true);
+        await successful.page.getByRole('button', { name: 'Add all offers', exact: true }).click();
+        await successful.advanceUntil(/Finished: 4 offers confirmed added/);
+        assert.equal(successful.requests.filter(request => request.click).length, 4, 'search never shrinks the addition scope');
+        const saved = await successful.page.evaluate(() => GM_getValue('chase-offer-lite:workspace'));
+        assert.ok(saved.offers.every(row => row.status === 'ACTIVATED'));
+        assert.doesNotMatch(JSON.stringify(saved), /synthetic-session|synthetic-impression|activationParameters/);
         await successful.page.getByRole('searchbox', { name: 'Search saved offers' }).fill('');
         assert.equal(await successful.page.locator('.offer').count(), 6);
         await successful.page.screenshot({ path: resolve(outputDirectory, 'chase-scan-complete.png') });
@@ -132,6 +152,18 @@ async function main() {
         assert.equal(offersPage.requests.length, 1, 'explicit-card Offers page remains supported');
         assert.deepEqual(offersPage.errors, []);
         await offersPage.context.close();
+
+        const unconfirmed = await fixture(browser, 'unconfirmed');
+        await unconfirmed.captureNativeRequest();
+        await unconfirmed.page.getByRole('button', { name: 'Scan offers', exact: true }).click();
+        await unconfirmed.advanceUntil(/Scan complete/);
+        await unconfirmed.page.getByRole('button', { name: 'Add all offers', exact: true }).click();
+        await unconfirmed.advanceUntil(/did not confirm/);
+        await unconfirmed.page.clock.runFor(60000);
+        assert.equal(unconfirmed.requests.filter(request => request.click).length, 1);
+        assert.equal(await unconfirmed.page.getByRole('button', { name: 'Add all offers', exact: true }).isEnabled(), false);
+        assert.deepEqual(unconfirmed.errors, []);
+        await unconfirmed.context.close();
 
         for (const mode of ['429', 'partial', 'storage']) {
             const failed = await fixture(browser, mode);
@@ -158,7 +190,7 @@ async function main() {
             assert.deepEqual(failed.errors, []);
             await failed.context.close();
         }
-        console.log('Chase browser regression passed: passive fetch/XHR observation, manual selection, read-only scans, pacing, 429, partial responses, visible storage errors, search, panel controls.');
+        console.log('Chase browser regression passed: passive observation, selected-card scans, CORS clicks, exact status readback, unconfirmed stop, no retries, persistence, pacing and failures.');
     } finally { await browser.close(); }
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

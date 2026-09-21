@@ -35,7 +35,7 @@ function createHarness(respond, options = {}) {
         }, clearTimeout() {},
         fetch: async (url, config) => {
             const request = { url, method: config.method, headers: config.headers,
-                body: config.body, startedAt: now };
+                body: config.body, credentials: config.credentials, mode: config.mode, redirect: config.redirect, startedAt: now };
             requests.push(request);
             active++;
             maximumActive = Math.max(maximumActive, active);
@@ -50,7 +50,7 @@ function createHarness(respond, options = {}) {
     const probe = `globalThis.chaseTestAccess = { state, SETTINGS, restoreWorkspace, saveWorkspace, requireWorkspaceSaved, markWorkspaceOfferPending, finishWorkspaceOffer,
         recordWorkspaceScan, workspaceScopeFingerprint, normalizeAccounts, normalizeOffers,
         retryAfterMilliseconds, restorePacing, requestJson, detectCards, setCardSelected,
-        scanOffers, addAllOffers, stopRun, captureSessionRequest, captureSessionResponse,
+        scanOffers, addAllOffers, stopRun, buildChaseClickRequest, readChaseClickParameters, offerWorkflow, captureSessionRequest, captureSessionResponse,
         sessionHeaders, currentSession, getCapturedAccountsPayload, buildOffersRequest, installSessionObserver };})();`;
     if (!source.includes(marker)) throw new Error('Missing test initialization boundary');
     runInNewContext(source.slice(0, source.indexOf(marker)) + probe, context);

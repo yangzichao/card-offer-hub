@@ -10,7 +10,7 @@
 | `account` | BankAmeriDeals、US Bank、Wells Fargo | `accountId + offerId` | 当前账户的优惠与账户确认；不分配卡片 |
 | `amex-combination` | Amex | 每卡记录保留 `cardId + offerId + groupId`；按 `groupId` 分配目标 | 选卡、卡片优先级、聚合优惠及目标卡 |
 
-Chase 使用每卡模板并声明 `activation: false`。它可以展示和搜索，控制器拒绝生成写入计划，界面隐藏添加按钮。
+Chase 使用每卡模板并声明 `activation: true`。仅将未添加且点击参数一致的记录列入计划；串行发送 CLICK 后逐条回读 `ACTIVATED`，未知结果停止且不自动重试。见 [Chase 接口说明](chase-api-contract.md)。
 
 ## 代码与边界
 

@@ -15,7 +15,7 @@ function normalizeAccounts(payload) {
         const maskedNumber = typeof card.maskedAccountNumber === 'string' ? card.maskedAccountNumber : '';
         const lastFour = maskedNumber.match(/(\d{4})$/)?.[1] || '';
         if (accounts.has(accountId)) throw new Error('Chase returned duplicate card records.');
-        // Cards returned by the Offers profile can be selected for a read-only
+        // Cards returned by the Offers profile can be selected for a
         // scan. shoppingEligibilityIndicator is not an Offers eligibility flag:
         // Chase displays card-linked offers even when that field is false.
         // Keep the existing snapshot field; detection refreshes stale false values.
@@ -45,13 +45,15 @@ function normalizeOffers(payload, requestedAccountId, expectedEnterprisePartyIde
             throw new Error('Chase returned an incomplete offer record.');
         }
         const status = raw.offerStatusName;
+        const activationParameters = readChaseClickParameters(raw, account, payload.primaryIndividualEnterprisePartyIdentifier);
         const existing = offers.get(raw.offerIdentifier);
         if (existing) {
             if (existing.status !== status) existing.status = 'CONFLICT';
+            if (existing.activationParameters !== activationParameters) existing.activationParameters = null;
             continue;
         }
         offers.set(raw.offerIdentifier, {
-            accountId, offerId: raw.offerIdentifier, status,
+            accountId, offerId: raw.offerIdentifier, status, activationParameters,
             merchant: typeof raw.merchantDetails?.merchantName === 'string' ? raw.merchantDetails.merchantName : 'Merchant',
             title: typeof raw.offerDisplayDetails?.shortMessageText === 'string' ? raw.offerDisplayDetails.shortMessageText : '',
             category: Array.isArray(raw.offerCategories) ? raw.offerCategories.map(value => typeof value === 'string' ? value : value?.offerCategoryName)

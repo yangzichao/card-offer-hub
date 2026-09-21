@@ -16,8 +16,8 @@ test('Chase discovery selects all cards without starting scans or enrollment', a
     assert.equal(harness.state.offers.length, 0);
     await harness.addAllOffers();
     assert.equal(harness.requests.length, 0);
-    assert.equal(harness.state.enrollmentSupported, false);
-    assert.match(harness.state.status, /unavailable/);
+    assert.equal(harness.state.enrollmentSupported, true);
+    assert.match(harness.state.status, /Scan offers before adding/);
 });
 
 test('Chase missing native page capture explains the missing session without fetching', async () => {

@@ -1,6 +1,6 @@
 // Request construction and response interpretation stay with the issuer.
 // The caller must hold its scheduler slot until this promise settles.
-async function hubSendJsonRequest({ url, options, timeoutMilliseconds, label, onRateLimited, onResponse = () => {} }) {
+async function hubSendJsonRequest({ url, options, timeoutMilliseconds, label, onRateLimited, onResponse = () => {}, allowEmptyResponse = false }) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMilliseconds);
     try {
@@ -16,12 +16,14 @@ async function hubSendJsonRequest({ url, options, timeoutMilliseconds, label, on
         if (persistenceError) throw persistenceError;
         if (response.status === 429) throw new Error(`${label} returned HTTP 429. Cooling down; scan again later.`);
         if (!response.ok) throw new Error(`${label} returned HTTP ${response.status}. Sign in and scan again.`);
+        // Acknowledgement only: callers must verify the actual result separately.
+        if (allowEmptyResponse && response.status === 200 && responseText === '') return null;
         try { return JSON.parse(responseText); }
         catch { throw new Error(`${label} returned a non-JSON response. Sign in and scan again.`); }
     } catch (error) {
         // Browser network errors can include URLs or credentials. Never display them.
         if (error.name === 'AbortError') throw new Error('Request timed out; result is unconfirmed. Scan again.');
-        if (error instanceof TypeError) throw new Error('Network request failed; result is unconfirmed. Scan again.');
+        if (error instanceof TypeError || error.name === 'TypeError') throw new Error('Network request failed; result is unconfirmed. Scan again.');
         throw error;
     } finally {
         clearTimeout(timeout);
@@ -37,9 +39,9 @@ function createHubJsonTransport({ state, settings, ensureRunning, savePacing, pa
     }
     function sendRequest(prepareRequest) {
         return scheduler.withRequestSlot(async observe => {
-            const { url, options, validateResponse = () => {} } = await prepareRequest();
+            const { url, options, validateResponse = () => {}, allowEmptyResponse = false } = await prepareRequest();
             ensureRunning();
-            const payload = await hubSendJsonRequest({ url, options, label: settings.name,
+            const payload = await hubSendJsonRequest({ url, options, label: settings.name, allowEmptyResponse,
                 timeoutMilliseconds: settings.timeoutMilliseconds,
                 onResponse: status => observe('neutral', status),
                 onRateLimited(value) {

@@ -1,5 +1,6 @@
 # 单一安装包发布
 
+> 更新：Chase 从 1.6.0 起支持点击添加及逐条状态回读，见 [当前接口说明](chase-api-contract.md)。下文关于 Chase 只读的描述为该次历史发布状态。
 2026-09-20：从 Card Offer Hub — All Banks 1.3.1 起，只维护一个版本、一个安装入口、一个 Tampermonkey 脚本。此版本包含 Chase 首页默认卡识别修复。
 
 ## 发布与源码

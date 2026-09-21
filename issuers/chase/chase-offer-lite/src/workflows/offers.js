@@ -54,9 +54,6 @@ function scanOffers() {
         }
         state.needsScan = false;
         recordWorkspaceScan();
-        updateStatus(`Scan complete: ${state.offers.length} offers across ${accounts.length} selected cards. To add offers, use the Chase website.`);
+        updateStatus(`Scan complete: ${state.offers.length} offers across ${accounts.length} selected cards. Review your cards, then add offers.${chaseUnsupportedClickNotice()}`);
     });
-}
-function addAllOffers() {
-    updateStatus('Adding offers is unavailable in this version. Use the Chase website to add offers.');
 }

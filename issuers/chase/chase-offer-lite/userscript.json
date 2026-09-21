@@ -1,7 +1,7 @@
 {
     "id": "chase-offer-lite",
     "name": "Chase Offer Lite",
-    "description": "Manually select Chase cards and scan Chase Offers serially; read-only until activation is verified",
+    "description": "Manually scan selected Chase cards and add offers serially with confirmed status readback",
     "author": "Zichao Yang",
     "issuer": "chase",
     "matches": [
@@ -48,12 +48,15 @@
         "core/workspace-fields.js",
         "core/workspace.js",
         "api/contracts.js",
+        "api/activation-contract.js",
         "api/session.js",
         "api/request-runtime.js",
         "api/observer.js",
         "core/transport.js",
+        "api/activation-transport.js",
         "workflows/runner.js",
         "workflows/offers.js",
+        "workflows/activation.js",
         "ui/styles.js",
         "ui/panel.js",
         "ui/render.js",
@@ -63,7 +66,7 @@
     "offersUrl": "https://secure.chase.com/web/auth/dashboard",
     "savedResultsSource": "snapshots/saved-results.js",
     "capabilities": {
-        "activation": false,
+        "activation": true,
         "scope": "card"
     },
     "workflow": "per-card",

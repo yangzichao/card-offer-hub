@@ -1,5 +1,6 @@
 # 按银行自动调速
 
+> 更新：Chase 从 1.6.0 起支持点击添加及逐条状态回读，见 [当前接口说明](chase-api-contract.md)。下文关于 Chase 只读的描述为该次历史发布状态。
 实现 [issue #1](https://github.com/yangzichao/card-offer-hub/issues/1)：一个公共算法，六家银行各自学习、各自缓存。用户照常选择操作范围并点击开始，无需选择速度。扫描、添加、添加后核验共用该银行的串行请求槽；Chase 保持只读。
 
 ## 调整规则
