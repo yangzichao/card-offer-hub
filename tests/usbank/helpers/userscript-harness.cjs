@@ -11,6 +11,8 @@ function createHarness(respond, options = {}) {
     let maximumActive = 0;
     const requests = [];
     const storage = options.storage || new Map();
+    const accessToken = 'accessToken' in options ? options.accessToken : 'synthetic-access-token';
+    const pageSessionValues = { offerhubobject: JSON.stringify(options.session ?? sessionFixture), AccessToken: accessToken };
     class TestDate extends Date {
         constructor(...args) { super(...(args.length ? args : [now])); }
         static now() { return now; }
@@ -18,7 +20,7 @@ function createHarness(respond, options = {}) {
     const context = {
         TextEncoder, crypto: webcrypto, Date: TestDate, AbortController, console,
         location: { origin: 'https://onlinebanking.usbank.com', pathname: '/digital/servicing/dominjection/cashback-deals' },
-        sessionStorage: { getItem: key => key === 'offerhubobject' ? JSON.stringify(options.session ?? sessionFixture) : 'synthetic-user' },
+        sessionStorage: { getItem: key => key in pageSessionValues ? pageSessionValues[key] : 'synthetic-user' },
         navigator: { locks: { request: async (name, config, action) => action(options.locked ? null : {}) } },
         GM_getValue: (key, fallback) => structuredClone(storage.get(key) ?? fallback),
         GM_setValue: (key, value) => {

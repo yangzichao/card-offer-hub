@@ -14,6 +14,7 @@ function prepareEnrollment(harness) {
 for (const [description, response, expectedStatus] of [
     ['confirmed', jsonResponse(confirmation('offer-a')), 'ENROLLED'],
     ['rejected', jsonResponse({ status: { purpose: 'ERROR' } }), 'FAILED'],
+    ['already on another card', jsonResponse({ isEnrolled: false, explanationCode: 'PZN4107' }), 'ON_OTHER_CARD'],
     ['unconfirmed', jsonResponse({}), 'UNCONFIRMED'],
     ['rate limited', jsonResponse({}, 429), 'ELIGIBLE']
 ]) {

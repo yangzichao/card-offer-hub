@@ -14,7 +14,11 @@
 
 响应含 `requestId`、`sessionTokenId`、`ads[]`。每条含 `offerId` 和 `ad.adServeToken`、`activationState`、`visibilityState`、`reward.activationModel`、起止日期等。捕获没有账号／卡片选择变量或分页变量；本实现不猜测额外账户接口或分页接口。
 
-请求头使用捕获中固定的 `application-id: web`、`service-version: 2`、`refreshcache: false`、空 `routingkey`，每次新建 correlation ID；浏览器携带同源 Cookie。脚本不读取或复制 HAR 中的 Cookie、Authorization 或用户标识。
+请求头使用捕获中固定的 `application-id: web`、`service-version: 2`、`refreshcache: false`、空 `routingkey`，每次新建 correlation ID；浏览器携带同源 Cookie。
+
+请求还必须带 `authorization: Bearer <sessionStorage.AccessToken>`。HAR 看不出这一点：Chrome 导出时去掉了 Authorization 和 Cookie，整份捕获没有任何请求带这两个头。依据是前端源码：读取 `offerhubobject` 的那个 GraphQL 客户端，把 `sessionStorage.AccessToken` 作为 `authorization: "Bearer " + token` 发出。1.6.4 之前的脚本漏了这个头，这是 US Bank 扫描失败最可能的原因；真实服务器对缺失 Bearer 的具体响应没有现场验证。
+
+脚本在每个请求发出前从当前页面读 `AccessToken`，读不到就不发请求并提示重新加载页面。token 只放进同源请求头，不保存、不进快照、不参与「会话是否变化」的比较，因为页面可能刷新它。脚本不读取或复制 HAR 中的 Cookie、Authorization 或用户标识。
 
 ## 激活与确认
 
@@ -30,9 +34,17 @@
 
 初始版本没有历史快照需要迁移。将来改变 schema 必须增加前向迁移；未知版本当前保留原值并阻止请求，禁止静默覆盖。
 
+## 1.6.4 修复记录
+
+- 根因：请求漏了 `authorization: Bearer <AccessToken>`，见上文「会话与列表」。现在每个 GraphQL 请求发出前从当前页面读取 token；读不到就不发请求，状态栏显示「US Bank sign-in token is unavailable」。
+- 验证：`npm run build`、`npm run check`、`npm test`（438 项）、`npm run test:browser` 全部 PASS。单元测试覆盖 Bearer 头、token 缺失时零请求、运行中 token 刷新后照常继续、token 不进 GM storage；浏览器回归的合成服务器对不带 Bearer 的请求返回 401。
+- 另用用户本地 HAR 做了一次离线回放（脚本不入库，全部请求在本机拦截，token 为合成值，服务器要求 Bearer）：扫描读出 149 条、107 条可激活；扫描、激活前刷新、三次激活和其中两次回查（第三次激活后按了 Stop）共 7 个请求都带上了 Bearer。这只证明请求形状，不证明真实服务器接受。
+
 ## 待现场验证
 
 - Tampermonkey 在实际登录页面读取 sessionStorage 和同源请求的兼容性。
+- 带 Bearer 头后真实列表和激活能否成功；不带时服务器返回什么（推测 401，未验证）。
+- `AccessToken` 在页面停留期间是否会刷新或过期，过期后脚本看到的是「sign-in token is unavailable」还是 HTTP 401。
 - 客户级优惠在银行侧覆盖哪些卡片；本脚本不提供未证明的逐卡能力。
 - 激活后列表何时返回 `ACTIVATED`，是否存在银行侧缓存或最终一致性延迟。即使延迟也保持一次回查后停止，不自动重试。
 - 500 毫秒请求间隔下的实际限流、Cookie 过期行为、会话切换和停止操作。

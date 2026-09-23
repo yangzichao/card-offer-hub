@@ -10,6 +10,11 @@ for (const [description, response, expected] of [
     ['explicit rejection', { status: { purpose: 'ERROR' } }, 'FAILED'],
     ['missing confirmation', {}, 'UNCONFIRMED'],
     ['explicit false (old script incorrectly accepted this)', { isEnrolled: false }, 'FAILED'],
+    ['PZN4107: Amex says the offer is already on another card', { isEnrolled: false, explanationCode: 'PZN4107',
+        explanationMessage: 'Card member Already added the offer on another card' }, 'ON_OTHER_CARD'],
+    ['any other explanation code stays a rejection', { isEnrolled: false, explanationCode: 'PZN2001' }, 'FAILED'],
+    ['PZN4107 without an explicit false is not trusted', { explanationCode: 'PZN4107' }, 'UNCONFIRMED'],
+    ['PZN4107 for another offer is not trusted', { isEnrolled: false, explanationCode: 'PZN4107', identifier: 'offer-b' }, 'UNCONFIRMED'],
     ['string true is not confirmation', { isEnrolled: 'true' }, 'UNCONFIRMED'],
     ['numeric true is not confirmation', { isEnrolled: 1 }, 'UNCONFIRMED'],
     ['conflicting success flag and error purpose', { isEnrolled: true, status: { purpose: 'ERROR' } }, 'FAILED'],
@@ -39,4 +44,14 @@ test('failed HTTP requests are never reported as enrollment success', async () =
     const harness = createUserscriptHarness(() => jsonResponse(confirmation('offer-a'), 403));
     configureAccounts(harness);
     await assert.rejects(harness.enrollOffer('card-a', 'offer-a'), /HTTP 403/);
+});
+
+test('the log records a short explanation code but never free server text', async () => {
+    for (const [explanationCode, expectedLog] of [['PZN4107', 'isEnrolled=false, PZN4107'], ['free text from the server', 'isEnrolled=false)']]) {
+        const harness = createUserscriptHarness(() => jsonResponse({ isEnrolled: false, explanationCode }));
+        configureAccounts(harness);
+        await harness.enrollOffer('card-a', 'offer-a');
+        assert.ok(harness.state.logs.some((message) => message.includes(expectedLog)), expectedLog);
+        assert.equal(harness.state.logs.some((message) => message.includes('free text')), false);
+    }
 });

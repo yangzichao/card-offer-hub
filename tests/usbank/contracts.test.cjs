@@ -65,3 +65,10 @@ test('session fields map to current page storage, never a captured credential', 
     assert.throws(() => createHarness(undefined, { session: {} }).readSession(), /session is unavailable/);
     assert.notEqual(harness.sessionHeaders()['correlation-id'], harness.sessionHeaders()['correlation-id']);
 });
+
+test('headers carry the page’s Bearer token like the bank’s own client; a missing token throws', () => {
+    assert.equal(createHarness().sessionHeaders().authorization, 'Bearer synthetic-access-token');
+    for (const accessToken of [null, '', ' ', 'undefined', 'null']) {
+        assert.throws(() => createHarness(undefined, { accessToken }).sessionHeaders(), /sign-in token is unavailable/);
+    }
+});

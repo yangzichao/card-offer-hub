@@ -1,5 +1,7 @@
 const SAVED_OFFER_FIELDS = ['id', 'name', 'description', 'expiry', 'status', 'type', 'groupKey'];
-const SAVED_OFFER_STATUSES = new Set(['ELIGIBLE', 'ENROLLED', 'UNKNOWN', 'FAILED', 'UNCONFIRMED']);
+// ON_OTHER_CARD was added later without a schema bump: it is additive, every
+// older snapshot still validates, so no migration is needed.
+const SAVED_OFFER_STATUSES = new Set(['ELIGIBLE', 'ENROLLED', 'UNKNOWN', 'FAILED', 'UNCONFIRMED', 'ON_OTHER_CARD']);
 
 function enrollmentStorageKey(accountToken, groupKey) {
     return JSON.stringify([accountToken, groupKey]);

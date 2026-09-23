@@ -56,6 +56,7 @@
         "workflows/scan.js",
         "workflows/enrollment-plan.js",
         "workflows/enrollment-requests.js",
+        "workflows/enrollment-outcomes.js",
         "workflows/enrollment.js",
         "ui/styles.js",
         "ui/panel.js",

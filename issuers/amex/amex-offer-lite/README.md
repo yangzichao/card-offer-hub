@@ -22,6 +22,7 @@ American Express 网页中的 Tampermonkey 工具。卡片检测、扫描和添�
 面板与其他银行统一为 **Choose scope → Scan offers → Review & add**，其中第一步同时包含检测、勾选和优先级设置。
 
 1. **Detect cards**：首次只检测一次卡片列表。优先读取页面已经载入的卡片数据，缺失时仅尝试一次账户列表请求；不会逐卡扫描 Offer。卡列表会保存，普通刷新和下次访问直接恢复，不用再次检测。失败后可等待至少 0.5 秒再手动尝试。
+   已注销的卡不会列出，判断规则与 Amex 自己的卡片切换器相同：`status.account_status` 或 `status.card_status` 含 `Canceled`。已注销主卡下仍有效的附属卡照常列出。更新前保存的卡列表里如果还有已注销的卡，点一次 **Refresh cards** 就会去掉。
    在同一步中 **Choose your whitelist and offer priority**：逐张勾选需要的卡片，并用拖动或 ↑ / ↓ 把它们排成你想要的优先级。勾选和排序都立即保存，本身都不发请求。取消勾选同样持久保存，该卡退出扫描和添加范围，但保留已有 Offer；重新勾选即可显示已有结果。
 2. **Scan offers**：手动扫描或刷新 whitelist 内卡片的 Offer，分别读取 Offers Hub 的可添加列表和已添加列表，保留返回的所有页及非登记类信息 Offer。结果会保存；下次打开先显示已有数据，需要更新时再点击这个按钮。搜索只过滤显示，不改变扫描或 Add all offers 的范围。
 3. **Add all offers**：一次点击，把计划里的每个 Offer 按顺序加完，中途不用管。每个 Offer 只发一个请求，两个请求之间至少 0.5 秒。
@@ -38,7 +39,8 @@ American Express 网页中的 Tampermonkey 工具。卡片检测、扫描和添�
 - 多张卡都 eligible 的同一个 Offer，只加到排得最靠前的那张；其他卡在 Offer 卡片上显示为 skipped，它们自己的记录不动。
 - 只有一张卡有的 Offer 永远加到那张卡，和名次无关。
 - 某个 Offer 已经在任意一张 whitelist 卡上是 added，或者上次发出后还是 UNCONFIRMED，就不会再加到别的卡上；要重新判断先重新扫描。
-- 最靠前的卡如果扫描不完整、或者这个 Offer 明确被拒绝（FAILED），顺位交给下一张卡。
+- Amex 回答这个 Offer 已经加在你的另一张卡上（`PZN4107`）时，记为 **On another card**，同样不会再分配给别的卡。
+- 最靠前的卡如果扫描不完整、或者这个 Offer 明确被拒绝（FAILED），顺位交给下一张卡。被拒后要等下一次手动点击才会换卡，同一轮里不会立刻换卡重发。
 - 扫描顺序也跟着优先级走，最靠前的卡先扫。
 
 ## 保存 Offer 与手动刷新
@@ -54,7 +56,7 @@ American Express 网页中的 Tampermonkey 工具。卡片检测、扫描和添�
 - 条件相同的 Offer 跨卡合并；不同卡上的不同 Offer ID 保留用于各自登记，奖励或条款不同的活动不会仅因同名就被合并。
 - 每个合并 Offer 显示 **Eligible on N cards / Added on N / Seen on N**，按不同卡片计数。
 - 搜索后的汇总只统计当前可见的独立 Offer、eligible Offer、可添加 Offer 和 eligible 卡片数。**Add all offers** 按钮上的数字单独统计全部已选卡片中的添加计划，不随搜索改变。
-- 每个 Offer 卡片写明它会加到哪张卡（Goes to …），或者已经在哪张卡上（Already on …）。
+- 每个 Offer 卡片写明它会加到哪张卡（Goes to …），或者已经在哪张卡上（Already on …）；Amex 表示已在另一张卡上时显示 *Amex says it is already on another of your cards*。
 - 不完整扫描显示 **Observed so far**，总览显示扫描覆盖率。尚未扫描的卡片不会显示为零 eligible。
 
 ## 请求节奏与停止
@@ -63,7 +65,8 @@ American Express 网页中的 Tampermonkey 工具。卡片检测、扫描和添�
 - 添加也是串行：**一个 Offer 一个请求，一张卡**，用的是那张卡自己的 Offer ID。从上一个响应完成起至少等待 **0.5 秒** 再发下一个。单个 Add 和 Add all offers 使用相同规则。
 - 读取每张卡片的两个列表通常需要两个请求，没有自动刷新。
 - 遇到 HTTP 429 停止本轮，冷却至少 **120 秒**；如果 `Retry-After` 更长则遵循该时间。冷却会保存到本地，结束后仍须手动重启。
-- 网络错误、接口错误或 30 秒超时都会停止，不自动重试。失败、未确认或 429 都会终止本轮，后面的 Offer 一个都不发。已经成功的结果保留，状态栏给出已添加的数量。
+- 网络错误、HTTP 错误、非 JSON 响应或 30 秒超时都会停止本轮，不自动重试，后面的 Offer 一个都不发；429 同样停止。已经成功的结果保留，状态栏给出已添加的数量。
+- 单个 Offer 的 HTTP 200 回答不会终止本轮：明确被拒（FAILED）、已在另一张卡（On another card）和未确认（UNCONFIRMED）都记录下来，然后继续下一个 Offer。每个 Offer 只发一次。连续 3 个未确认且还有剩余时暂停，剩下的保持可添加，先扫描核实再继续。结束时状态栏分别给出已添加、已在另一张卡、被拒和未确认的数量。
 - 单张卡的某个响应结构异常会保留已解析结果，并按原有间隔继续其余列表和卡片；该卡标为 Incomplete。未知结构仍会报错，不会当成空列表或使用首页摘要替代。
 - **Stop** 可打断等待并阻止后续请求。已经发出的那一个请求可以完成，结果照常记录；不会撤回已经成功的添加。
 - 请求节奏针对本页脚本；Amex 网站自身请求和其他标签页不由这个队列调度。
@@ -72,9 +75,9 @@ American Express 网页中的 Tampermonkey 工具。卡片检测、扫描和添�
 
 扫描完成后点 **Add all offers** 一次跑完，或者点单个 Offer 上的 **Add** 只加那一个。搜索只影响列表；按钮始终为 **Add all offers**，覆盖全部已选卡片的可添加 Offer。点击时固定本轮队列，切换浏览器标签页、修改搜索或面板重建都不会缩小任务或重新发送已完成的请求。只有 whitelist 卡片中已完整扫描、标为可添加的商户 Offer 会发起请求。
 
-登记使用 `CreateCardAccountOfferEnrollment.v1` 接口：每张卡自己的 `accountNumberProxy` 和 `identifier`，带请求时间及用户时区；全量读取继续使用 Offers Hub。只有响应的 `isEnrolled === true` 才显示成功。false 或未知响应不会计为成功。
+登记使用 `CreateCardAccountOfferEnrollment.v1` 接口：每张卡自己的 `accountNumberProxy` 和 `identifier`，带请求时间及用户时区；全量读取继续使用 Offers Hub。只有响应的 `isEnrolled === true` 才显示成功。false 或未知响应不会计为成功。`isEnrolled: false` 且 `explanationCode: "PZN4107"`（Card member Already added the offer on another card）记为 On another card：不算这张卡添加成功，但这个 Offer 视为已处理。
 
-一次请求处理一张卡，响应后的间隔按 Amex 反馈自动调整，首次为 1 秒、最低 0.5 秒，限流后使用更慢的间隔。失败或未确认会停住本轮并要求重新扫描，不会盲目重发。Activity 记录这轮计划的 Offer 数、涉及的卡数、登记接口以及每次的 isEnrolled 结果。信息类 Offer 保留在列表中供查看，永远不会被添加。
+一次请求处理一张卡，响应后的间隔按 Amex 反馈自动调整，首次为 1 秒、最低 0.5 秒，限流后使用更慢的间隔。单个 Offer 被拒或未确认会记录后继续下一个，不会重发同一个 Offer；连续 3 个未确认会暂停。Activity 记录这轮计划的 Offer 数、涉及的卡数、登记接口以及每次的 isEnrolled 结果和简短的 explanationCode。信息类 Offer 保留在列表中供查看，永远不会被添加。
 
 登记协议依据 HAR 中实际成功的 Card 接口请求。一个 Offer 只加一张卡是当前设计行为。协议本身仍未在当前账户上现场验证。完整差异与证据见 [登记对照说明](../../../docs/amex-enrollment-comparison.md)。
 

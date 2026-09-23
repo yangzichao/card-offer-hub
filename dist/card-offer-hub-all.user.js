@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Card Offer Hub — All Banks
 // @namespace    https://github.com/yangzichao/card-offer-hub
-// @version      1.6.3
+// @version      1.6.4
 // @description  All six Card Offer Hub tools in one install; manual scanning and activation on the matching bank website
 // @author       Zichao Yang
 // @match        https://*.americanexpress.com/*
@@ -1371,14 +1371,14 @@ function dispatchIssuer(configuration, startIssuer) {
 }
 
 // --- Issuer dispatches ---
-dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://global.americanexpress.com/offers","version":"1.6.3","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*americanexpress\\.com/.*$"],"patterns":["^https://global\\.americanexpress\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://global.americanexpress.com/offers","version":"1.6.4","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*americanexpress\\.com/.*$"],"patterns":["^https://global\\.americanexpress\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: amex-offer-lite ---
 (function () {
     'use strict';
 
     // Source: core/state.js
     const SETTINGS = Object.freeze({
-        version: "1.6.3", capabilities: {"activation":true,"scope":"card"}, workflow: "amex-combination",
+        version: "1.6.4", capabilities: {"activation":true,"scope":"card"}, workflow: "amex-combination",
         requestGapMs: 500,
         rateLimitCooldownMs: 120000,
         requestTimeoutMs: 30000,
@@ -1447,7 +1447,9 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
             priorityCardIds: prioritizedAccounts().map(account => account.token) }),
         readRecords: () => selectedAccounts().flatMap(account => (state.offersByAccount.get(account.token) || []).map(offer => ({
             cardId: account.token, offerId: offer.id, groupId: offer.groupKey, label: offer.name, source: offer, account,
-            status: offer.status === 'ENROLLED' ? 'added' : offer.status === 'UNCONFIRMED' ? 'unconfirmed'
+            // ON_OTHER_CARD means Amex already has this offer on some card of the member,
+            // so it settles the group like an addition and no other card is tried.
+            status: ['ENROLLED', 'ON_OTHER_CARD'].includes(offer.status) ? 'added' : offer.status === 'UNCONFIRMED' ? 'unconfirmed'
                 : offer.status === 'ELIGIBLE' && offer.enrollable && state.scanReports.get(account.token)?.startsWith('Complete')
                     ? 'available' : 'unavailable'
         })))
@@ -1628,7 +1630,9 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
 
     // Source: core/offer-snapshots.js
     const SAVED_OFFER_FIELDS = ['id', 'name', 'description', 'expiry', 'status', 'type', 'groupKey'];
-    const SAVED_OFFER_STATUSES = new Set(['ELIGIBLE', 'ENROLLED', 'UNKNOWN', 'FAILED', 'UNCONFIRMED']);
+    // ON_OTHER_CARD was added later without a schema bump: it is additive, every
+    // older snapshot still validates, so no migration is needed.
+    const SAVED_OFFER_STATUSES = new Set(['ELIGIBLE', 'ENROLLED', 'UNKNOWN', 'FAILED', 'UNCONFIRMED', 'ON_OTHER_CARD']);
 
     function enrollmentStorageKey(accountToken, groupKey) {
         return JSON.stringify([accountToken, groupKey]);
@@ -1855,11 +1859,19 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
     }
 
     // Source: api/accounts.js
+    // Same rule as Amex's own card switcher: a card is canceled when either status
+    // list says CANCELED. Canceled cards cannot take offers, so they are never listed.
+    function isCanceledAmexAccount(account) {
+        const statuses = [account.status?.account_status, account.status?.card_status].flatMap(list => Array.isArray(list) ? list : []);
+        return statuses.some(value => typeof value === 'string' && value.toUpperCase() === 'CANCELED');
+    }
+
     function normalizeAccounts(accountList) {
         const accounts = new Map();
         function visit(account) {
             if (!account || typeof account !== 'object') return;
-            if (typeof account.account_token === 'string' && account.account_token) {
+            // A canceled basic card can still carry active supplementary cards below.
+            if (typeof account.account_token === 'string' && account.account_token && !isCanceledAmexAccount(account)) {
                 const cardType = account.product?.description || 'Amex card';
                 const cardholder = account.profile?.first_name || '';
                 const displayNumber = account.account?.display_account_number || '';
@@ -1900,7 +1912,7 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
         });
         if (!Array.isArray(member?.accounts)) throw new Error('Account-list format was not recognized. Open the Amex Offers page and reload.');
         const accounts = normalizeAccounts(member.accounts);
-        if (!accounts.length) throw new Error('No cards were found in this session.');
+        if (!accounts.length) throw new Error('No active cards were found in this session.');
         return { accounts, source: 'one account-list request' };
     }
 
@@ -2003,10 +2015,15 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
         };
     }
 
+    // Amex's explicit answer "Card member Already added the offer on another card"
+    // (2026-09-10 HARs). Not a success on this card, but no other card needs the offer.
+    const OFFER_ON_OTHER_CARD_CODE = 'PZN4107';
+
     function cardEnrollmentStatus(response, accountToken, offerIdentifier) {
         if (!response || typeof response !== 'object' || Array.isArray(response)) return 'UNCONFIRMED';
         if (response.accountNumberProxy && response.accountNumberProxy !== accountToken) return 'UNCONFIRMED';
         if (response.identifier && response.identifier !== offerIdentifier) return 'UNCONFIRMED';
+        if (response.isEnrolled === false && response.explanationCode === OFFER_ON_OTHER_CARD_CODE) return 'ON_OTHER_CARD';
         if (response.status?.purpose === 'FAILURE' || response.status?.purpose === 'ERROR' || response.isEnrolled === false) return 'FAILED';
         // The original `isEnrolled || true` falsely reported false/missing values as
         // success. Only the literal boolean observed in the successful HAR is valid.
@@ -2015,7 +2032,11 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
 
     function cardEnrollmentEvidence(response) {
         if (response?.isEnrolled === true) return 'isEnrolled=true';
-        if (response?.isEnrolled === false) return 'isEnrolled=false';
+        if (response?.isEnrolled === false) {
+            // Only a short code is logged, never free text from the server.
+            const code = response.explanationCode;
+            return `isEnrolled=false${typeof code === 'string' && /^[A-Z0-9_-]{1,20}$/.test(code) ? `, ${code}` : ''}`;
+        }
         return `isEnrolled ${response?.isEnrolled === undefined ? 'missing' : 'has an invalid type'}`;
     }
 
@@ -2217,6 +2238,9 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
 
     // One offer, one card, one request slot. The slot enforces the minimum gap from
     // the previous response, so nothing overlaps and nothing retries on its own.
+    // Resolves with the status of every HTTP 200 answer, including a declined or
+    // unconfirmed one; the caller decides whether the run continues. Transport
+    // failures (HTTP errors, 429, timeouts, Stop) still reject.
     function enrollPlannedOffer({ account, offer }) {
         return withRequestSlot(async observe => {
             assertWhitelisted(account.token);
@@ -2236,7 +2260,7 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
             try {
                 const status = await sendEnrollmentRequest(account.token, offer.id, observe);
                 updateEnrollmentStatus(account, offer, status);
-                if (status !== 'ENROLLED') throw new Error('Enrollment was not confirmed. Scan again before trying it again.');
+                return status;
             } catch (error) {
                 if (offer.status === 'ELIGIBLE' && !(error instanceof RateLimited) && !(error instanceof RequestStopped)) {
                     updateEnrollmentStatus(account, offer, 'UNCONFIRMED');
@@ -2251,27 +2275,56 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
         });
     }
 
+    // Source: workflows/enrollment-outcomes.js
+    // Tallies one Add run by the status each HTTP 200 answer produced. Only ENROLLED
+    // counts as added; the others are reported separately, never as a success.
+    function createEnrollmentTally() {
+        return { ENROLLED: 0, ON_OTHER_CARD: 0, FAILED: 0, UNCONFIRMED: 0 };
+    }
+
+    function enrollmentTallySummary(tally) {
+        return [
+            `${tally.ENROLLED} offers added`,
+            tally.ON_OTHER_CARD ? `${tally.ON_OTHER_CARD} already on another card` : '',
+            tally.FAILED ? `${tally.FAILED} declined by Amex` : '',
+            tally.UNCONFIRMED ? `${tally.UNCONFIRMED} unconfirmed; scan to check them` : ''
+        ].filter(Boolean).join(' · ') + '.';
+    }
+
     // Source: workflows/enrollment.js
     // Adds every planned offer in one unattended run: one request at a time, the
     // minimum gap between them, no retries, and a stop that takes effect immediately.
+    // An explicit per-offer answer (declined, already on another card) never ends the
+    // run; transport failures, 429, Stop and storage errors still do.
+    const CONSECUTIVE_UNCONFIRMED_PAUSE = 3;
+
     async function startEnrollment(groupKey = null) {
         if (!SETTINGS.capabilities.activation || state.busy || Date.now() < state.cooldownUntil) return;
         const plan = enrollmentPlan(groupKey, { forExecution: true });
         if (!plan.length) return;
         state.enrollmentProgress = { total: plan.length, completed: 0 };
-        let addedCount = 0;
+        const tally = createEnrollmentTally();
+        let consecutiveUnconfirmed = 0;
         return runAmexAction('enroll', async () => {
             log(`Adding ${plan.length} offers one at a time via ${CARD_ENROLLMENT_ENDPOINT}, `
                 + `${SETTINGS.requestGapMs / 1000}s apart, across ${new Set(plan.map(({ account }) => account.token)).size} cards.`);
             for (const plannedOffer of plan) {
-                await enrollPlannedOffer(plannedOffer);
-                addedCount++;
-                state.enrollmentProgress.completed = addedCount;
+                const status = await enrollPlannedOffer(plannedOffer);
+                tally[status]++;
+                state.enrollmentProgress.completed++;
                 renderControls();
+                // Unconfirmed answers are not explicit. Several in a row suggest the
+                // response format changed, so pause before the whole queue turns unknown.
+                consecutiveUnconfirmed = status === 'UNCONFIRMED' ? consecutiveUnconfirmed + 1 : 0;
+                const remaining = plan.length - state.enrollmentProgress.completed;
+                if (consecutiveUnconfirmed >= CONSECUTIVE_UNCONFIRMED_PAUSE && remaining > 0) {
+                    throw new Error(`Paused: Amex did not confirm ${CONSECUTIVE_UNCONFIRMED_PAUSE} offers in a row; `
+                        + `${remaining} offers were not attempted. Scan to check the unconfirmed ones before adding again.`);
+                }
             }
-            setStatus(`Enrollment complete. ${addedCount} offers added.`);
+            setStatus(`Enrollment complete. ${enrollmentTallySummary(tally)}`);
         }, error => {
-            setStatus(`${error.message} ${addedCount} offers added.`);
+            setStatus(`${error.message} ${enrollmentTallySummary(tally)}`);
         });
     }
 
@@ -2466,10 +2519,19 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
                 + (otherEligibleCards ? ` · ${otherEligibleCards} other eligible ${otherEligibleCards === 1 ? 'card is' : 'cards are'} skipped` : ''),
             'offer-target');
         }
-        const settledCard = group.accounts.find(({ offer }) => ['ENROLLED', 'UNCONFIRMED'].includes(offer.status));
+        const settledCard = group.accounts.find(({ offer }) => ['ENROLLED', 'ON_OTHER_CARD', 'UNCONFIRMED'].includes(offer.status));
         if (!settledCard) return null;
-        return element('p', `${settledCard.offer.status === 'ENROLLED' ? 'Already on' : 'Unconfirmed on'} ${settledCard.account.cardName}`
-            + ' · no other card will be used for this offer', 'offer-target');
+        const settledText = {
+            ENROLLED: `Already on ${settledCard.account.cardName}`,
+            ON_OTHER_CARD: 'Amex says it is already on another of your cards',
+            UNCONFIRMED: `Unconfirmed on ${settledCard.account.cardName}`
+        }[settledCard.offer.status];
+        return element('p', `${settledText} · no other card will be used for this offer`, 'offer-target');
+    }
+
+    function offerBadgeLabel(accountOffer) {
+        if (!accountOffer.enrollable) return 'Skipped';
+        return accountOffer.status === 'ON_OTHER_CARD' ? 'On another card' : hubOfferStatusLabel(accountOffer.status);
     }
 
     function offerEnrollButton(group, plannedOffer) {
@@ -2479,6 +2541,7 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
         control.disabled = Boolean(state.busy) || !plannedOffer || Date.now() < state.cooldownUntil;
         if (plannedOffer) control.textContent = 'Add';
         else if (accounts.some(({ offer: accountOffer }) => accountOffer.status === 'ENROLLED')) control.textContent = 'Added';
+        else if (accounts.some(({ offer: accountOffer }) => accountOffer.status === 'ON_OTHER_CARD')) control.textContent = 'Added on another card';
         else if (accounts.some(({ offer: accountOffer }) => ['UNCONFIRMED', 'FAILED'].includes(accountOffer.status))) control.textContent = 'Rescan to verify';
         else if (offer.enrollable && accounts.some(({ offer: accountOffer }) => accountOffer.status === 'ELIGIBLE')) control.textContent = 'Finish scan first';
         control.setAttribute('aria-label', control.textContent);
@@ -2520,7 +2583,7 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
             if (!offer.enrollable) item.append(element('p', 'Informational offer · open Amex to view its terms.', 'muted'));
             const badges = element('div', '', 'badges');
             for (const { account, offer: accountOffer } of accounts) {
-                badges.append(element('span', `${account.cardName} · ${accountOffer.enrollable ? hubOfferStatusLabel(accountOffer.status) : "Skipped"}`, `badge ${accountOffer.status.toLowerCase()}`));
+                badges.append(element('span', `${account.cardName} · ${offerBadgeLabel(accountOffer)}`, `badge ${accountOffer.status.toLowerCase()}`));
             }
             item.append(badges);
             list.append(item);
@@ -2598,7 +2661,7 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
 // --- End issuer body: amex-offer-lite ---
 });
 
-dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"https://deals.merchant-rewards.com/","version":"1.6.3","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*bankofamerica\\.com/.*$","^https://deals\\.merchant-rewards\\.com/.*$"],"patterns":["^https://deals\\.merchant-rewards\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"https://deals.merchant-rewards.com/","version":"1.6.4","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*bankofamerica\\.com/.*$","^https://deals\\.merchant-rewards\\.com/.*$"],"patterns":["^https://deals\\.merchant-rewards\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: bofa-offer-lite ---
 (function () {
     'use strict';
@@ -2606,7 +2669,7 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "bofa-offer-lite", name: "BankAmeriDeals Lite", version: "1.6.3",
+        id: "bofa-offer-lite", name: "BankAmeriDeals Lite", version: "1.6.4",
         gapMilliseconds: 500, timeoutMilliseconds: 45000, pageSize: 24,
         defaultCooldownMilliseconds: 300000
     };
@@ -2908,7 +2971,7 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
 // --- End issuer body: bofa-offer-lite ---
 });
 
-dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://secure.chase.com/web/auth/dashboard","version":"1.6.3","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*chase\\.com/.*$"],"patterns":["^https://secure\\.chase\\.com/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://secure.chase.com/web/auth/dashboard","version":"1.6.4","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*chase\\.com/.*$"],"patterns":["^https://secure\\.chase\\.com/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: chase-offer-lite ---
 (function () {
     'use strict';
@@ -2916,7 +2979,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"card"}, workflow: "per-card",
-        id: "chase-offer-lite", name: "Chase Offer Lite", version: "1.6.3",
+        id: "chase-offer-lite", name: "Chase Offer Lite", version: "1.6.4",
         gapMilliseconds: 500, timeoutMilliseconds: 45000,
         defaultCooldownMilliseconds: 300000
     };
@@ -3690,7 +3753,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
 // --- End issuer body: chase-offer-lite ---
 });
 
-dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://online.citi.com/US/nga/products-offers/merchantoffers","version":"1.6.3","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*citi\\.com/.*$"],"patterns":["^https://online\\.citi\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://online.citi.com/US/nga/products-offers/merchantoffers","version":"1.6.4","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*citi\\.com/.*$"],"patterns":["^https://online\\.citi\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: citi-offer-lite ---
 (function () {
     'use strict';
@@ -3698,7 +3761,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"card"}, workflow: "per-card",
-        id: "citi-offer-lite", name: "Citi Offer Lite", version: "1.6.3",
+        id: "citi-offer-lite", name: "Citi Offer Lite", version: "1.6.4",
         apiBase: '/gcgapi/prod/public/v1',
         retrievePath: '/digital/customers/creditCards/merchantOffers/retrieve',
         enrollmentPath: '/digital/customers/creditCards/accounts/rewards/specialOffers/enrollMerchantOffer',
@@ -4257,7 +4320,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
 // --- End issuer body: citi-offer-lite ---
 });
 
-dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://onlinebanking.usbank.com/digital/servicing/dominjection/cashback-deals","version":"1.6.3","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*usbank\\.com/.*$"],"patterns":["^https://onlinebanking\\.usbank\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://onlinebanking.usbank.com/digital/servicing/dominjection/cashback-deals","version":"1.6.4","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*usbank\\.com/.*$"],"patterns":["^https://onlinebanking\\.usbank\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: usbank-offer-lite ---
 (function () {
     'use strict';
@@ -4265,7 +4328,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "usbank-offer-lite", name: "US Bank Offer Lite", version: "1.6.3",
+        id: "usbank-offer-lite", name: "US Bank Offer Lite", version: "1.6.4",
         endpoint: '/digital/api/customer-management/graphql/v2',
         gapMilliseconds: 500, timeoutMilliseconds: 45000,
         defaultCooldownMilliseconds: 300000
@@ -4364,9 +4427,17 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
             throw new Error('Bank session changed. Scan and select offers again.');
         }
     }
+    // The bank's own GraphQL client sends this sign-in token as a Bearer header.
+    // The page may refresh it, so read it for every request; never store or compare it.
+    function readAccessToken() {
+        const token = sessionStorage.getItem('AccessToken');
+        if (!requiredSessionString(token)) throw new Error('US Bank sign-in token is unavailable. Reload Cash Back Deals after signing in, then scan again.');
+        return token;
+    }
     function sessionHeaders() {
         return {
             Accept: 'application/json', 'Content-Type': 'application/json',
+            authorization: `Bearer ${readAccessToken()}`,
             'application-id': 'web', 'service-version': '2', refreshcache: 'false',
             routingkey: '', 'correlation-id': crypto.randomUUID()
         };
@@ -4662,7 +4733,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
 // --- End issuer body: usbank-offer-lite ---
 });
 
-dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"https://web.secure.wellsfargo.com/auth/deals-portal","version":"1.6.3","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*wellsfargo\\.com/.*$"],"patterns":["^https://web\\.secure\\.wellsfargo\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"https://web.secure.wellsfargo.com/auth/deals-portal","version":"1.6.4","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*wellsfargo\\.com/.*$"],"patterns":["^https://web\\.secure\\.wellsfargo\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: wellsfargo-offer-lite ---
 (function () {
     'use strict';
@@ -4670,7 +4741,7 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "wellsfargo-offer-lite", name: "Wells Fargo Offer Lite", version: "1.6.3",
+        id: "wellsfargo-offer-lite", name: "Wells Fargo Offer Lite", version: "1.6.4",
         retrievePath: '/deals-portal/as/getDeals', enrollmentPath: '/deals-portal/as/activateCLDeal',
         gapMilliseconds: 500, timeoutMilliseconds: 45000, defaultCooldownMilliseconds: 300000
     };

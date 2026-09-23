@@ -41,6 +41,31 @@ test('one fallback member request detects nested cards without fetching any offe
     assert.equal(harness.state.busy, null);
 });
 
+test('canceled cards are never listed, while active supplementary cards under a canceled card are', () => {
+    const harness = createUserscriptHarness();
+    const withStatus = (token, status) => ({ ...rawAccount(token), status });
+    const canceledBasic = withStatus('card-canceled', { account_status: ['Canceled'] });
+    canceledBasic.supplementary_accounts = [withStatus('card-supplementary', { account_status: ['Active'] }),
+        withStatus('card-canceled-supplementary', { account_status: ['Active'], card_status: ['CANCELED'] }), 'not-an-account'];
+    const accounts = harness.normalizeAccounts([canceledBasic, withStatus('card-a', { account_status: ['Active'] }), rawAccount('card-no-status')]);
+    assert.deepEqual(Array.from(accounts, (account) => account.token), ['card-supplementary', 'card-a', 'card-no-status']);
+});
+
+test('page data and the member request both drop canceled cards', async () => {
+    const page = pageState();
+    page.modules['axp-consumer-context-switcher'].products.details.types.CARD_PRODUCT.productsList.second.status = { account_status: ['Canceled'] };
+    const fromPage = createUserscriptHarness(undefined, { initialState: JSON.stringify(transit(page)) });
+    await fromPage.detectCards();
+    assert.deepEqual(Array.from(fromPage.state.accounts, (account) => account.token), ['card-a']);
+    assert.equal(fromPage.requests.length, 0);
+    const onlyCanceled = { ...rawAccount('card-a'), status: { account_status: ['Canceled'] } };
+    const fromMember = createUserscriptHarness(() => jsonResponse({ accounts: [onlyCanceled] }));
+    await fromMember.detectCards();
+    assert.equal(fromMember.requests.length, 1);
+    assert.equal(fromMember.state.detected, false);
+    assert.match(fromMember.state.status, /No active cards were found/);
+});
+
 test('failed detection requires another manual attempt and a minimum delay', async () => {
     const harness = createUserscriptHarness(() => jsonResponse({}, 401));
     await harness.detectCards();

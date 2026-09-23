@@ -37,7 +37,7 @@ async function drainUntil(condition) {
     for (let index = 0; index < 20 && !condition(); index++) await drainMicrotasks();
 }
 
-test('enrollment requests reach the legacy endpoint one at a time, and a rejected card never turns green', async () => {
+test('enrollment requests reach the legacy endpoint one at a time; a rejected card never turns green and the run moves on', async () => {
     const pending = [];
     const harness = createUserscriptHarness((request) => new Promise((resolve) => pending.push({ request, resolve })));
     configureAccounts(harness, ['card-a', 'card-b', 'card-c']);
@@ -58,15 +58,20 @@ test('enrollment requests reach the legacy endpoint one at a time, and a rejecte
     await drainUntil(() => pending.length >= 2);
     // Model the user's actual symptom: a rejection must never be reported as added.
     pending[1].resolve(jsonResponse({ isEnrolled: false }));
+    await drainUntil(() => pending.length >= 3);
+    assert.equal(pending.length, 3, 'an explicit rejection of one offer does not end the run');
+    assert.equal(harness.state.offersByAccount.get('card-b')[0].status, 'FAILED');
+    pending[2].resolve(jsonResponse({ isEnrolled: true }));
     await enrollment;
-    assert.equal(pending.length, 2, 'a rejected enrollment stops the run with no retry and no third request');
+    assert.equal(pending.length, 3, 'the rejected offer is never retried');
+    assert.deepEqual(Array.from(pending, ({ request }) => request.body.accountNumberProxy), ['card-a', 'card-b', 'card-c']);
     assert.ok(pending.every(({ request }) => request.url.endsWith('/CreateCardAccountOfferEnrollment.v1')));
-    assert.equal(new Set(pending.map(({ request }) => request.options.headers['one-data-correlation-id'])).size, 2);
+    assert.equal(new Set(pending.map(({ request }) => request.options.headers['one-data-correlation-id'])).size, 3);
     assert.equal(pending[1].request.startedAt - firstResponseAt, 1000, 'the gap is measured from the previous response');
     assert.equal(harness.state.offersByAccount.get('card-a')[0].status, 'ENROLLED');
     assert.equal(harness.state.offersByAccount.get('card-b')[0].status, 'FAILED');
-    assert.equal(harness.state.offersByAccount.get('card-c')[0].status, 'ELIGIBLE');
-    assert.match(harness.state.status, /1 offers added/);
+    assert.equal(harness.state.offersByAccount.get('card-c')[0].status, 'ENROLLED');
+    assert.match(harness.state.status, /^Enrollment complete\. 2 offers added · 1 declined by Amex\.$/);
     assert.ok(harness.state.logs.some((message) => message.includes('3 offers one at a time')));
     assert.equal(harness.state.logs.filter((message) => message.includes('isEnrolled=false')).length, 1);
 });

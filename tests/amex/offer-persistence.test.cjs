@@ -59,6 +59,19 @@ test('a restored shared offer is added to the top-priority card only and never r
     assert.equal(afterEnrollment.requests.length, 0, 'a second run sends nothing for an offer already added');
 });
 
+test('an offer Amex reports on another card restores as settled; the lower card never takes it', async () => {
+    const previousVisit = await savedScan();
+    const nextVisit = reload(previousVisit, () => jsonResponse({ isEnrolled: false, explanationCode: 'PZN4107' }));
+    await nextVisit.startEnrollment();
+    assert.equal(nextVisit.requests.length, 1);
+    assert.match(nextVisit.state.status, /^Enrollment complete\. 0 offers added · 1 already on another card\.$/);
+    const afterReload = reload(nextVisit);
+    assert.equal(afterReload.state.savedOffersError, '');
+    assert.equal(afterReload.state.offersByAccount.get('card-a')[0].status, 'ON_OTHER_CARD');
+    assert.equal(afterReload.accountOfferCounts('card-a').enrolled, 1, 'not counted as added on this card');
+    assert.equal(afterReload.enrollmentPlan().length, 0, 'card-b must not take an offer Amex already placed');
+});
+
 test('an enrollment interrupted by reload restores as unconfirmed, never as an eligible retry on another card', async () => {
     const previousVisit = await savedScan();
     const pending = [];

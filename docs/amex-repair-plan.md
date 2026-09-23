@@ -1,5 +1,16 @@
 # Amex Offer Lite 修复记录
 
+## 1.6.4：Add all 不再被单条结果卡住，已注销的卡不再列出
+
+- 根因一：旧版把登记的每个非成功回答都当成整批失败。`isEnrolled: false` 抛出「Enrollment was not confirmed」，后面的 Offer 一个都不发；这个 Offer 被标为 FAILED 交给下一张卡，下一次点击很可能又得到同样的回答。结果是每次点击都停在下一个非成功回答上；Offer 多、这类回答又常见时，要反复点很多次。
+- 证据：2026-09-10 的本地复现抓包里有 21 个登记 POST，16 个返回 `isEnrolled: false` 加 `explanationCode: "PZN4107"`（Card member Already added the offer on another card），5 个返回 `isEnrolled: true`。这份抓包来自旧的跨卡并发登记（同一 Offer 在同一秒发给 5–7 张卡），所以这个比例不代表当前版本；它证实的是这个回答的结构和含义。
+- 修复：`PZN4107` 记为新状态 `ON_OTHER_CARD`。它不算这张卡添加成功，但这个 Offer 视为已处理，planner 不再分配给别的卡。其他 `isEnrolled: false` 仍记为 FAILED，要等下一次手动点击才换卡。
+- Add all 对单条 HTTP 200 回答（ENROLLED、ON_OTHER_CARD、FAILED、UNCONFIRMED）都记录后继续下一个，每个 Offer 只发一次。连续 3 个未确认且还有剩余时暂停，剩下的保持可添加。HTTP 错误、网络故障、超时、非 JSON、429、Stop 和存储故障仍停止本轮。
+- 结束统计分开列出已添加、已在另一张卡、被拒和未确认的数量，进度按已处理数计。Activity 附带简短的 explanationCode，只记录形如 `PZN4107` 的代码，不记录服务器返回的自由文本。
+- Offer 快照 schemaVersion 保持 2：`ON_OTHER_CARD` 是新增的枚举值，旧快照全部照常读取，不需要迁移。
+- 根因二：卡片检测不看卡片状态。9 月页面数据的 92 张卡里有 84 张 `account_status` 为 `Canceled`，全部出现在卡片列表中。现在按 Amex 自己卡片切换器的规则过滤：`status.account_status` 或 `status.card_status` 含 CANCELED 就不列出；已注销主卡下仍有效的附属卡照常列出。已保存的旧卡列表不带状态，需要手动点一次 **Refresh cards**。
+- 验证：`npm run build`、`npm run check`、`npm test`（438 项）、`npm run test:browser`（17 组浏览器回归及 17 个 Gherkin 场景、187 个步骤）全部 PASS。新增 `tests/amex/enrollment-continuation.test.cjs` 和 `tests/amex/browser-enrollment-continuation.cjs`；后者在 1.6.3 的产物上先因列出已注销卡失败，去掉这条断言后停在「Enrollment was not confirmed. Scan again before trying it again. 0 offers added.」，在 1.6.4 上通过。`node tests/amex/verify-har.cjs` 对 9 月 HAR 识别 8 张卡。以上都是离线回归，真实账户上的结果见下方「待现场验证」。
+
 ## v5.0：一个 Offer 只加一张卡，按可拖动的卡片优先级分配，取消并发
 
 - 取消同 Offer 跨卡并发。登记改为严格串行：一个请求一张卡，从上一个响应完成起至少 15 秒。请求槽的语义因此简化为「一个槽一个请求」。
@@ -90,6 +101,9 @@
 2. 手动选择少量卡片，验证 Offers Hub 两个视图的实时响应结构及全部页覆盖。新列表请求来自捕获前端代码；本次 HAR 的首屏数据是服务端渲染，不是该接口的直接网络响应。
 3. 拖动排序后确认 Offer 卡片上的 Goes to 指向预期的卡，再用 Add all offers 实际跑一轮，核对 Activity 的逐次 isEnrolled 结果。v4.x 里「同一个 Offer 只成功一张卡」现在是设计行为，不再是判断接口是否接受多卡的线索；本地回归只能证明请求调度与确认处理。
 4. 用户切换 Amex 登录账户后，使用 Force refresh card list 更新当前会话的卡目录；当前版本不主动监听登录变化。whitelist 和优先级都按精确卡片 token 匹配，未实测 Amex 是否在某些会话变化后更换 token，不按同名卡片猜测匹配。调度范围是本页脚本，不控制 Amex 网站自身请求或其他标签页。
+5. 更新到 1.6.4 后点一次 Refresh cards，确认已注销的卡从列表消失、仍有效的附属卡保留。
+6. 用 Add all 实跑一轮，核对 Activity 里 ON_OTHER_CARD 和 FAILED 的 explanationCode，以及面板统计是否和 Amex 页面一致。HTTP 200 里除 `PZN4107` 外的拒绝代码目前没有样本；2025-11 抓包里的 `PZN2001` 是 HTTP 400，仍按 HTTP 错误停止。
+7. 当前版本每个 Offer 只发一张卡，PZN4107 在这种情况下的实际频率未知。它只说明这个 Offer 已在某张卡上，脚本不知道是哪张，可能是不在 whitelist 或没扫描到的卡。
 
 ## 迁移历史
 

@@ -8,6 +8,9 @@ function updateEnrollmentStatus(account, offer, status) {
 
 // One offer, one card, one request slot. The slot enforces the minimum gap from
 // the previous response, so nothing overlaps and nothing retries on its own.
+// Resolves with the status of every HTTP 200 answer, including a declined or
+// unconfirmed one; the caller decides whether the run continues. Transport
+// failures (HTTP errors, 429, timeouts, Stop) still reject.
 function enrollPlannedOffer({ account, offer }) {
     return withRequestSlot(async observe => {
         assertWhitelisted(account.token);
@@ -27,7 +30,7 @@ function enrollPlannedOffer({ account, offer }) {
         try {
             const status = await sendEnrollmentRequest(account.token, offer.id, observe);
             updateEnrollmentStatus(account, offer, status);
-            if (status !== 'ENROLLED') throw new Error('Enrollment was not confirmed. Scan again before trying it again.');
+            return status;
         } catch (error) {
             if (offer.status === 'ELIGIBLE' && !(error instanceof RateLimited) && !(error instanceof RequestStopped)) {
                 updateEnrollmentStatus(account, offer, 'UNCONFIRMED');

@@ -17,7 +17,7 @@ test('manual scan and selection; activation read-back after every write, serial 
         assert.equal(harness.requests[index].startedAt - harness.requests[index - 1].finishedAt, 1000);
     }
     const storage = JSON.stringify([...harness.storage]);
-    for (const secret of ['synthetic-customer', 'synthetic-token', 'synthetic-deals-session', 'synthetic-serve', 'serveToken']) assert.equal(storage.includes(secret), false);
+    for (const secret of ['synthetic-customer', 'synthetic-token', 'synthetic-access-token', 'synthetic-deals-session', 'synthetic-serve', 'serveToken']) assert.equal(storage.includes(secret), false);
 });
 
 test('only selected offers activate; refresh uses changed serving tokens', async () => {
@@ -114,7 +114,7 @@ test('stop during pacing and duplicate clicks cannot launch overlapping runs', a
 
 test('storage errors, unsupported schema, unavailable tab lock, and missing session block requests', async () => {
     for (const options of [
-        { failStorage: true }, { locked: true }, { session: {} },
+        { failStorage: true }, { locked: true }, { session: {} }, { accessToken: null },
         { storage: new Map([['usbank-offer-lite:pacing', { schemaVersion: 2 }]]) }
     ]) {
         const harness = createHarness(successfulResponder(), options);
@@ -122,6 +122,26 @@ test('storage errors, unsupported schema, unavailable tab lock, and missing sess
         assert.equal(harness.requests.length, 0);
         assert.equal(harness.state.needsScan, true);
     }
+});
+
+test('a missing sign-in token stops the scan before any request and says why', async () => {
+    const harness = createHarness(successfulResponder(), { accessToken: null });
+    await harness.scanOffers();
+    assert.equal(harness.requests.length, 0);
+    assert.match(harness.state.status, /sign-in token is unavailable/);
+});
+
+test('each request reads the page’s current Bearer token, so a token refreshed mid-run keeps working', async () => {
+    let tokenVersion = 0;
+    const harness = createHarness(successfulResponder(), { onWait: () => { tokenVersion++; } });
+    const readPageStorage = harness.context.sessionStorage.getItem;
+    harness.context.sessionStorage.getItem = key => key === 'AccessToken' ? `synthetic-access-token-${tokenVersion}` : readPageStorage(key);
+    await harness.scanOffers(); harness.selectAllOffers(); await harness.activateSelectedOffers();
+    assert.equal(harness.state.confirmed, 2);
+    const sentAuthorization = Array.from(harness.requests, request => request.headers.authorization);
+    assert.equal(sentAuthorization.length, 6);
+    assert.ok(sentAuthorization.every(value => /^Bearer synthetic-access-token-\d+$/.test(value)));
+    assert.ok(new Set(sentAuthorization).size > 1);
 });
 
 test('session switch during pacing blocks activation; departing deals page also blocks', async () => {

@@ -24,9 +24,17 @@ function ensureSameSession(expected) {
         throw new Error('Bank session changed. Scan and select offers again.');
     }
 }
+// The bank's own GraphQL client sends this sign-in token as a Bearer header.
+// The page may refresh it, so read it for every request; never store or compare it.
+function readAccessToken() {
+    const token = sessionStorage.getItem('AccessToken');
+    if (!requiredSessionString(token)) throw new Error('US Bank sign-in token is unavailable. Reload Cash Back Deals after signing in, then scan again.');
+    return token;
+}
 function sessionHeaders() {
     return {
         Accept: 'application/json', 'Content-Type': 'application/json',
+        authorization: `Bearer ${readAccessToken()}`,
         'application-id': 'web', 'service-version': '2', refreshcache: 'false',
         routingkey: '', 'correlation-id': crypto.randomUUID()
     };

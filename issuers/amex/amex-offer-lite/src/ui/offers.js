@@ -7,10 +7,19 @@ function offerTargetLine(group, plannedOffer) {
             + (otherEligibleCards ? ` · ${otherEligibleCards} other eligible ${otherEligibleCards === 1 ? 'card is' : 'cards are'} skipped` : ''),
         'offer-target');
     }
-    const settledCard = group.accounts.find(({ offer }) => ['ENROLLED', 'UNCONFIRMED'].includes(offer.status));
+    const settledCard = group.accounts.find(({ offer }) => ['ENROLLED', 'ON_OTHER_CARD', 'UNCONFIRMED'].includes(offer.status));
     if (!settledCard) return null;
-    return element('p', `${settledCard.offer.status === 'ENROLLED' ? 'Already on' : 'Unconfirmed on'} ${settledCard.account.cardName}`
-        + ' · no other card will be used for this offer', 'offer-target');
+    const settledText = {
+        ENROLLED: `Already on ${settledCard.account.cardName}`,
+        ON_OTHER_CARD: 'Amex says it is already on another of your cards',
+        UNCONFIRMED: `Unconfirmed on ${settledCard.account.cardName}`
+    }[settledCard.offer.status];
+    return element('p', `${settledText} · no other card will be used for this offer`, 'offer-target');
+}
+
+function offerBadgeLabel(accountOffer) {
+    if (!accountOffer.enrollable) return 'Skipped';
+    return accountOffer.status === 'ON_OTHER_CARD' ? 'On another card' : hubOfferStatusLabel(accountOffer.status);
 }
 
 function offerEnrollButton(group, plannedOffer) {
@@ -20,6 +29,7 @@ function offerEnrollButton(group, plannedOffer) {
     control.disabled = Boolean(state.busy) || !plannedOffer || Date.now() < state.cooldownUntil;
     if (plannedOffer) control.textContent = 'Add';
     else if (accounts.some(({ offer: accountOffer }) => accountOffer.status === 'ENROLLED')) control.textContent = 'Added';
+    else if (accounts.some(({ offer: accountOffer }) => accountOffer.status === 'ON_OTHER_CARD')) control.textContent = 'Added on another card';
     else if (accounts.some(({ offer: accountOffer }) => ['UNCONFIRMED', 'FAILED'].includes(accountOffer.status))) control.textContent = 'Rescan to verify';
     else if (offer.enrollable && accounts.some(({ offer: accountOffer }) => accountOffer.status === 'ELIGIBLE')) control.textContent = 'Finish scan first';
     control.setAttribute('aria-label', control.textContent);
@@ -61,7 +71,7 @@ function renderOffers() {
         if (!offer.enrollable) item.append(element('p', 'Informational offer · open Amex to view its terms.', 'muted'));
         const badges = element('div', '', 'badges');
         for (const { account, offer: accountOffer } of accounts) {
-            badges.append(element('span', `${account.cardName} · ${accountOffer.enrollable ? hubOfferStatusLabel(accountOffer.status) : "Skipped"}`, `badge ${accountOffer.status.toLowerCase()}`));
+            badges.append(element('span', `${account.cardName} · ${offerBadgeLabel(accountOffer)}`, `badge ${accountOffer.status.toLowerCase()}`));
         }
         item.append(badges);
         list.append(item);

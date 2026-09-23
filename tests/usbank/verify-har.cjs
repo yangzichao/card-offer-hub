@@ -40,6 +40,7 @@ function verifyCapture(filePath) {
     assert.ok(snapshots.length > 0 && activationCount > 0, 'Capture must include listing and activation traffic');
     console.log(`US Bank local HAR contract passed: ${snapshots.length} listing(s), ${snapshots.reduce((count, snapshot) => count + snapshot.offers.length, 0)} offers, ${activationCount} activation acknowledgement(s).`);
     console.log('Acknowledgements do not prove activated state. No network requests were made; live read-back remains unverified.');
+    console.log('Chrome HAR export strips Authorization and Cookie, so request headers are not checked here.');
 }
 try {
     if (!process.argv[2]) throw new Error();

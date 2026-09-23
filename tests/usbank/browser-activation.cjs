@@ -21,6 +21,7 @@ async function fixture(browser, mode = 'success') {
     await page.addInitScript(session => {
         sessionStorage.setItem('offerhubobject', JSON.stringify(session));
         sessionStorage.setItem('userId', 'synthetic-user');
+        sessionStorage.setItem('AccessToken', 'synthetic-access-token');
         window.fixtureStorage = {};
         window.GM_getValue = (key, fallback) => window.fixtureStorage[key] ?? fallback;
         window.GM_setValue = (key, value) => { window.fixtureStorage[key] = value; };
@@ -37,6 +38,11 @@ async function fixture(browser, mode = 'success') {
         const body = request.postDataJSON();
         const activation = body.query.includes('getActivateOffer');
         requests.push({ body, activation, time: await page.evaluate(() => Date.now()) });
+        // The bank's GraphQL gateway rejects calls without the page's Bearer token.
+        if (request.headers().authorization !== 'Bearer synthetic-access-token') {
+            errors.push('GraphQL request without the page Bearer token');
+            return route.fulfill({ status: 401, contentType: 'application/json', body: '{}' });
+        }
         if (activation && mode === '429') {
             return route.fulfill({ status: 429, headers: { 'Retry-After': '600' }, contentType: 'application/json', body: '{}' });
         }

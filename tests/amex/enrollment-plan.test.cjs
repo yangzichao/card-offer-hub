@@ -60,6 +60,12 @@ test('an unconfirmed card blocks the offer until a rescan settles it', () => {
     assert.deepEqual(planOf(harness), []);
 });
 
+test('an offer Amex reports on another card is settled; no other card is tried', () => {
+    const harness = preparedHarness({ 'card-a': ['Shared'], 'card-b': ['Shared'] });
+    offerOn(harness, 'card-a', 'Shared').status = 'ON_OTHER_CARD';
+    assert.deepEqual(planOf(harness), []);
+});
+
 test('a card that definitively refused an offer hands it to the next card', () => {
     const harness = preparedHarness({ 'card-a': ['Shared'], 'card-b': ['Shared'] });
     offerOn(harness, 'card-a', 'Shared').status = 'FAILED';

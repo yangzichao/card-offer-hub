@@ -1,8 +1,16 @@
+// Same rule as Amex's own card switcher: a card is canceled when either status
+// list says CANCELED. Canceled cards cannot take offers, so they are never listed.
+function isCanceledAmexAccount(account) {
+    const statuses = [account.status?.account_status, account.status?.card_status].flatMap(list => Array.isArray(list) ? list : []);
+    return statuses.some(value => typeof value === 'string' && value.toUpperCase() === 'CANCELED');
+}
+
 function normalizeAccounts(accountList) {
     const accounts = new Map();
     function visit(account) {
         if (!account || typeof account !== 'object') return;
-        if (typeof account.account_token === 'string' && account.account_token) {
+        // A canceled basic card can still carry active supplementary cards below.
+        if (typeof account.account_token === 'string' && account.account_token && !isCanceledAmexAccount(account)) {
             const cardType = account.product?.description || 'Amex card';
             const cardholder = account.profile?.first_name || '';
             const displayNumber = account.account?.display_account_number || '';
@@ -43,6 +51,6 @@ async function detectAccountSnapshot({ forceRefresh = false } = {}) {
     });
     if (!Array.isArray(member?.accounts)) throw new Error('Account-list format was not recognized. Open the Amex Offers page and reload.');
     const accounts = normalizeAccounts(member.accounts);
-    if (!accounts.length) throw new Error('No cards were found in this session.');
+    if (!accounts.length) throw new Error('No active cards were found in this session.');
     return { accounts, source: 'one account-list request' };
 }
