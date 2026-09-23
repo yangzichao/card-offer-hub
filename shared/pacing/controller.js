@@ -19,7 +19,8 @@ function createHubAdaptivePacing({ state, policy, diagnostics }) {
             gapBeforeMs: ticket.gapBeforeMs, gapAfterMs: state.pacing.currentGapMs, outcome, httpStatus,
             successCount: state.pacing.successCount, observedActiveMs: state.pacing.observedActiveMs, cooldownUntil: state.cooldownUntil });
     }
-    function rateLimited(retryAfter) {
+    // A limit inferred from a network error passes httpStatus: null, so the log never invents a status.
+    function rateLimited(retryAfter, { httpStatus = 429 } = {}) {
         const now = Date.now();
         const gapBeforeMs = state.pacing.currentGapMs;
         state.pacing = hubLearnPacing(state.pacing, { outcome: 'limited', now }, policy);
@@ -29,7 +30,7 @@ function createHubAdaptivePacing({ state, policy, diagnostics }) {
         const serverDeadline = Math.min(Number.MAX_SAFE_INTEGER, now + Math.ceil(serverDelay));
         state.cooldownUntil = Math.max(state.cooldownUntil, now + clientDelay, serverDeadline);
         diagnostics.record('rate-limited', { gapBeforeMs, gapAfterMs: state.pacing.currentGapMs,
-            cooldownUntil: state.cooldownUntil, serverWaitMs: serverDeadline - now, httpStatus: 429 });
+            cooldownUntil: state.cooldownUntil, serverWaitMs: serverDeadline - now, httpStatus });
     }
     return { policy, startRun, requestStarted, requestFinished, rateLimited,
         getGap: () => state.pacing.currentGapMs };

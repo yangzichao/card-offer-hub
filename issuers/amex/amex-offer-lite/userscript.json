@@ -45,6 +45,7 @@
         "core/page-state.js",
         "core/offer-statistics.js",
         "api/requests.js",
+        "api/opaque-rate-limit.js",
         "api/transport.js",
         "api/accounts.js",
         "api/offers.js",

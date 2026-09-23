@@ -1,5 +1,16 @@
 # Amex Offer Lite 修复记录
 
+## 1.6.5：Amex 的限流被浏览器藏成 "Failed to fetch"
+
+- 现象：Add all 跑一段后自己停下，状态栏是 `Failed to fetch N offers added.`；马上再点 Add all，常常第一个请求就失败，显示 `0 offers added`。
+- 根因：Amex functions 网关限流时回 HTTP 429，但响应头只有 `content-length`、`content-type`、`date`，没有 `Access-Control-Allow-Origin`，也没有 `Retry-After`。浏览器按 CORS 规则拦下这个响应，页面里的 fetch 只会抛 `TypeError: Failed to fetch`，读不到 429。旧版只认明确的 HTTP 429，所以这类失败既不冷却也不降速，只结束本轮。再点一次会立刻撞上同一个限流，而且每撞一次都多一个 Offer 被记成未确认。
+- 证据：2025-11-30 的本地抓包里有 56 个 `CreateCardAccountOfferEnrollment.v1` POST。前 26 个在 31.2 秒内得到正常回答（HTTP 200 或 400），都带 `Access-Control-Allow-Origin: https://global.americanexpress.com`。之后 43.5 秒内的 30 个全部是 HTTP 429，Chrome 记为 `net::ERR_FAILED`，没有一个带 CORS 头或 `Retry-After`。这份抓包来自旧的 v3.4 脚本（约 4 秒一批、每批 1–5 个并发、失败后自动重发），只能说明限流的形态，推不出当前版本会在第几个请求撞上限流。2026-09-10 的三份抓包（后两份起点相同、内容重叠）里 functions 请求全部是 HTTP 200，没有 429，也没有网络错误。
+- 修复：发往 `https://functions.americanexpress.com/` 的请求如果 fetch 抛 `TypeError`，就按没有 `Retry-After` 的 429 处理：结果记为 `limited`，间隔翻倍（第一次从 1s 到 2s），冷却 2 分钟（连续限流时按次数翻倍），保存后结束本轮。这个 Offer 仍然记成未确认，因为页面分不清是 429 还是连接真的断了。冷却期间 Add all 不可点；冷却结束后手动点一次，会从没发过的 Offer 接着加，间隔用学到的较慢值。
+- 超时（AbortError）和同源请求（卡片检测的 `/api/servicing/v1/member`）的网络错误不受影响，照旧停止，不冷却。
+- 调试日志里这类 `rate-limited` 事件和对应的 `request-end` 没有 `httpStatus`，不虚构状态码。为此共享的 `pacing.rateLimited()` 增加了可选的 `httpStatus` 参数，其他银行照旧记录 429。
+- 新代码在 `issuers/amex/amex-offer-lite/src/api/opaque-rate-limit.js`。新增 `tests/amex/network-rate-limit.test.cjs`（5 项）和 `tests/amex/browser-network-rate-limit.cjs`。Playwright 的 `route.fulfill` 不做 CORS 检查，不带 CORS 头的 429 在页面里照样能读到状态码，所以浏览器回归用 `route.abort('failed')` 模拟，页面里得到的同样是 `TypeError: Failed to fetch`。把 dist 换回 1.6.4 时，覆盖修复的 3 项单测失败，浏览器回归停在 `Failed to fetch 1 offers added.`；超时和同源两项保护性单测新旧都通过。
+- 验证：`npm run build`、`npm run check`、`npm test`（443 项）、`npm run test:browser`（18 组浏览器回归及 17 个 Gherkin 场景、187 个步骤）全部 PASS，`git diff --check` 无输出。以上都是离线回归，真实账户上的表现见下方「待现场验证」第 8、9 条。
+
 ## 1.6.4：Add all 不再被单条结果卡住，已注销的卡不再列出
 
 - 根因一：旧版把登记的每个非成功回答都当成整批失败。`isEnrolled: false` 抛出「Enrollment was not confirmed」，后面的 Offer 一个都不发；这个 Offer 被标为 FAILED 交给下一张卡，下一次点击很可能又得到同样的回答。结果是每次点击都停在下一个非成功回答上；Offer 多、这类回答又常见时，要反复点很多次。
@@ -104,6 +115,8 @@
 5. 更新到 1.6.4 后点一次 Refresh cards，确认已注销的卡从列表消失、仍有效的附属卡保留。
 6. 用 Add all 实跑一轮，核对 Activity 里 ON_OTHER_CARD 和 FAILED 的 explanationCode，以及面板统计是否和 Amex 页面一致。HTTP 200 里除 `PZN4107` 外的拒绝代码目前没有样本；2025-11 抓包里的 `PZN2001` 是 HTTP 400，仍按 HTTP 错误停止。
 7. 当前版本每个 Offer 只发一张卡，PZN4107 在这种情况下的实际频率未知。它只说明这个 Offer 已在某张卡上，脚本不知道是哪张，可能是不在 whitelist 或没扫描到的卡。
+8. 更新到 1.6.5 后用 Add all 实跑。撞上限流时状态栏应显示 "Amex stopped answering…"，面板出现冷却倒计时，**Automatic request speed** 里的间隔翻倍。可以在 DevTools 的 Network 里确认那个失败请求的状态是 429，Console 里会有对应的 CORS 报错。
+9. Amex 的限流阈值和窗口长度未知。2 分钟冷却和翻倍后的间隔够不够，要看实跑时是否反复停下；**Save debug log** 导出的日志能看出每次停下前发了多少请求、间隔多少。
 
 ## 迁移历史
 

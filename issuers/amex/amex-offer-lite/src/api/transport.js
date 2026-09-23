@@ -9,10 +9,10 @@ async function sendJsonRequest(url, { body, accountToken, source = 'WEB', observ
         timeoutId = setTimeout(() => controller.abort(), SETTINGS.requestTimeoutMs);
         const headers = { Accept: 'application/json', 'ce-source': source, 'one-data-correlation-id': crypto.randomUUID() };
         if (body) headers['Content-Type'] = 'application/json';
-        const response = await fetch(url, {
+        const response = await fetchTreatingNetworkErrorAsRateLimit(url, {
             method: body ? 'POST' : 'GET', credentials: 'include', headers,
             ...(body ? { body: JSON.stringify(body) } : {}), signal: controller.signal
-        });
+        }, observe);
         observe('neutral', response.status);
         if (response.status === 429) {
             observe('limited');
