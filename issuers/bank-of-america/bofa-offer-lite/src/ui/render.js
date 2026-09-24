@@ -5,14 +5,9 @@ function renderOffers() {
     const visible = state.offers.filter(offer => hubMatchesSearch(offer, state.search));
     if (!visible.length) hubShowEmptyOffers(list, state.search);
     for (const offer of visible) {
-        const row = document.createElement('div');
-        row.className = 'offer';
-        const title = document.createElement('strong');
-        title.textContent = `${offer.name} · ${offer.headline}`;
-        const detail = document.createElement('small');
-        detail.textContent = offer.result === 'Unconfirmed' ? 'Needs review' : offer.activated ? 'Added' : offer.eligible ? 'Available' : `Skipped · ${offer.reason || 'Not eligible'}`;
-        row.append(title, detail);
-        list.append(row);
+        const status = offer.result === 'Unconfirmed' ? 'Needs review' : offer.activated ? 'Added' : offer.eligible ? 'Available' : 'Skipped';
+        list.append(hubOfferRow({ merchant: offer.name, title: offer.headline, status,
+            meta: [status === 'Skipped' ? offer.reason || 'Not eligible' : ''] }));
     }
 }
 function renderPanel() {

@@ -5,21 +5,21 @@ function openHubSearch(launcher) {
     const root = host.attachShadow({ mode: 'open' });
     root.innerHTML = `<style>${HUB_SEARCH_STYLES}</style>
       <dialog aria-labelledby="hub-search-title">
-        <header><div class="hub-heading"><div class="hub-eyebrow">Card Offer Hub · All Banks</div><h2 id="hub-search-title">Find your next offer.</h2></div>
+        <header><div class="hub-heading"><div class="hub-eyebrow">Card Offer Hub · All Banks</div><h2 id="hub-search-title">Search saved offers</h2></div>
           <button class="hub-close" aria-label="Close cross-bank search">×</button></header>
         <div class="hub-search-content">
-          <p class="hub-search-intro">Search offers you have saved across banks. Results reflect your last scans; open the bank to check current terms and availability.</p>
+          <p class="hub-search-intro">Offers from your last scan at each bank. Open the bank to confirm current terms and availability.</p>
           <input id="hub-query" class="hub-query" type="search" aria-label="Search offers across all banks" placeholder="Merchant, offer or card name" autocomplete="off">
           <div class="hub-filters">
             <label>Bank<select id="hub-bank" aria-label="Filter by bank"><option value="">All banks</option></select></label>
             <label>Status<select id="hub-status" aria-label="Filter by offer status"><option value="">All statuses</option><option value="available">Available when scanned</option><option value="added">Added</option><option value="review">Needs review</option><option value="other">Other / skipped</option></select></label>
-            <button id="hub-reload" aria-label="Reload saved results">Reload saved results</button>
-            <button id="hub-reset" aria-label="Clear cross-bank filters">Clear filters</button>
+            <span class="hub-filter-actions"><button id="hub-reload" aria-label="Reload saved results">Reload saved results</button>
+            <button id="hub-reset" aria-label="Clear cross-bank filters">Clear filters</button></span>
           </div>
           <p id="hub-preferences-error" class="hub-search-error" role="alert"></p>
           <p id="hub-data-warning" class="hub-search-error" role="alert"></p>
           <div class="hub-search-summary" role="status" aria-live="polite"><strong id="hub-result-count"></strong><span id="hub-result-coverage" class="muted"></span></div>
-          <div id="hub-results"></div><button id="hub-load-more" class="hub-more" aria-label="Show more cross-bank results"></button>
+          <div id="hub-results" class="hub-results"></div><button id="hub-load-more" class="hub-more" aria-label="Show more cross-bank results"></button>
           <details class="hub-coverage"><summary aria-label="Show saved bank coverage">Saved bank coverage</summary><ul id="hub-coverage-list"></ul><p>Scan each bank to include its saved offers here.</p></details>
         </div>
       </dialog>`;

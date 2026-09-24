@@ -7,18 +7,22 @@ function hubWorkflowMarkup(scopeMarkup, { bank, template, extraReviewMarkup = ''
         <section class="hub-step" data-step="scope"><h3>${view.scopeTitle}</h3>
           <p class="muted hub-scope-hint">${view.scopeHint}</p>${scopeMarkup}</section>
         <section class="hub-step" data-step="review"><h3>${view.offersTitle}</h3>
-          <div class="actions hub-primary-actions"><button id="scan" aria-label="${scanLabel}" title="${scanDescription}">${scanLabel}</button>
-            <button id="add" class="primary" aria-label="Add all offers" aria-describedby="hub-action-reason" ${readOnly ? 'hidden' : ''}>Add all offers</button>
-            <button id="stop" class="stop" aria-label="Stop" hidden>Stop</button></div>
-          <p id="hub-action-reason" class="hub-action-reason" role="note"></p>
+          <div class="hub-command">
+            <div class="actions hub-primary-actions"><button id="scan" aria-label="${scanLabel}" title="${scanDescription}">${scanLabel}</button>
+              <button id="add" class="primary" aria-label="Add all offers" aria-describedby="hub-action-reason" ${readOnly ? 'hidden' : ''}>Add all offers</button>
+              <button id="stop" class="stop" aria-label="Stop" hidden>Stop</button></div>
+            <p id="hub-action-reason" class="hub-action-reason" role="note"></p>
+            <div id="hub-progress" class="hub-progress" role="progressbar" aria-label="Task progress" hidden><span></span></div>
+            <div id="status" class="hub-status" role="status" aria-live="polite"></div><div id="storage-error" class="error hub-storage-error" role="alert"></div>
+          </div>
           ${readOnly ? `<p id="enrollment-notice" class="notice">Add offers on the ${bank} website.</p>` : ''}
-          <input id="search" type="search" aria-label="Search saved offers" placeholder="Search saved offers">
-          <button id="hub-clear-search" class="hub-clear-search" aria-label="Clear search" hidden>Clear search</button>
+          <div class="hub-search-field"><input id="search" type="search" aria-label="Search saved offers" placeholder="Search saved offers">
+            <button id="hub-clear-search" class="hub-clear-search" aria-label="Clear search" hidden>Clear search</button></div>
           <p class="muted hub-search-rule" hidden>${view.searchRule}</p>
-          <p id="counts" class="muted"></p>${extraReviewMarkup ? `<div class="actions">${extraReviewMarkup}</div>` : ''}
+          <p id="counts" class="muted hub-counts"></p>${extraReviewMarkup ? `<div class="actions hub-selection-bar">${extraReviewMarkup}</div>` : ''}
           <div id="offers" class="offers"></div>
         </section>
-        <footer><p id="workspace-cache" class="muted"></p><div id="status" role="status" aria-live="polite"></div><div id="storage-error" class="error" role="alert"></div>${hubPacingDetailsMarkup()}</footer>
+        <footer><p id="workspace-cache" class="muted"></p>${hubPacingDetailsMarkup()}</footer>
       </div></div>`;
 }
 function hubMatchesSearch(offer, query) {
@@ -33,7 +37,7 @@ function hubOfferStatusLabel(status) {
 }
 function hubShowEmptyOffers(container, query) {
     const note = document.createElement('p');
-    note.className = 'muted';
+    note.className = 'muted hub-empty-note';
     note.textContent = query.trim() ? 'No offers match your search. Clear search to view all saved offers in this scope.' : 'No offers in this scope yet. Choose your scope and scan to refresh.';
     container.append(note);
 }
@@ -47,6 +51,9 @@ function renderHubWorkflow(root, { template, count, hasScope = true, needsScan =
     const add = root.getElementById('add') || root.getElementById('btn-enroll-all');
     hubSetActionLabel(add, 'Add all offers', busy ? null : count);
     add.disabled = Boolean(busy || storageError || readOnly || coolingDown || !hasScope || needsScan || !count);
+    add.classList.toggle('primary', !add.disabled);
+    const scan = root.getElementById('scan') || root.getElementById('btn-scan');
+    scan?.classList.toggle('primary', add.disabled && !busy);
     const stop = root.getElementById('stop') || root.getElementById('btn-stop');
     stop.hidden = !busy;
     const reason = root.getElementById('hub-action-reason');
@@ -59,6 +66,7 @@ function renderHubWorkflow(root, { template, count, hasScope = true, needsScan =
         : !count ? 'No available offers in this scope. Scan again to refresh.'
         : '';
     reason.hidden = !reason.textContent;
+    hubRenderTaskProgress(root, { busy, completed: progress?.completed, total: progress?.total });
     hubRenderSearchControls(root, readOnly);
 }
 

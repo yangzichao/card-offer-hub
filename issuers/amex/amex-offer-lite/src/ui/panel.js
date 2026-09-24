@@ -25,9 +25,9 @@ function createUI() {
     panelRoot = element('div');
     panelRoot.id = PANEL_ELEMENT_ID;
     const shadow = panelRoot.attachShadow({ mode: 'open' });
-    const scope = `<p class="muted">Drag cards or use the arrows to change priority.</p>
-        <div class="actions"><button id="btn-detect" aria-label="Detect cards">Detect cards</button><button id="btn-refresh-cards" aria-label="Refresh cards">Refresh cards</button></div>
-        <p id="whitelist-summary" class="muted"></p><p id="saved-cards-status" class="muted" role="status"></p><div id="card-list" class="cards"></div>`;
+    const scope = `<div class="actions hub-scope-actions"><button id="btn-detect" aria-label="Detect cards">Detect cards</button><button id="btn-refresh-cards" aria-label="Refresh cards">Refresh cards</button></div>
+        <p id="whitelist-summary" class="muted"></p><div id="card-list" class="cards"></div>
+        <p class="muted hub-fine-print">Drag cards or use the arrows to change priority.</p><p id="saved-cards-status" class="muted hub-fine-print" role="status"></p>`;
     let markup = hubWorkflowMarkup(scope, { bank: 'Amex', template: offerWorkflow });
     for (const [from, to] of Object.entries({ body: 'content', scan: 'btn-scan', stop: 'btn-stop', search: 'input-search', add: 'btn-enroll-all', offers: 'offer-list', counts: 'offer-summary', 'workspace-cache': 'saved-offers-status' })) {
         markup = markup.replace(`id="${from}"`, `id="${to}"`);

@@ -38,7 +38,7 @@ function renderCards() {
     savedCardsStatus.textContent = state.savedCardsError || (state.savedCardsReady
         ? 'Saved in Tampermonkey. Your cards, whitelist and offer priority survive page reloads.'
         : 'Your card list, whitelist and offer priority will be saved after detection.');
-    savedCardsStatus.className = state.savedCardsError ? 'storage-error' : 'muted';
+    savedCardsStatus.className = `${state.savedCardsError ? 'storage-error' : 'muted'} hub-fine-print`;
     const accounts = prioritizedAccounts();
     accounts.forEach((account, index) => list.append(cardRow(account, index, accounts.length)));
 }

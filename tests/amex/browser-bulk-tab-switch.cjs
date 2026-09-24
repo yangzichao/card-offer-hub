@@ -73,6 +73,9 @@ async function run() {
         assert.equal(await bulk.getAttribute('aria-label'), 'Add all offers');
         assert.equal(await bulk.isDisabled(), true);
         assert.match(await page.locator('#hub-action-reason').innerText(), /Adding 0 of 3/);
+        const progress = page.getByRole('progressbar', { name: 'Task progress', exact: true });
+        assert.equal(await progress.getAttribute('aria-valuenow'), '0');
+        assert.equal(await progress.getAttribute('aria-valuemax'), '3', 'bulk add reports determinate progress');
         await page.getByRole('searchbox').fill('Gamma');
         // A bank SPA replacing the panel must preserve the in-memory run too.
         await page.evaluate(() => document.getElementById('amex-offer-lite-ui').remove());
@@ -87,6 +90,7 @@ async function run() {
         assert.ok(requests.every(request => request.accountNumberProxy === 'card-a'));
         await switchTabs();
         assert.equal(await bulk.innerText(), 'Add all offers (0)');
+        assert.equal(await page.getByRole('progressbar').count(), 0, 'progress hides when the run ends');
         assert.equal(requests.length, 3, 'no replay after returning to the tab');
         await page.getByRole('button', { name: 'Clear search', exact: true }).click();
         mkdirSync(resolve(__dirname, '../../work/browser'), { recursive: true });

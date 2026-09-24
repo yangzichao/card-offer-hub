@@ -1,13 +1,14 @@
 function decorateHubPanel(shadowRoot, version) {
     const header = shadowRoot.querySelector('header');
     const title = header.querySelector('h2');
+    const mark = document.createElement('span');
+    mark.className = 'hub-mark';
+    mark.setAttribute('aria-hidden', 'true');
     const heading = document.createElement('div');
     heading.className = 'hub-heading';
     const eyebrow = document.createElement('div');
     eyebrow.className = 'hub-eyebrow';
     eyebrow.textContent = 'Card Offer Hub';
-    header.insertBefore(heading, title);
-    heading.append(eyebrow, title);
     const release = document.createElement('span');
     release.className = 'hub-version';
     release.textContent = `v${version}`;
@@ -23,5 +24,11 @@ function decorateHubPanel(shadowRoot, version) {
     const releaseRow = document.createElement('div');
     releaseRow.className = 'hub-release';
     releaseRow.append(release, update);
-    heading.append(releaseRow);
+    // Brand, version and update share one line so the header stays two lines tall.
+    const topline = document.createElement('div');
+    topline.className = 'hub-topline';
+    topline.append(eyebrow, releaseRow);
+    header.insertBefore(heading, title);
+    header.insertBefore(mark, heading);
+    heading.append(topline, title);
 }

@@ -8,17 +8,21 @@ function installHubSearchLauncher(configuration) {
         if (!root || root.querySelector('.hub-search-launcher')) return;
         const header = root.querySelector('header');
         if (!header) return;
-        const launcher = hubNode('button', '', 'hub-search-launcher');
+        const launcher = hubNode('button', 'Search all banks', 'hub-search-launcher');
         launcher.type = 'button';
         launcher.setAttribute('aria-label', 'Search all banks');
-        launcher.append(hubNode('span', 'Search all banks'), hubNode('span', 'Your saved offers ↗'));
+        launcher.title = 'Search the offers you have saved across every bank';
         launcher.onclick = () => openHubSearch(launcher);
-        header.after(launcher);
-        const offers = hubNode('a', `Open ${configuration.label} offers`);
+        const offers = hubNode('a', `Open ${configuration.label} offers`, 'hub-offers-link');
         offers.href = configuration.offersUrl;
-        offers.className = 'hub-search-launcher';
         offers.setAttribute('aria-label', `Open ${configuration.label} offers`);
-        launcher.after(offers);
+        const toolbar = hubNode('nav', '', 'hub-toolbar');
+        toolbar.setAttribute('aria-label', 'Card Offer Hub shortcuts');
+        toolbar.append(launcher, offers);
+        // Inside the collapsible body, so a minimized panel shrinks to its header.
+        const body = root.getElementById('body') || root.getElementById('content');
+        if (body) body.prepend(toolbar);
+        else header.after(toolbar);
     };
     const ready = () => {
         mount();

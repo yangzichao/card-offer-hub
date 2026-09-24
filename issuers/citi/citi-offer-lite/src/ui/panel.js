@@ -10,9 +10,6 @@ function mountPanel() {
     });
     document.body.appendChild(host);
     state.panel = panel;
-    // Progress and failures must remain next to the actions, above long offer lists.
-    const actions = panel.querySelector('.hub-primary-actions');
-    actions.after(panel.getElementById('status'), panel.getElementById('storage-error'));
     panel.querySelector('.hub-search-rule').textContent = 'Both actions add across your selected cards, including offers hidden by search.';
     renderPanel();
 }

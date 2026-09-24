@@ -6,24 +6,19 @@ function renderOffers() {
     const visible = state.offers.filter(offer => state.selected.has(offer.accountId)).filter(offer => hubMatchesSearch(offer, search));
     if (!visible.length) {
         const note = document.createElement('p');
-        note.className = 'muted';
+        note.className = 'muted hub-empty-note';
         note.textContent = search.trim() ? 'No offers match your search.'
             : state.selected.size ? 'No saved offers on these cards. Use Refresh & add offers.' : 'Your selected cards’ offers will appear here.';
         container.appendChild(note);
     }
     for (const offer of visible.slice(0, 200)) {
-        const row = document.createElement('div');
-        row.className = 'offer';
-        const title = document.createElement('strong');
-        title.textContent = `${offer.merchant} · ${offer.title}`;
-        const detail = document.createElement('small');
         const card = state.accounts.find(account => account.accountId === offer.accountId);
-        detail.textContent = `${card?.name || 'Card'} · ${hubOfferStatusLabel(offer.status)} · ${offer.expires}`;
-        row.append(title, detail);
-        container.appendChild(row);
+        container.appendChild(hubOfferRow({ merchant: offer.merchant, title: offer.title, status: hubOfferStatusLabel(offer.status),
+            meta: [card?.name || 'Card', hubOfferExpiry(offer.expires)] }));
     }
     if (visible.length > 200) {
         const note = document.createElement('p');
+        note.className = 'muted hub-list-limit';
         note.textContent = `Showing 200 of ${visible.length}; search to narrow the display. All available offers remain in the queue.`;
         container.appendChild(note);
     }
@@ -42,7 +37,7 @@ function renderPanel() {
     cards.replaceChildren();
     if (!state.accounts.length) {
         const note = document.createElement('p');
-        note.className = 'muted';
+        note.className = 'muted hub-empty-note';
         note.textContent = 'Load your cards to get started.';
         cards.appendChild(note);
     }
