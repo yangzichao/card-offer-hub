@@ -28,5 +28,6 @@ function renderCitiActions(panel) {
         : !savedCount ? 'No saved offers left to add. Refresh & add offers checks for new ones.'
         : '';
     reason.hidden = !reason.textContent;
+    hubRenderTaskProgress(panel, { busy: Boolean(state.busy), completed: state.completed, total: state.total });
     hubRenderSearchControls(panel);
 }

@@ -6,21 +6,15 @@ function renderOffers() {
     const visible = state.offers.filter(offer => hubMatchesSearch(offer, search));
     if (!visible.length) hubShowEmptyOffers(container, search);
     for (const offer of visible) {
-        const row = document.createElement('label');
-        row.className = 'offer';
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.checked = state.selected.has(offer.offerId);
         checkbox.disabled = state.busy || Boolean(state.storageError) || offer.status !== 'AVAILABLE';
         checkbox.setAttribute('aria-label', `Select ${offer.merchant}: ${offer.title}`);
         checkbox.addEventListener('change', () => setOfferSelected(offer.offerId, checkbox.checked));
-        const title = document.createElement('strong');
-        title.textContent = ` ${offer.merchant} · ${offer.title}`;
-        const detail = document.createElement('small');
-        const date = typeof offer.expires === 'string' ? offer.expires.slice(0, 10) : 'Unknown expiry';
-        detail.textContent = `${hubOfferStatusLabel(offer.status)} · ${date}`;
-        row.append(checkbox, title, detail);
-        container.appendChild(row);
+        const date = typeof offer.expires === 'string' ? hubOfferExpiry(offer.expires.slice(0, 10)) : 'Unknown expiry';
+        container.appendChild(hubOfferRow({ tag: 'label', leading: checkbox, merchant: offer.merchant, title: offer.title,
+            status: hubOfferStatusLabel(offer.status), meta: [date] }));
     }
 }
 function renderPanel() {

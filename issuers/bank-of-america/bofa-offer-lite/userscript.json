@@ -18,6 +18,8 @@
     "sharedModules": [
         "ui/design-system.js",
         "ui/panel-branding.js",
+        "ui/offer-row.js",
+        "ui/task-progress.js",
         "ui/workflow-layout.js",
         "persistence/workspace-records.js",
         "persistence/workspace-storage.js",

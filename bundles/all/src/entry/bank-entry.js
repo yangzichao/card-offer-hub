@@ -18,9 +18,9 @@ function installHubBankEntry(configuration) {
     const content = hubNode('section');
     content.id = 'hub-entry-content';
     toggle.setAttribute('aria-controls', content.id);
-    content.append(hubNode('p', 'Open your bank’s Offers page to scan or add offers. Sign in there if needed.'));
+    content.append(hubNode('p', 'Open your bank’s Offers page to scan or add offers. Sign in there if needed.', 'muted'));
     const actions = hubNode('div', '', 'actions');
-    const offers = hubNode('a', `Open ${configuration.label} offers`);
+    const offers = hubNode('a', `Open ${configuration.label} offers`, 'hub-button primary');
     offers.href = configuration.offersUrl;
     offers.setAttribute('aria-label', `Open ${configuration.label} offers`);
     const search = hubNode('button', 'Search all banks');

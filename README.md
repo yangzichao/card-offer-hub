@@ -6,7 +6,7 @@
 
 <!-- published-scripts:start -->
 
-**[安装 / 更新 Card Offer Hub 1.6.5](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/card-offer-hub-all.user.js)** — 唯一安装包，包含下列 6 家银行。
+**[安装 / 更新 Card Offer Hub 1.6.6](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/card-offer-hub-all.user.js)** — 唯一安装包，包含下列 6 家银行。
 
 安装一次，覆盖银行主域名和所有子域名；网银显示操作面板，其他页面提供 Offers 入口和缓存搜索。所有银行共用一个发布版本。[地址匹配说明](docs/website-matching.md)
 
@@ -27,7 +27,7 @@
 
 面板中的 **Search all banks** 可同时搜索六家银行已保存的 Offer，按银行或状态筛选，查看卡片、扫描时间和有效期，再打开对应银行页面。搜索条件会保留；**Reload saved results** 只读取本地缓存。各家银行需要先手动扫描一次。详见[使用说明](bundles/all/README.md#跨银行搜索)。
 
-六家银行使用统一的浅色界面，按每卡、账户和 Amex 组合三种业务模型组织流程。Citi 选卡后可直接 **Add saved offers** 使用缓存添加，或 **Refresh & add offers** 刷新后自动添加。搜索只改变列表，批量添加始终处理已选范围。详见[统一操作流程](docs/unified-workflow.md)。
+六家银行使用统一的浅色界面，按每卡、账户和 Amex 组合三种业务模型组织流程。Citi 选卡后可直接 **Add saved offers** 使用缓存添加，或 **Refresh & add offers** 刷新后自动添加。搜索只改变列表，批量添加始终处理已选范围。详见[统一操作流程](docs/unified-workflow.md)和[面板 UI/UX 重设计](docs/ui-redesign.md)。
 
 请求速度按银行自动学习并保存在本地：从响应后 1 秒开始，稳定后小步提速，遇到 429 减速并保留冷却；下次点击沿用上次经验。无需调参数，始终串行、手动开始，失败不自动重试。详见[自动调速算法](docs/adaptive-pacing.md)。
 

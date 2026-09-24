@@ -83,7 +83,17 @@ async function run() {
             if (script.issuer !== 'amex') {
                 assert.equal(await page.locator('.offer').count(), 1, 'saved result restores');
                 assert.ok(await page.getByRole('checkbox', { checked: true }).count() > 0, 'saved choice restores');
+                assert.equal(await page.locator('.offer .offer-status').count(), 1, 'every offer row shows its status');
             }
+            assert.equal(await page.locator('.hub-primary-actions > button.primary:visible').count(), 1, 'one primary next step at a time');
+            assert.equal(await page.getByRole('progressbar', { name: 'Task progress', includeHidden: true }).count(), 1);
+            assert.equal(await page.getByRole('progressbar').count(), 0, 'progress stays hidden while idle');
+            await page.getByRole('button', { name: /^Minimize .+ panel$/ }).click();
+            assert.equal(await page.getByRole('button', { name: 'Search all banks', exact: true }).isVisible(), false, 'minimizing hides the shortcuts');
+            assert.ok((await page.locator('.panel').boundingBox()).height < 96, 'a minimized panel is a compact header bar');
+            assert.equal(await page.getByRole('link', { name: 'Update Card Offer Hub', exact: true }).isVisible(), true);
+            await page.getByRole('button', { name: /^Expand .+ panel$/ }).click();
+            assert.equal(await page.getByRole('button', { name: 'Search all banks', exact: true }).isVisible(), true);
             const search = page.getByRole('searchbox');
             if (await search.count()) {
                 assert.equal(await search.inputValue(), 'synthetic');
@@ -109,6 +119,16 @@ async function run() {
             assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= 390, 'template fits a narrow viewport');
             const overflow = await page.locator('.panel').evaluate(panel => panel.scrollWidth > panel.clientWidth);
             assert.equal(overflow, false, 'template controls do not overflow horizontally');
+            // One scroll area: the header stays put and the actions stick while the list scrolls.
+            await page.setViewportSize({ width: 390, height: 480 });
+            const scroller = page.locator('.panel > #body, .panel > #content');
+            assert.equal(await scroller.evaluate(body => body.scrollHeight > body.clientHeight), true, 'short viewports scroll the panel body');
+            await scroller.evaluate(body => { body.scrollTop = body.scrollHeight; });
+            const viewport = await scroller.boundingBox();
+            const actions = await page.locator('.hub-primary-actions').boundingBox();
+            assert.ok(actions.y >= viewport.y - 1 && actions.y + actions.height <= viewport.y + viewport.height, 'actions remain reachable at the end of the list');
+            assert.equal(await page.locator('header').first().isVisible(), true);
+            await page.setViewportSize({ width: 390, height: 844 });
             assert.deepEqual(errors, []);
             // A bank can replace its application shell during same-document navigation.
             // Keep the existing panel, saved choices and handlers attached.

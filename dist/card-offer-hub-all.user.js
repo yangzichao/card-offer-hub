@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Card Offer Hub — All Banks
 // @namespace    https://github.com/yangzichao/card-offer-hub
-// @version      1.6.5
+// @version      1.6.6
 // @description  All six Card Offer Hub tools in one install; manual scanning and activation on the matching bank website
 // @author       Zichao Yang
 // @match        https://*.americanexpress.com/*
@@ -29,33 +29,71 @@
 // --- Shared runtime ---
     // Source: shared/ui/design-system.js
     const HUB_DESIGN_STYLES = `
-    :host{all:initial;--hub-ink:#20322f;--hub-muted:#64746e;--hub-accent:#176653;--hub-tint:#edf6f1;--hub-line:#dce5df;--hub-canvas:#f5f7f4;--hub-radius:16px;position:fixed;right:16px;bottom:16px;z-index:2147483646;color:var(--hub-ink);font:13px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:light}
+    :host{all:initial;--hub-ink:#18191c;--hub-ink-soft:#40434a;--hub-muted:#6d7075;--hub-accent:#176653;--hub-accent-strong:#0f5140;--hub-tint:#ecf4f0;--hub-accent-line:#c6ddd3;--hub-line:#e6e7ea;--hub-line-strong:#d3d5d9;--hub-surface:#fff;--hub-canvas:#f7f7f8;--hub-hover:#f0f1f3;--hub-warn-ink:#8a5a12;--hub-warn-bg:#fdf4e4;--hub-warn-line:#efdcb8;--hub-danger:#b02a2a;--hub-danger-bg:#fdf0f0;--hub-danger-line:#f0caca;--hub-radius:14px;--hub-radius-sm:8px;--hub-shadow:0 1px 2px #16181c0f,0 10px 32px #16181c1f,0 0 0 1px #16181c08;--hub-search-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='7' cy='7' r='4.75' fill='none' stroke='black' stroke-width='1.6'/%3E%3Cpath d='m10.5 10.5 3.5 3.5' stroke='black' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");position:fixed;right:16px;bottom:16px;z-index:2147483646;color:var(--hub-ink);font:13px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color-scheme:light;-webkit-font-smoothing:antialiased}
     *,*::before,*::after{box-sizing:border-box}[hidden]{display:none!important}
-    .panel{width:min(464px,calc(100vw - 24px));max-height:88vh;max-height:88dvh;overflow:auto;background:#fff;border:1px solid var(--hub-line);border-radius:var(--hub-radius);box-shadow:0 16px 60px #21392d20}
-    header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;border-bottom:1px solid var(--hub-line);background:#fff}
-    .hub-heading{min-width:0;flex:1}.hub-eyebrow{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--hub-accent);font-weight:750;margin-bottom:3px}.hub-version{font-size:10px;color:var(--hub-muted);font-variant-numeric:tabular-nums}
-    .hub-release{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:6px}.hub-update{display:inline-flex;align-items:center;min-height:28px;padding:2px 8px;border:1px solid var(--hub-line);border-radius:6px;font-size:11px;font-weight:550;text-decoration:none}.hub-update:hover{background:var(--hub-tint);border-color:#a8c6b9}
-    h2{font-size:18px;line-height:1.3;letter-spacing:-.035em;margin:0;font-weight:650}h3{font-size:12px;margin:0 0 8px;font-weight:650}p{margin:6px 0}
-    section,main{padding:16px 20px;border-bottom:1px solid var(--hub-line)}footer,.status{padding:14px 20px;background:var(--hub-canvas);overflow-wrap:anywhere}.muted,.card-report,.logs{color:var(--hub-muted);font-size:12px}.error,.storage-error{color:#a33232}.notice{border-left:3px solid #a2b9ac;background:var(--hub-canvas);padding:10px 12px}
-    button,input,select{font:inherit}button,select{border:1px solid var(--hub-line);border-radius:9px;color:var(--hub-ink);background:#fff;padding:8px 12px;min-height:36px}button{cursor:pointer;font-weight:550}button:not(:disabled):hover{background:var(--hub-tint);border-color:#a8c6b9}button.primary{background:var(--hub-accent);color:#fff;border-color:var(--hub-accent)}button.primary:not(:disabled):hover{background:#10523f}button:disabled{opacity:.45;cursor:not-allowed}button.stop{color:#a33232}button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid #79ad99;outline-offset:3px}
-    input[type=search]{width:100%;padding:11px 13px;border:1px solid var(--hub-line);border-radius:10px;background:var(--hub-canvas);color:var(--hub-ink)}input[type=checkbox]{accent-color:var(--hub-accent);flex:none;width:15px;height:15px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}.cards{max-height:180px;overflow:auto}.card{display:flex;align-items:flex-start;gap:9px;padding:9px 0;overflow-wrap:anywhere}.card input{margin-top:3px}.card-info{min-width:0;flex:1}
-    .offers{max-height:260px;overflow:auto;margin-top:10px}.offer{display:block;padding:13px 0;border-bottom:1px solid var(--hub-line);overflow-wrap:anywhere}.offer:last-child{border-bottom:0}.offer small{display:block;color:var(--hub-muted);margin-top:5px}.offer-title{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.offer-title button{flex-shrink:0}.badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.badge{border-radius:5px;background:var(--hub-canvas);padding:3px 7px;font-size:11px}.badge.enrolled{background:var(--hub-tint);color:var(--hub-accent)}.badge.unconfirmed,.badge.failed{background:#fff1da;color:#865711}.card-counts,.offer-counts,.offer-target{color:var(--hub-accent);font-size:12px}.logs{max-height:90px;overflow:auto}a{color:var(--hub-accent);text-underline-offset:3px}
-    .hub-search-launcher{display:flex;align-items:center;justify-content:space-between;width:100%;border:0;border-bottom:1px solid var(--hub-line);border-radius:0;background:var(--hub-tint);padding:11px 20px;color:var(--hub-accent);text-align:left}.hub-search-launcher span:last-child{font-size:11px;font-weight:400}
-    .hub-step h3{font-size:12px;letter-spacing:.03em;margin-bottom:10px;color:var(--hub-accent)}.hub-action-reason{font-size:12px;color:var(--hub-muted);margin-top:10px}.hub-clear-search{font-size:11px;min-height:28px;padding:4px 8px;margin-top:6px}.hub-search-rule{font-size:11px}.hub-step .actions{margin-bottom:8px}
-    @media(max-width:500px){:host{right:12px;bottom:12px}header{padding:16px}section,main,footer,.status{padding:14px 16px}}
+    .panel{counter-reset:hub-step;display:flex;flex-direction:column;width:min(440px,calc(100vw - 24px));max-height:88vh;max-height:88dvh;overflow:hidden;background:var(--hub-surface);border:1px solid var(--hub-line-strong);border-radius:var(--hub-radius);box-shadow:var(--hub-shadow)}
+    .panel>#body,.panel>#content,.panel>#hub-entry-content{flex:1 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain}
+    .panel:has(>#body[hidden],>#content[hidden],>#hub-entry-content[hidden]){width:auto;max-width:calc(100vw - 24px)}.panel:has(>#body[hidden],>#content[hidden],>#hub-entry-content[hidden])>header{border-bottom:0}
+    header{flex:none;display:flex;align-items:center;gap:11px;padding:11px 10px 11px 14px;border-bottom:1px solid var(--hub-line);background:var(--hub-surface)}
+    .hub-mark{flex:none;position:relative;width:28px;height:20px;border-radius:5px;background:var(--hub-accent);box-shadow:inset 0 0 0 1px #00000014}.hub-mark::before{content:'';position:absolute;left:0;right:0;top:5px;height:3px;background:#ffffff55}.hub-mark::after{content:'';position:absolute;left:5px;bottom:4px;width:8px;height:2px;border-radius:1px;background:#ffffffb0}
+    .hub-heading{min-width:0;flex:1}.hub-topline{display:flex;align-items:center;flex-wrap:wrap;gap:0 7px;font-size:10.5px;line-height:1.5;color:var(--hub-muted)}
+    .hub-eyebrow{font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:650;color:var(--hub-muted)}.hub-release{display:inline-flex;align-items:center;gap:7px}.hub-release::before{content:'·';content:'·'/''}.hub-version{font-variant-numeric:tabular-nums}
+    .hub-update{display:inline-flex;align-items:center;min-height:20px;padding:0 5px;margin:0 -5px;border-radius:5px;color:var(--hub-accent);font-weight:600;text-decoration:none}.hub-update:hover{background:var(--hub-tint);text-decoration:underline}
+    h2{font-size:15px;line-height:1.3;letter-spacing:-.01em;margin:0;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    header>button{flex:none;width:32px;height:32px;min-height:32px;padding:0;border-color:transparent;background:transparent;color:var(--hub-muted);font-size:18px;font-weight:400;line-height:1}header>button:not(:disabled):hover{background:var(--hub-hover);border-color:transparent;color:var(--hub-ink)}
+    h3{font-size:11px;letter-spacing:.06em;text-transform:uppercase;margin:0 0 8px;font-weight:650;color:var(--hub-muted)}p{margin:6px 0}
+    section,main{padding:14px 16px 16px;border-bottom:1px solid var(--hub-line)}
+    .hub-step>h3{display:flex;align-items:center;gap:8px}.hub-step>h3::before{counter-increment:hub-step;content:counter(hub-step);content:counter(hub-step)/'';display:inline-grid;place-items:center;flex:none;width:18px;height:18px;border-radius:50%;background:var(--hub-hover);color:var(--hub-ink-soft);font-size:10px;letter-spacing:0}
+    .muted,.card-report,.logs{color:var(--hub-muted);font-size:12px}.hub-scope-hint{margin:0 0 6px}.hub-fine-print{font-size:11.5px;margin:6px 0 0}.hub-scope-actions{margin:4px 0 8px}.error,.storage-error{color:var(--hub-danger)}
+    .notice{margin:10px 0 0;border-left:2px solid var(--hub-line-strong);background:var(--hub-canvas);border-radius:0 var(--hub-radius-sm) var(--hub-radius-sm) 0;padding:8px 10px;color:var(--hub-ink-soft);font-size:12px}
+    a{color:var(--hub-accent);text-underline-offset:3px}
+    button,input,select{font:inherit}button,select{min-height:34px;padding:6px 12px;border:1px solid var(--hub-line-strong);border-radius:var(--hub-radius-sm);color:var(--hub-ink);background:var(--hub-surface)}
+    button{cursor:pointer;font-weight:550;transition:background-color .12s ease,border-color .12s ease,color .12s ease}button:not(:disabled):hover{background:var(--hub-hover);border-color:var(--hub-muted)}
+    button.primary{background:var(--hub-accent);color:#fff;border-color:var(--hub-accent);box-shadow:0 1px 2px #0f514029}button.primary:not(:disabled):hover{background:var(--hub-accent-strong);border-color:var(--hub-accent-strong)}
+    button:disabled{cursor:not-allowed;color:var(--hub-muted);background:var(--hub-canvas);border-color:var(--hub-line);box-shadow:none}
+    button.stop{color:var(--hub-danger);border-color:var(--hub-danger-line)}button.stop:not(:disabled):hover{background:var(--hub-danger-bg);border-color:var(--hub-danger)}
+    button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible,summary:focus-visible{outline:2px solid var(--hub-accent);outline-offset:2px}
+    .hub-button{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:6px 12px;border:1px solid var(--hub-line-strong);border-radius:var(--hub-radius-sm);background:var(--hub-surface);color:var(--hub-ink);font-weight:550;text-decoration:none}.hub-button:hover{background:var(--hub-hover)}.hub-button.primary{background:var(--hub-accent);border-color:var(--hub-accent);color:#fff}.hub-button.primary:hover{background:var(--hub-accent-strong)}
+    input[type=checkbox]{accent-color:var(--hub-accent);flex:none;width:15px;height:15px;margin:2px 0 0;cursor:pointer}input[type=checkbox]:disabled{cursor:not-allowed}
+    .actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}
+    .hub-toolbar{display:flex;gap:8px;padding:10px 16px;border-bottom:1px solid var(--hub-line);background:var(--hub-canvas)}
+    .hub-toolbar>*{flex:1 1 0;min-width:0;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:32px;padding:5px 10px;border:1px solid var(--hub-line-strong);border-radius:var(--hub-radius-sm);background:var(--hub-surface);color:var(--hub-ink);font-size:12px;font-weight:550;line-height:1.3;text-align:center;text-decoration:none}.hub-toolbar>*:hover{background:var(--hub-hover);border-color:var(--hub-muted)}
+    .hub-search-launcher::before{content:'';flex:none;width:12px;height:12px;background:currentColor;-webkit-mask:var(--hub-search-icon) center/contain no-repeat;mask:var(--hub-search-icon) center/contain no-repeat}.hub-offers-link::after{content:'→';content:'→'/'';color:var(--hub-muted)}
+    .cards{margin:4px -8px 0}.card{display:flex;align-items:flex-start;gap:10px;padding:7px 8px;border-radius:var(--hub-radius-sm);overflow-wrap:anywhere}label.card{cursor:pointer}label.card:hover,.cards>.card:hover{background:var(--hub-hover)}section>label.card{margin:6px -8px 0}.card-info{min-width:0;flex:1}
+    .hub-command{position:sticky;top:0;z-index:2;margin:-4px -16px 0;padding:8px 16px 12px;background:var(--hub-surface);box-shadow:0 1px 0 var(--hub-line)}.hub-primary-actions{margin:0}.hub-primary-actions>button{flex:1 1 auto}
+    .hub-action-reason{margin:10px 0 0;padding:8px 10px;border-radius:var(--hub-radius-sm);background:var(--hub-canvas);color:var(--hub-ink-soft);font-size:12px}
+    .hub-progress{position:relative;height:4px;margin:10px 0 0;border-radius:99px;background:var(--hub-hover);overflow:hidden}.hub-progress>span{position:absolute;top:0;bottom:0;left:0;width:var(--hub-progress,0%);border-radius:inherit;background:var(--hub-accent);transition:width .3s ease}.hub-progress.indeterminate>span{width:35%;animation:hub-progress-sweep 1.3s ease-in-out infinite}
+    @keyframes hub-progress-sweep{from{left:-35%}to{left:100%}}
+    .hub-status:not(:empty),.hub-storage-error:not(:empty){margin:10px 0 0;padding:8px 10px;border-left:3px solid var(--hub-line-strong);border-radius:0 var(--hub-radius-sm) var(--hub-radius-sm) 0;background:var(--hub-canvas);color:var(--hub-ink);font-size:12px;overflow-wrap:anywhere}.hub-storage-error:not(:empty){border-left-color:var(--hub-danger);background:var(--hub-danger-bg);color:var(--hub-danger)}
+    .hub-search-field{position:relative;margin:12px 0 0}.hub-search-field::before{content:'';position:absolute;left:11px;top:11px;width:14px;height:14px;background:var(--hub-muted);-webkit-mask:var(--hub-search-icon) center/contain no-repeat;mask:var(--hub-search-icon) center/contain no-repeat;pointer-events:none}
+    input[type=search]{width:100%;height:36px;padding:0 12px 0 32px;border:1px solid var(--hub-line-strong);border-radius:var(--hub-radius-sm);background:var(--hub-canvas);color:var(--hub-ink);-webkit-appearance:none;appearance:none}input[type=search]:hover{border-color:var(--hub-muted)}input[type=search]:focus{background:var(--hub-surface)}input[type=search]::-webkit-search-cancel-button{-webkit-appearance:none;display:none}.hub-search-field:has(.hub-clear-search:not([hidden]))>input{padding-right:92px}
+    .hub-clear-search{position:absolute;right:4px;top:4px;height:28px;min-height:28px;padding:0 8px;border-color:transparent;background:transparent;color:var(--hub-muted);font-size:11.5px}.hub-clear-search:not(:disabled):hover{border-color:transparent;color:var(--hub-ink)}
+    .hub-search-rule{font-size:11.5px;margin:6px 0 0}.hub-counts{margin:10px 0 0;font-size:12px;font-variant-numeric:tabular-nums}
+    .hub-selection-bar{align-items:center;gap:4px;margin:10px 0 0;padding:4px;border:1px solid var(--hub-line);border-radius:10px;background:var(--hub-canvas)}.hub-selection-bar>button{min-height:30px;padding:4px 10px;font-size:12px;border-color:transparent;background:transparent}.hub-selection-bar>button:first-child{margin-right:auto;background:var(--hub-surface);border-color:var(--hub-line-strong)}.hub-selection-bar>button:disabled{background:transparent;border-color:transparent}.hub-selection-bar>button:first-child:disabled{border-color:var(--hub-line)}
+    .offers{margin:6px 0 0}.offer{display:block;padding:11px 0;border-bottom:1px solid var(--hub-line);overflow-wrap:anywhere}.offer:last-child{border-bottom:0}.offer-row{display:flex;align-items:flex-start;gap:10px}label.offer{cursor:pointer}.offer-body{min-width:0;flex:1}
+    .offer-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.offer-merchant{font-weight:600}.offer-value{margin-top:1px;color:var(--hub-ink-soft)}.offer small{display:block;margin-top:3px;color:var(--hub-muted);font-size:11.5px}
+    .offer-status,.badge{display:inline-flex;align-items:center;gap:5px;flex:none;padding:1px 8px;border:1px solid var(--hub-line);border-radius:99px;background:var(--hub-surface);color:var(--hub-ink-soft);font-size:11px;font-weight:550;line-height:1.6;white-space:nowrap}
+    .offer-status.available::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--hub-accent)}.offer-status.added,.badge.enrolled{background:var(--hub-tint);border-color:var(--hub-accent-line);color:var(--hub-accent-strong)}.offer-status.review,.badge.unconfirmed,.badge.failed{background:var(--hub-warn-bg);border-color:var(--hub-warn-line);color:var(--hub-warn-ink)}.offer-status.skipped{border-color:transparent;background:var(--hub-canvas);color:var(--hub-muted)}
+    .offer-title{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;font-weight:600}.offer-title button{flex:none;min-height:28px;padding:3px 10px;font-size:12px}.offer>p{margin:3px 0 0;font-size:12px}.badges{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px}.badge{white-space:normal}
+    .card-counts,.offer-counts{color:var(--hub-ink-soft);font-size:12px}.offer-target{color:var(--hub-ink);font-size:12px}.hub-empty-note{margin:12px 0 4px;padding:14px 12px;border:1px dashed var(--hub-line-strong);border-radius:10px;text-align:center}.hub-list-limit{margin:10px 0 0;text-align:center}
+    footer,.status{padding:12px 16px 14px;background:var(--hub-canvas);overflow-wrap:anywhere}footer>p:first-child{margin-top:0}.logs{max-height:120px;overflow:auto}
+    details{margin-top:6px;font-size:12px;color:var(--hub-muted)}summary{cursor:pointer;width:fit-content;padding:2px 0;border-radius:4px;color:var(--hub-ink-soft);font-weight:550}summary:hover{color:var(--hub-ink)}details button{min-height:30px;padding:4px 10px;font-size:12px}
+    @media(max-width:500px){:host{right:12px;bottom:12px}header{padding:10px 8px 10px 12px}section,main,footer,.status,.hub-toolbar{padding-left:14px;padding-right:14px}.hub-command{margin:0 -14px;padding-left:14px;padding-right:14px}}
+    @media(prefers-reduced-motion:reduce){button{transition:none}.hub-progress>span{transition:none}.hub-progress.indeterminate>span{animation:none;left:0;width:100%;opacity:.45}}
     `;
 
     // Source: shared/ui/panel-branding.js
     function decorateHubPanel(shadowRoot, version) {
         const header = shadowRoot.querySelector('header');
         const title = header.querySelector('h2');
+        const mark = document.createElement('span');
+        mark.className = 'hub-mark';
+        mark.setAttribute('aria-hidden', 'true');
         const heading = document.createElement('div');
         heading.className = 'hub-heading';
         const eyebrow = document.createElement('div');
         eyebrow.className = 'hub-eyebrow';
         eyebrow.textContent = 'Card Offer Hub';
-        header.insertBefore(heading, title);
-        heading.append(eyebrow, title);
         const release = document.createElement('span');
         release.className = 'hub-version';
         release.textContent = `v${version}`;
@@ -71,7 +109,32 @@
         const releaseRow = document.createElement('div');
         releaseRow.className = 'hub-release';
         releaseRow.append(release, update);
-        heading.append(releaseRow);
+        // Brand, version and update share one line so the header stays two lines tall.
+        const topline = document.createElement('div');
+        topline.className = 'hub-topline';
+        topline.append(eyebrow, releaseRow);
+        header.insertBefore(heading, title);
+        header.insertBefore(mark, heading);
+        heading.append(topline, title);
+    }
+
+    // Source: shared/ui/task-progress.js
+    // Determinate when the task knows its total, indeterminate otherwise; hidden when idle.
+    function hubRenderTaskProgress(root, { busy = false, completed = 0, total = 0 } = {}) {
+        const meter = root?.getElementById('hub-progress');
+        if (!meter) return;
+        meter.hidden = !busy;
+        const determinate = Boolean(busy) && total > 0;
+        meter.classList.toggle('indeterminate', Boolean(busy) && !determinate);
+        for (const name of ['aria-valuemin', 'aria-valuemax', 'aria-valuenow', 'aria-valuetext']) meter.removeAttribute(name);
+        meter.style.removeProperty('--hub-progress');
+        if (!determinate) return;
+        const done = Math.max(0, Math.min(completed, total));
+        meter.setAttribute('aria-valuemin', '0');
+        meter.setAttribute('aria-valuemax', String(total));
+        meter.setAttribute('aria-valuenow', String(done));
+        meter.setAttribute('aria-valuetext', `${done} of ${total}`);
+        meter.style.setProperty('--hub-progress', `${(done / total) * 100}%`);
     }
 
     // Source: shared/ui/workflow-layout.js
@@ -84,18 +147,22 @@
             <section class="hub-step" data-step="scope"><h3>${view.scopeTitle}</h3>
               <p class="muted hub-scope-hint">${view.scopeHint}</p>${scopeMarkup}</section>
             <section class="hub-step" data-step="review"><h3>${view.offersTitle}</h3>
-              <div class="actions hub-primary-actions"><button id="scan" aria-label="${scanLabel}" title="${scanDescription}">${scanLabel}</button>
-                <button id="add" class="primary" aria-label="Add all offers" aria-describedby="hub-action-reason" ${readOnly ? 'hidden' : ''}>Add all offers</button>
-                <button id="stop" class="stop" aria-label="Stop" hidden>Stop</button></div>
-              <p id="hub-action-reason" class="hub-action-reason" role="note"></p>
+              <div class="hub-command">
+                <div class="actions hub-primary-actions"><button id="scan" aria-label="${scanLabel}" title="${scanDescription}">${scanLabel}</button>
+                  <button id="add" class="primary" aria-label="Add all offers" aria-describedby="hub-action-reason" ${readOnly ? 'hidden' : ''}>Add all offers</button>
+                  <button id="stop" class="stop" aria-label="Stop" hidden>Stop</button></div>
+                <p id="hub-action-reason" class="hub-action-reason" role="note"></p>
+                <div id="hub-progress" class="hub-progress" role="progressbar" aria-label="Task progress" hidden><span></span></div>
+                <div id="status" class="hub-status" role="status" aria-live="polite"></div><div id="storage-error" class="error hub-storage-error" role="alert"></div>
+              </div>
               ${readOnly ? `<p id="enrollment-notice" class="notice">Add offers on the ${bank} website.</p>` : ''}
-              <input id="search" type="search" aria-label="Search saved offers" placeholder="Search saved offers">
-              <button id="hub-clear-search" class="hub-clear-search" aria-label="Clear search" hidden>Clear search</button>
+              <div class="hub-search-field"><input id="search" type="search" aria-label="Search saved offers" placeholder="Search saved offers">
+                <button id="hub-clear-search" class="hub-clear-search" aria-label="Clear search" hidden>Clear search</button></div>
               <p class="muted hub-search-rule" hidden>${view.searchRule}</p>
-              <p id="counts" class="muted"></p>${extraReviewMarkup ? `<div class="actions">${extraReviewMarkup}</div>` : ''}
+              <p id="counts" class="muted hub-counts"></p>${extraReviewMarkup ? `<div class="actions hub-selection-bar">${extraReviewMarkup}</div>` : ''}
               <div id="offers" class="offers"></div>
             </section>
-            <footer><p id="workspace-cache" class="muted"></p><div id="status" role="status" aria-live="polite"></div><div id="storage-error" class="error" role="alert"></div>${hubPacingDetailsMarkup()}</footer>
+            <footer><p id="workspace-cache" class="muted"></p>${hubPacingDetailsMarkup()}</footer>
           </div></div>`;
     }
     function hubMatchesSearch(offer, query) {
@@ -110,7 +177,7 @@
     }
     function hubShowEmptyOffers(container, query) {
         const note = document.createElement('p');
-        note.className = 'muted';
+        note.className = 'muted hub-empty-note';
         note.textContent = query.trim() ? 'No offers match your search. Clear search to view all saved offers in this scope.' : 'No offers in this scope yet. Choose your scope and scan to refresh.';
         container.append(note);
     }
@@ -124,6 +191,9 @@
         const add = root.getElementById('add') || root.getElementById('btn-enroll-all');
         hubSetActionLabel(add, 'Add all offers', busy ? null : count);
         add.disabled = Boolean(busy || storageError || readOnly || coolingDown || !hasScope || needsScan || !count);
+        add.classList.toggle('primary', !add.disabled);
+        const scan = root.getElementById('scan') || root.getElementById('btn-scan');
+        scan?.classList.toggle('primary', add.disabled && !busy);
         const stop = root.getElementById('stop') || root.getElementById('btn-stop');
         stop.hidden = !busy;
         const reason = root.getElementById('hub-action-reason');
@@ -136,6 +206,7 @@
             : !count ? 'No available offers in this scope. Scan again to refresh.'
             : '';
         reason.hidden = !reason.textContent;
+        hubRenderTaskProgress(root, { busy, completed: progress?.completed, total: progress?.total });
         hubRenderSearchControls(root, readOnly);
     }
 
@@ -649,6 +720,49 @@
             searchRule: 'Add all follows your card priority for every planned offer, including results hidden by search.' });
     }
 
+    // Source: shared/ui/offer-row.js
+    function hubOfferStatusTone(label) {
+        return { Available: 'available', Added: 'added', 'Needs review': 'review' }[label] || 'skipped';
+    }
+    // One scannable row: merchant and status on top, the offer itself, then card and dates.
+    function hubOfferRow({ merchant = '', title = '', status = '', meta = [], tag = 'div', leading = null }) {
+        const row = document.createElement(tag);
+        row.className = 'offer offer-row';
+        if (leading) row.append(leading);
+        const body = document.createElement('div');
+        body.className = 'offer-body';
+        const head = document.createElement('div');
+        head.className = 'offer-head';
+        const name = document.createElement('strong');
+        name.className = 'offer-merchant';
+        name.textContent = merchant || title || 'Offer';
+        head.append(name);
+        if (status) {
+            const chip = document.createElement('span');
+            chip.className = `offer-status ${hubOfferStatusTone(status)}`;
+            chip.textContent = status;
+            head.append(chip);
+        }
+        body.append(head);
+        if (merchant && title) {
+            const value = document.createElement('div');
+            value.className = 'offer-value';
+            value.textContent = title;
+            body.append(value);
+        }
+        const details = meta.filter(Boolean);
+        if (details.length) {
+            const small = document.createElement('small');
+            small.textContent = details.join(' · ');
+            body.append(small);
+        }
+        row.append(body);
+        return row;
+    }
+    function hubOfferExpiry(expires) {
+        return expires ? `Expires ${expires}` : '';
+    }
+
     // Source: shared/persistence/workspace-records.js
     function serializeWorkspaceRecord(record, fields) {
         const normalized = {};
@@ -1151,9 +1265,22 @@ function hubSaveSearchPreferences(preferences) {
 }
 
 const HUB_SEARCH_STYLES = HUB_DESIGN_STYLES + `
-dialog{position:fixed;inset:0;margin:auto;width:min(880px,calc(100vw - 32px));max-width:none;max-height:90vh;max-height:90dvh;padding:0;border:1px solid var(--hub-line);border-radius:20px;background:var(--hub-canvas);color:var(--hub-ink);box-shadow:0 28px 100px #18312640;font:inherit;overflow:auto}
-dialog::backdrop{background:#20352d66;backdrop-filter:blur(3px)}dialog header{padding:24px 28px}dialog h2{font-size:27px}.hub-search-content{padding:22px 28px}.hub-search-intro{color:var(--hub-muted);max-width:620px;margin:0 0 18px}.hub-query{font-size:16px!important;background:#fff!important;padding:14px 16px!important}.hub-filters{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin:14px 0 20px}.hub-filters label{display:grid;gap:5px;font-size:11px;color:var(--hub-muted)}.hub-filters select{min-width:160px;background:#fff}.hub-filters button{margin-left:auto}.hub-search-summary{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}.hub-search-summary strong{font-size:14px}.hub-result{background:#fff;border:1px solid var(--hub-line);border-radius:12px;padding:18px;margin-bottom:10px}.hub-result-top{display:flex;gap:10px;justify-content:space-between;align-items:center;margin-bottom:9px}.hub-bank{font-size:11px;font-weight:650;letter-spacing:.02em;color:var(--hub-accent)}.hub-result h3{font-size:16px;margin:0 0 5px;overflow-wrap:anywhere}.hub-result p{overflow-wrap:anywhere;margin:4px 0}.hub-result-meta{font-size:11px;color:var(--hub-muted);display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.hub-result a{font-size:12px}.hub-state{font-size:10px;padding:3px 8px;border-radius:20px;background:var(--hub-canvas);white-space:nowrap}.hub-state.available,.hub-state.added{color:var(--hub-accent);background:var(--hub-tint)}.hub-state.review{color:#865711;background:#fff1da}.hub-empty{padding:36px 18px;text-align:center;color:var(--hub-muted);background:#fff;border:1px dashed var(--hub-line);border-radius:12px}.hub-coverage{margin-top:20px;color:var(--hub-muted);font-size:12px}.hub-coverage summary{cursor:pointer}.hub-coverage ul{list-style:none;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:8px}.hub-coverage li{display:flex;justify-content:space-between;gap:12px;padding:8px;background:#fff;border-radius:7px}.hub-more{width:100%;margin-top:5px}.hub-search-error{color:#a33232;font-size:12px}.hub-close{font-size:18px;padding:6px 12px}
-@media(max-width:600px){dialog{width:calc(100vw - 16px);max-height:94dvh;border-radius:14px}dialog header{padding:18px}.hub-search-content{padding:16px}.hub-filters{gap:8px}.hub-filters label{flex:1;min-width:120px}.hub-filters select{width:100%;min-width:0}.hub-filters button{margin-left:0}.hub-coverage ul{grid-template-columns:1fr}.hub-result{padding:14px}.hub-search-summary{align-items:flex-start}.hub-search-summary span{max-width:140px;text-align:right}}
+dialog{position:fixed;inset:0;margin:auto;width:min(760px,calc(100vw - 32px));max-width:none;max-height:88vh;max-height:88dvh;padding:0;border:1px solid var(--hub-line-strong);border-radius:16px;background:var(--hub-surface);color:var(--hub-ink);box-shadow:0 24px 80px #16181c33,0 0 0 1px #16181c0a;font:inherit;overflow:auto;overscroll-behavior:contain}
+dialog::backdrop{background:#1c1e2152;backdrop-filter:blur(2px)}dialog header{position:sticky;top:0;z-index:2;padding:16px 16px 14px 24px}dialog h2{font-size:19px;letter-spacing:-.02em;white-space:normal}.hub-close{font-size:20px}
+.hub-search-content{padding:16px 24px 24px}.hub-search-intro{color:var(--hub-muted);font-size:12.5px;max-width:560px;margin:0 0 14px}
+.hub-query{display:block;height:42px!important;font-size:15px!important;padding-left:38px!important;background:var(--hub-surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='7' cy='7' r='4.75' fill='none' stroke='%236d7075' stroke-width='1.6'/%3E%3Cpath d='m10.5 10.5 3.5 3.5' stroke='%236d7075' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat 13px center/15px 15px!important}
+.hub-filters{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin:12px 0 18px}.hub-filters label{display:grid;gap:4px;font-size:11px;letter-spacing:.04em;text-transform:uppercase;font-weight:650;color:var(--hub-muted)}.hub-filters select{min-width:150px;min-height:34px;padding:5px 10px;text-transform:none;letter-spacing:0;font-weight:400;color:var(--hub-ink)}
+.hub-filter-actions{display:flex;gap:6px;margin-left:auto}.hub-filter-actions button{min-height:34px;padding:5px 11px;font-size:12px;border-color:transparent;background:transparent;color:var(--hub-ink-soft)}.hub-filter-actions button:not(:disabled):hover{border-color:var(--hub-line-strong)}
+.hub-search-summary{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:8px}.hub-search-summary strong{font-size:13px}.hub-search-summary span{font-size:12px}
+.hub-results{border:1px solid var(--hub-line);border-radius:12px;overflow:hidden}.hub-results:empty{display:none}
+.hub-result{padding:13px 16px;border-bottom:1px solid var(--hub-line)}.hub-result:last-child{border-bottom:0}.hub-result:hover{background:var(--hub-canvas)}
+.hub-result-top{display:flex;gap:10px;justify-content:space-between;align-items:center;margin-bottom:4px}.hub-bank{font-size:10.5px;font-weight:650;letter-spacing:.08em;text-transform:uppercase;color:var(--hub-muted)}
+.hub-result h3{font-size:14px;letter-spacing:0;text-transform:none;color:var(--hub-ink);font-weight:600;margin:0;overflow-wrap:anywhere}.hub-result p{overflow-wrap:anywhere;margin:2px 0 0;color:var(--hub-ink-soft)}
+.hub-result-meta{font-size:11.5px;color:var(--hub-muted);display:flex;gap:4px 12px;flex-wrap:wrap;margin:6px 0 4px}.hub-result a{font-size:12px;font-weight:550;text-decoration:none}.hub-result a:hover{text-decoration:underline}
+.hub-state{display:inline-flex;align-items:center;gap:5px;padding:1px 8px;border:1px solid var(--hub-line);border-radius:99px;background:var(--hub-surface);color:var(--hub-ink-soft);font-size:11px;font-weight:550;line-height:1.6;white-space:nowrap}.hub-state.available::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--hub-accent)}.hub-state.added{color:var(--hub-accent-strong);background:var(--hub-tint);border-color:var(--hub-accent-line)}.hub-state.review{color:var(--hub-warn-ink);background:var(--hub-warn-bg);border-color:var(--hub-warn-line)}.hub-state.other{border-color:transparent;background:var(--hub-canvas);color:var(--hub-muted)}
+.hub-empty{padding:32px 18px;text-align:center;color:var(--hub-muted)}.hub-more{width:100%;margin-top:10px}.hub-search-error{color:var(--hub-danger);font-size:12px}.hub-search-error:empty{display:none}
+.hub-coverage{margin-top:18px}.hub-coverage ul{list-style:none;padding:0;margin:10px 0 0;display:grid;grid-template-columns:1fr 1fr;gap:6px}.hub-coverage li{display:flex;justify-content:space-between;gap:12px;padding:7px 10px;background:var(--hub-canvas);border-radius:var(--hub-radius-sm)}.hub-coverage p{margin:8px 0 0}
+@media(max-width:600px){dialog{width:calc(100vw - 16px);max-height:94dvh;border-radius:14px}dialog header{padding:12px 10px 12px 16px}.hub-search-content{padding:14px 16px 18px}.hub-filters label{flex:1;min-width:120px}.hub-filters select{width:100%;min-width:0}.hub-filter-actions{margin-left:0;width:100%}.hub-filter-actions button{flex:1;border-color:var(--hub-line-strong)}.hub-coverage ul{grid-template-columns:1fr}.hub-result{padding:12px 14px}.hub-search-summary span{max-width:150px;text-align:right}}
 `;
 
 const HUB_STATUS_LABELS = { available: 'Available when scanned', added: 'Added', review: 'Needs review', other: 'Other / skipped' };
@@ -1211,21 +1338,21 @@ function openHubSearch(launcher) {
     const root = host.attachShadow({ mode: 'open' });
     root.innerHTML = `<style>${HUB_SEARCH_STYLES}</style>
       <dialog aria-labelledby="hub-search-title">
-        <header><div class="hub-heading"><div class="hub-eyebrow">Card Offer Hub · All Banks</div><h2 id="hub-search-title">Find your next offer.</h2></div>
+        <header><div class="hub-heading"><div class="hub-eyebrow">Card Offer Hub · All Banks</div><h2 id="hub-search-title">Search saved offers</h2></div>
           <button class="hub-close" aria-label="Close cross-bank search">×</button></header>
         <div class="hub-search-content">
-          <p class="hub-search-intro">Search offers you have saved across banks. Results reflect your last scans; open the bank to check current terms and availability.</p>
+          <p class="hub-search-intro">Offers from your last scan at each bank. Open the bank to confirm current terms and availability.</p>
           <input id="hub-query" class="hub-query" type="search" aria-label="Search offers across all banks" placeholder="Merchant, offer or card name" autocomplete="off">
           <div class="hub-filters">
             <label>Bank<select id="hub-bank" aria-label="Filter by bank"><option value="">All banks</option></select></label>
             <label>Status<select id="hub-status" aria-label="Filter by offer status"><option value="">All statuses</option><option value="available">Available when scanned</option><option value="added">Added</option><option value="review">Needs review</option><option value="other">Other / skipped</option></select></label>
-            <button id="hub-reload" aria-label="Reload saved results">Reload saved results</button>
-            <button id="hub-reset" aria-label="Clear cross-bank filters">Clear filters</button>
+            <span class="hub-filter-actions"><button id="hub-reload" aria-label="Reload saved results">Reload saved results</button>
+            <button id="hub-reset" aria-label="Clear cross-bank filters">Clear filters</button></span>
           </div>
           <p id="hub-preferences-error" class="hub-search-error" role="alert"></p>
           <p id="hub-data-warning" class="hub-search-error" role="alert"></p>
           <div class="hub-search-summary" role="status" aria-live="polite"><strong id="hub-result-count"></strong><span id="hub-result-coverage" class="muted"></span></div>
-          <div id="hub-results"></div><button id="hub-load-more" class="hub-more" aria-label="Show more cross-bank results"></button>
+          <div id="hub-results" class="hub-results"></div><button id="hub-load-more" class="hub-more" aria-label="Show more cross-bank results"></button>
           <details class="hub-coverage"><summary aria-label="Show saved bank coverage">Saved bank coverage</summary><ul id="hub-coverage-list"></ul><p>Scan each bank to include its saved offers here.</p></details>
         </div>
       </dialog>`;
@@ -1277,17 +1404,21 @@ function installHubSearchLauncher(configuration) {
         if (!root || root.querySelector('.hub-search-launcher')) return;
         const header = root.querySelector('header');
         if (!header) return;
-        const launcher = hubNode('button', '', 'hub-search-launcher');
+        const launcher = hubNode('button', 'Search all banks', 'hub-search-launcher');
         launcher.type = 'button';
         launcher.setAttribute('aria-label', 'Search all banks');
-        launcher.append(hubNode('span', 'Search all banks'), hubNode('span', 'Your saved offers ↗'));
+        launcher.title = 'Search the offers you have saved across every bank';
         launcher.onclick = () => openHubSearch(launcher);
-        header.after(launcher);
-        const offers = hubNode('a', `Open ${configuration.label} offers`);
+        const offers = hubNode('a', `Open ${configuration.label} offers`, 'hub-offers-link');
         offers.href = configuration.offersUrl;
-        offers.className = 'hub-search-launcher';
         offers.setAttribute('aria-label', `Open ${configuration.label} offers`);
-        launcher.after(offers);
+        const toolbar = hubNode('nav', '', 'hub-toolbar');
+        toolbar.setAttribute('aria-label', 'Card Offer Hub shortcuts');
+        toolbar.append(launcher, offers);
+        // Inside the collapsible body, so a minimized panel shrinks to its header.
+        const body = root.getElementById('body') || root.getElementById('content');
+        if (body) body.prepend(toolbar);
+        else header.after(toolbar);
     };
     const ready = () => {
         mount();
@@ -1318,9 +1449,9 @@ function installHubBankEntry(configuration) {
     const content = hubNode('section');
     content.id = 'hub-entry-content';
     toggle.setAttribute('aria-controls', content.id);
-    content.append(hubNode('p', 'Open your bank’s Offers page to scan or add offers. Sign in there if needed.'));
+    content.append(hubNode('p', 'Open your bank’s Offers page to scan or add offers. Sign in there if needed.', 'muted'));
     const actions = hubNode('div', '', 'actions');
-    const offers = hubNode('a', `Open ${configuration.label} offers`);
+    const offers = hubNode('a', `Open ${configuration.label} offers`, 'hub-button primary');
     offers.href = configuration.offersUrl;
     offers.setAttribute('aria-label', `Open ${configuration.label} offers`);
     const search = hubNode('button', 'Search all banks');
@@ -1372,14 +1503,14 @@ function dispatchIssuer(configuration, startIssuer) {
 }
 
 // --- Issuer dispatches ---
-dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://global.americanexpress.com/offers","version":"1.6.5","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*americanexpress\\.com/.*$"],"patterns":["^https://global\\.americanexpress\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://global.americanexpress.com/offers","version":"1.6.6","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*americanexpress\\.com/.*$"],"patterns":["^https://global\\.americanexpress\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: amex-offer-lite ---
 (function () {
     'use strict';
 
     // Source: core/state.js
     const SETTINGS = Object.freeze({
-        version: "1.6.5", capabilities: {"activation":true,"scope":"card"}, workflow: "amex-combination",
+        version: "1.6.6", capabilities: {"activation":true,"scope":"card"}, workflow: "amex-combination",
         requestGapMs: 500,
         rateLimitCooldownMs: 120000,
         requestTimeoutMs: 30000,
@@ -2355,10 +2486,11 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
     // Source: ui/styles.js
     const PANEL_STYLES = HUB_DESIGN_STYLES + `
     .card.drop-target{background:var(--hub-tint);outline:2px dashed var(--hub-accent);outline-offset:-2px}
-    .drag-handle{cursor:grab;color:var(--hub-muted);line-height:1;margin-top:2px;user-select:none}
-    .card-rank{color:var(--hub-muted);font-size:11px;min-width:13px;margin-top:2px;text-align:right}
-    .card-move{display:flex;flex-direction:column;gap:3px}.card-move button.move{min-height:22px;padding:0 6px;font-size:11px;line-height:1.6}
-    .offer-target{font-weight:500;margin:4px 0 0}
+    .drag-handle{cursor:grab;color:var(--hub-muted);line-height:1.5;padding:0 2px;border-radius:4px;user-select:none}.drag-handle:hover{color:var(--hub-ink);background:var(--hub-line)}
+    .card-rank{flex:none;min-width:14px;color:var(--hub-muted);font-size:11px;line-height:1.8;font-variant-numeric:tabular-nums;text-align:right}
+    .card-info>div:first-child{font-weight:550}.card-info>div+div{font-size:11.5px}
+    .card-move{display:flex;gap:2px}.card-move button.move{width:26px;height:26px;min-height:26px;padding:0;font-size:12px;border-color:transparent;background:transparent;color:var(--hub-muted)}.card-move button.move:not(:disabled):hover{border-color:var(--hub-line-strong);background:var(--hub-surface);color:var(--hub-ink)}.card-move button.move:disabled{opacity:.35;background:transparent;border-color:transparent}
+    .offer-target{font-weight:550}
     `;
 
     // Source: ui/panel.js
@@ -2389,9 +2521,9 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
         panelRoot = element('div');
         panelRoot.id = PANEL_ELEMENT_ID;
         const shadow = panelRoot.attachShadow({ mode: 'open' });
-        const scope = `<p class="muted">Drag cards or use the arrows to change priority.</p>
-            <div class="actions"><button id="btn-detect" aria-label="Detect cards">Detect cards</button><button id="btn-refresh-cards" aria-label="Refresh cards">Refresh cards</button></div>
-            <p id="whitelist-summary" class="muted"></p><p id="saved-cards-status" class="muted" role="status"></p><div id="card-list" class="cards"></div>`;
+        const scope = `<div class="actions hub-scope-actions"><button id="btn-detect" aria-label="Detect cards">Detect cards</button><button id="btn-refresh-cards" aria-label="Refresh cards">Refresh cards</button></div>
+            <p id="whitelist-summary" class="muted"></p><div id="card-list" class="cards"></div>
+            <p class="muted hub-fine-print">Drag cards or use the arrows to change priority.</p><p id="saved-cards-status" class="muted hub-fine-print" role="status"></p>`;
         let markup = hubWorkflowMarkup(scope, { bank: 'Amex', template: offerWorkflow });
         for (const [from, to] of Object.entries({ body: 'content', scan: 'btn-scan', stop: 'btn-stop', search: 'input-search', add: 'btn-enroll-all', offers: 'offer-list', counts: 'offer-summary', 'workspace-cache': 'saved-offers-status' })) {
             markup = markup.replace(`id="${from}"`, `id="${to}"`);
@@ -2528,7 +2660,7 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
         savedCardsStatus.textContent = state.savedCardsError || (state.savedCardsReady
             ? 'Saved in Tampermonkey. Your cards, whitelist and offer priority survive page reloads.'
             : 'Your card list, whitelist and offer priority will be saved after detection.');
-        savedCardsStatus.className = state.savedCardsError ? 'storage-error' : 'muted';
+        savedCardsStatus.className = `${state.savedCardsError ? 'storage-error' : 'muted'} hub-fine-print`;
         const accounts = prioritizedAccounts();
         accounts.forEach((account, index) => list.append(cardRow(account, index, accounts.length)));
     }
@@ -2621,6 +2753,7 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
         const detect = uiElement('btn-detect');
         detect.disabled = Boolean(state.busy) || state.detected || coolingDown || Date.now() < state.discoveryRetryAt;
         hubSetActionLabel(detect, 'Detect cards', state.detected ? state.accounts.length : null);
+        detect.classList.toggle('primary', !state.detected);
         const refresh = uiElement('btn-refresh-cards');
         refresh.hidden = !state.detected;
         refresh.disabled = Boolean(state.busy) || coolingDown || Date.now() < state.discoveryRetryAt;
@@ -2685,7 +2818,7 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
 // --- End issuer body: amex-offer-lite ---
 });
 
-dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"https://deals.merchant-rewards.com/","version":"1.6.5","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*bankofamerica\\.com/.*$","^https://deals\\.merchant-rewards\\.com/.*$"],"patterns":["^https://deals\\.merchant-rewards\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"https://deals.merchant-rewards.com/","version":"1.6.6","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*bankofamerica\\.com/.*$","^https://deals\\.merchant-rewards\\.com/.*$"],"patterns":["^https://deals\\.merchant-rewards\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: bofa-offer-lite ---
 (function () {
     'use strict';
@@ -2693,7 +2826,7 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "bofa-offer-lite", name: "BankAmeriDeals Lite", version: "1.6.5",
+        id: "bofa-offer-lite", name: "BankAmeriDeals Lite", version: "1.6.6",
         gapMilliseconds: 500, timeoutMilliseconds: 45000, pageSize: 24,
         defaultCooldownMilliseconds: 300000
     };
@@ -2956,14 +3089,9 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
         const visible = state.offers.filter(offer => hubMatchesSearch(offer, state.search));
         if (!visible.length) hubShowEmptyOffers(list, state.search);
         for (const offer of visible) {
-            const row = document.createElement('div');
-            row.className = 'offer';
-            const title = document.createElement('strong');
-            title.textContent = `${offer.name} · ${offer.headline}`;
-            const detail = document.createElement('small');
-            detail.textContent = offer.result === 'Unconfirmed' ? 'Needs review' : offer.activated ? 'Added' : offer.eligible ? 'Available' : `Skipped · ${offer.reason || 'Not eligible'}`;
-            row.append(title, detail);
-            list.append(row);
+            const status = offer.result === 'Unconfirmed' ? 'Needs review' : offer.activated ? 'Added' : offer.eligible ? 'Available' : 'Skipped';
+            list.append(hubOfferRow({ merchant: offer.name, title: offer.headline, status,
+                meta: [status === 'Skipped' ? offer.reason || 'Not eligible' : ''] }));
         }
     }
     function renderPanel() {
@@ -2995,7 +3123,7 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
 // --- End issuer body: bofa-offer-lite ---
 });
 
-dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://secure.chase.com/web/auth/dashboard","version":"1.6.5","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*chase\\.com/.*$"],"patterns":["^https://secure\\.chase\\.com/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://secure.chase.com/web/auth/dashboard","version":"1.6.6","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*chase\\.com/.*$"],"patterns":["^https://secure\\.chase\\.com/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: chase-offer-lite ---
 (function () {
     'use strict';
@@ -3003,7 +3131,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"card"}, workflow: "per-card",
-        id: "chase-offer-lite", name: "Chase Offer Lite", version: "1.6.5",
+        id: "chase-offer-lite", name: "Chase Offer Lite", version: "1.6.6",
         gapMilliseconds: 500, timeoutMilliseconds: 45000,
         defaultCooldownMilliseconds: 300000
     };
@@ -3683,6 +3811,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
             : unresolved ? `${unresolved} offer(s) need review and will be skipped. Other saved offers can continue. Use Refresh & add offers to check them.`
             : !savedCount ? 'No saved offers left to add. Refresh & add offers checks for new ones.' : '';
         reason.hidden = !reason.textContent;
+        hubRenderTaskProgress(panel, { busy: Boolean(state.busy), completed: state.completed, total: state.total });
         hubRenderSearchControls(panel);
     }
 
@@ -3699,27 +3828,21 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
         const visible = state.offers.filter(offer => state.selected.has(offer.accountId)).filter(offer => hubMatchesSearch(offer, search));
         if (!visible.length) {
             const note = document.createElement('p');
-            note.className = 'muted';
+            note.className = 'muted hub-empty-note';
             note.textContent = search.trim() ? 'No offers match your search.'
                 : state.selected.size ? 'No saved offers on these cards. Use Refresh & add offers.' : 'Your selected cards’ offers will appear here.';
             container.appendChild(note);
         }
         for (const offer of visible.slice(0, 200)) {
-            const row = document.createElement('div');
-            row.className = 'offer';
-            const title = document.createElement('strong');
-            title.textContent = [offer.merchant, offer.title].filter(Boolean).join(' · ');
-            const detail = document.createElement('small');
             const card = state.accounts.find(account => account.accountId === offer.accountId);
-            const statusLabel = !state.needsScan && ['NEW', 'SERVED'].includes(offer.status) && !offer.activationParameters
-                ? 'Add on Chase: click details unavailable' : offer.status === 'SERVED' ? 'Available' : hubOfferStatusLabel(offer.status);
-            detail.textContent = [card ? chaseCardDisplayName(card) : 'Card', statusLabel, offer.expires].filter(Boolean).join(' · ');
-            row.append(title, detail);
-            container.appendChild(row);
+            const addOnChase = !state.needsScan && ['NEW', 'SERVED'].includes(offer.status) && !offer.activationParameters;
+            const statusLabel = addOnChase ? 'Add on Chase' : offer.status === 'SERVED' ? 'Available' : hubOfferStatusLabel(offer.status);
+            container.appendChild(hubOfferRow({ merchant: offer.merchant, title: offer.title, status: statusLabel,
+                meta: [card ? chaseCardDisplayName(card) : 'Card', addOnChase ? 'Click details unavailable' : '', hubOfferExpiry(offer.expires)] }));
         }
         if (visible.length > 200) {
             const note = document.createElement('p');
-            note.className = 'muted';
+            note.className = 'muted hub-list-limit';
             note.textContent = `Showing 200 of ${visible.length}; search to narrow the display. This limit does not affect scanning.`;
             container.appendChild(note);
         }
@@ -3742,7 +3865,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
         cards.replaceChildren();
         if (!state.accounts.length) {
             const note = document.createElement('p');
-            note.className = 'muted';
+            note.className = 'muted hub-empty-note';
             note.textContent = 'Load your cards to get started.';
             cards.appendChild(note);
         }
@@ -3777,7 +3900,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
 // --- End issuer body: chase-offer-lite ---
 });
 
-dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://online.citi.com/US/nga/products-offers/merchantoffers","version":"1.6.5","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*citi\\.com/.*$"],"patterns":["^https://online\\.citi\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://online.citi.com/US/nga/products-offers/merchantoffers","version":"1.6.6","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*citi\\.com/.*$"],"patterns":["^https://online\\.citi\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: citi-offer-lite ---
 (function () {
     'use strict';
@@ -3785,7 +3908,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"card"}, workflow: "per-card",
-        id: "citi-offer-lite", name: "Citi Offer Lite", version: "1.6.5",
+        id: "citi-offer-lite", name: "Citi Offer Lite", version: "1.6.6",
         apiBase: '/gcgapi/prod/public/v1',
         retrievePath: '/digital/customers/creditCards/merchantOffers/retrieve',
         enrollmentPath: '/digital/customers/creditCards/accounts/rewards/specialOffers/enrollMerchantOffer',
@@ -4209,9 +4332,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
     }
 
     // Source: ui/styles.js
-    const PANEL_STYLES = HUB_DESIGN_STYLES + `
-        #status:not(:empty), #storage-error:not(:empty) { margin: 12px 0; }
-    `;
+    const PANEL_STYLES = HUB_DESIGN_STYLES;
 
     // Source: ui/panel.js
     function mountPanel() {
@@ -4226,9 +4347,6 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
         });
         document.body.appendChild(host);
         state.panel = panel;
-        // Progress and failures must remain next to the actions, above long offer lists.
-        const actions = panel.querySelector('.hub-primary-actions');
-        actions.after(panel.getElementById('status'), panel.getElementById('storage-error'));
         panel.querySelector('.hub-search-rule').textContent = 'Both actions add across your selected cards, including offers hidden by search.';
         renderPanel();
     }
@@ -4264,6 +4382,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
             : !savedCount ? 'No saved offers left to add. Refresh & add offers checks for new ones.'
             : '';
         reason.hidden = !reason.textContent;
+        hubRenderTaskProgress(panel, { busy: Boolean(state.busy), completed: state.completed, total: state.total });
         hubRenderSearchControls(panel);
     }
 
@@ -4276,24 +4395,19 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
         const visible = state.offers.filter(offer => state.selected.has(offer.accountId)).filter(offer => hubMatchesSearch(offer, search));
         if (!visible.length) {
             const note = document.createElement('p');
-            note.className = 'muted';
+            note.className = 'muted hub-empty-note';
             note.textContent = search.trim() ? 'No offers match your search.'
                 : state.selected.size ? 'No saved offers on these cards. Use Refresh & add offers.' : 'Your selected cards’ offers will appear here.';
             container.appendChild(note);
         }
         for (const offer of visible.slice(0, 200)) {
-            const row = document.createElement('div');
-            row.className = 'offer';
-            const title = document.createElement('strong');
-            title.textContent = `${offer.merchant} · ${offer.title}`;
-            const detail = document.createElement('small');
             const card = state.accounts.find(account => account.accountId === offer.accountId);
-            detail.textContent = `${card?.name || 'Card'} · ${hubOfferStatusLabel(offer.status)} · ${offer.expires}`;
-            row.append(title, detail);
-            container.appendChild(row);
+            container.appendChild(hubOfferRow({ merchant: offer.merchant, title: offer.title, status: hubOfferStatusLabel(offer.status),
+                meta: [card?.name || 'Card', hubOfferExpiry(offer.expires)] }));
         }
         if (visible.length > 200) {
             const note = document.createElement('p');
+            note.className = 'muted hub-list-limit';
             note.textContent = `Showing 200 of ${visible.length}; search to narrow the display. All available offers remain in the queue.`;
             container.appendChild(note);
         }
@@ -4312,7 +4426,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
         cards.replaceChildren();
         if (!state.accounts.length) {
             const note = document.createElement('p');
-            note.className = 'muted';
+            note.className = 'muted hub-empty-note';
             note.textContent = 'Load your cards to get started.';
             cards.appendChild(note);
         }
@@ -4344,7 +4458,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
 // --- End issuer body: citi-offer-lite ---
 });
 
-dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://onlinebanking.usbank.com/digital/servicing/dominjection/cashback-deals","version":"1.6.5","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*usbank\\.com/.*$"],"patterns":["^https://onlinebanking\\.usbank\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://onlinebanking.usbank.com/digital/servicing/dominjection/cashback-deals","version":"1.6.6","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*usbank\\.com/.*$"],"patterns":["^https://onlinebanking\\.usbank\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: usbank-offer-lite ---
 (function () {
     'use strict';
@@ -4352,7 +4466,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "usbank-offer-lite", name: "US Bank Offer Lite", version: "1.6.5",
+        id: "usbank-offer-lite", name: "US Bank Offer Lite", version: "1.6.6",
         endpoint: '/digital/api/customer-management/graphql/v2',
         gapMilliseconds: 500, timeoutMilliseconds: 45000,
         defaultCooldownMilliseconds: 300000
@@ -4709,21 +4823,15 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
         const visible = state.offers.filter(offer => hubMatchesSearch(offer, search));
         if (!visible.length) hubShowEmptyOffers(container, search);
         for (const offer of visible) {
-            const row = document.createElement('label');
-            row.className = 'offer';
             const checkbox = document.createElement('input');
             checkbox.type = 'checkbox';
             checkbox.checked = state.selected.has(offer.offerId);
             checkbox.disabled = state.busy || Boolean(state.storageError) || offer.status !== 'AVAILABLE';
             checkbox.setAttribute('aria-label', `Select ${offer.merchant}: ${offer.title}`);
             checkbox.addEventListener('change', () => setOfferSelected(offer.offerId, checkbox.checked));
-            const title = document.createElement('strong');
-            title.textContent = ` ${offer.merchant} · ${offer.title}`;
-            const detail = document.createElement('small');
-            const date = typeof offer.expires === 'string' ? offer.expires.slice(0, 10) : 'Unknown expiry';
-            detail.textContent = `${hubOfferStatusLabel(offer.status)} · ${date}`;
-            row.append(checkbox, title, detail);
-            container.appendChild(row);
+            const date = typeof offer.expires === 'string' ? hubOfferExpiry(offer.expires.slice(0, 10)) : 'Unknown expiry';
+            container.appendChild(hubOfferRow({ tag: 'label', leading: checkbox, merchant: offer.merchant, title: offer.title,
+                status: hubOfferStatusLabel(offer.status), meta: [date] }));
         }
     }
     function renderPanel() {
@@ -4757,7 +4865,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
 // --- End issuer body: usbank-offer-lite ---
 });
 
-dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"https://web.secure.wellsfargo.com/auth/deals-portal","version":"1.6.5","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*wellsfargo\\.com/.*$"],"patterns":["^https://web\\.secure\\.wellsfargo\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"https://web.secure.wellsfargo.com/auth/deals-portal","version":"1.6.6","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*wellsfargo\\.com/.*$"],"patterns":["^https://web\\.secure\\.wellsfargo\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: wellsfargo-offer-lite ---
 (function () {
     'use strict';
@@ -4765,7 +4873,7 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "wellsfargo-offer-lite", name: "Wells Fargo Offer Lite", version: "1.6.5",
+        id: "wellsfargo-offer-lite", name: "Wells Fargo Offer Lite", version: "1.6.6",
         retrievePath: '/deals-portal/as/getDeals', enrollmentPath: '/deals-portal/as/activateCLDeal',
         gapMilliseconds: 500, timeoutMilliseconds: 45000, defaultCooldownMilliseconds: 300000
     };
@@ -5026,17 +5134,12 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"
         const visible = state.offers.filter(offer => hubMatchesSearch(offer, search));
         if (!visible.length) hubShowEmptyOffers(container, search);
         for (const offer of visible.slice(0, 200)) {
-            const row = document.createElement('div');
-            row.className = 'offer';
-            const title = document.createElement('strong');
-            title.textContent = `${offer.merchant} · ${offer.title}`;
-            const detail = document.createElement('small');
-            detail.textContent = `${hubOfferStatusLabel(offer.status)} · ${offer.expires}`;
-            row.append(title, detail);
-            container.appendChild(row);
+            container.appendChild(hubOfferRow({ merchant: offer.merchant, title: offer.title, status: hubOfferStatusLabel(offer.status),
+                meta: [hubOfferExpiry(offer.expires)] }));
         }
         if (visible.length > 200) {
             const note = document.createElement('p');
+            note.className = 'muted hub-list-limit';
             note.textContent = `Showing 200 of ${visible.length}; search to narrow the display. All eligible offers remain in the queue.`;
             container.appendChild(note);
         }

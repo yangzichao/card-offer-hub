@@ -2,7 +2,7 @@
 
 ## 界面
 
-全部六家银行共用 `shared/ui/design-system.js` 的色彩、字号、间距、按钮、输入框、状态和响应式布局，使用浅色背景与绿色主操作。品牌标题由 `shared/ui/panel-branding.js` 统一处理，Amex 保留卡片排序的专用样式；原有操作名称和银行工作流保持兼容。
+全部六家银行共用 `shared/ui/design-system.js` 的色彩、字号、间距、按钮、输入框、状态和响应式布局，使用中性灰白底色，绿色只用于主操作、链接和已添加状态（见[面板 UI/UX 重设计](ui-redesign.md)）。品牌标题由 `shared/ui/panel-branding.js` 统一处理，Amex 保留卡片排序的专用样式；原有操作名称和银行工作流保持兼容。
 
 ## 搜索范围
 

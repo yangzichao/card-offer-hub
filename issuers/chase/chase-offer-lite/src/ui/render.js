@@ -10,27 +10,21 @@ function renderOffers() {
     const visible = state.offers.filter(offer => state.selected.has(offer.accountId)).filter(offer => hubMatchesSearch(offer, search));
     if (!visible.length) {
         const note = document.createElement('p');
-        note.className = 'muted';
+        note.className = 'muted hub-empty-note';
         note.textContent = search.trim() ? 'No offers match your search.'
             : state.selected.size ? 'No saved offers on these cards. Use Refresh & add offers.' : 'Your selected cards’ offers will appear here.';
         container.appendChild(note);
     }
     for (const offer of visible.slice(0, 200)) {
-        const row = document.createElement('div');
-        row.className = 'offer';
-        const title = document.createElement('strong');
-        title.textContent = [offer.merchant, offer.title].filter(Boolean).join(' · ');
-        const detail = document.createElement('small');
         const card = state.accounts.find(account => account.accountId === offer.accountId);
-        const statusLabel = !state.needsScan && ['NEW', 'SERVED'].includes(offer.status) && !offer.activationParameters
-            ? 'Add on Chase: click details unavailable' : offer.status === 'SERVED' ? 'Available' : hubOfferStatusLabel(offer.status);
-        detail.textContent = [card ? chaseCardDisplayName(card) : 'Card', statusLabel, offer.expires].filter(Boolean).join(' · ');
-        row.append(title, detail);
-        container.appendChild(row);
+        const addOnChase = !state.needsScan && ['NEW', 'SERVED'].includes(offer.status) && !offer.activationParameters;
+        const statusLabel = addOnChase ? 'Add on Chase' : offer.status === 'SERVED' ? 'Available' : hubOfferStatusLabel(offer.status);
+        container.appendChild(hubOfferRow({ merchant: offer.merchant, title: offer.title, status: statusLabel,
+            meta: [card ? chaseCardDisplayName(card) : 'Card', addOnChase ? 'Click details unavailable' : '', hubOfferExpiry(offer.expires)] }));
     }
     if (visible.length > 200) {
         const note = document.createElement('p');
-        note.className = 'muted';
+        note.className = 'muted hub-list-limit';
         note.textContent = `Showing 200 of ${visible.length}; search to narrow the display. This limit does not affect scanning.`;
         container.appendChild(note);
     }
@@ -53,7 +47,7 @@ function renderPanel() {
     cards.replaceChildren();
     if (!state.accounts.length) {
         const note = document.createElement('p');
-        note.className = 'muted';
+        note.className = 'muted hub-empty-note';
         note.textContent = 'Load your cards to get started.';
         cards.appendChild(note);
     }

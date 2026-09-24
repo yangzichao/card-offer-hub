@@ -18,6 +18,7 @@
     "sharedModules": [
         "ui/design-system.js",
         "ui/panel-branding.js",
+        "ui/task-progress.js",
         "ui/workflow-layout.js",
         "runtime/request-scheduler.js",
         "offers/display-records.js",

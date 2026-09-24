@@ -4,6 +4,7 @@ function renderControls() {
     const detect = uiElement('btn-detect');
     detect.disabled = Boolean(state.busy) || state.detected || coolingDown || Date.now() < state.discoveryRetryAt;
     hubSetActionLabel(detect, 'Detect cards', state.detected ? state.accounts.length : null);
+    detect.classList.toggle('primary', !state.detected);
     const refresh = uiElement('btn-refresh-cards');
     refresh.hidden = !state.detected;
     refresh.disabled = Boolean(state.busy) || coolingDown || Date.now() < state.discoveryRetryAt;
