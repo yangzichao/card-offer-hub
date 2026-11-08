@@ -6,7 +6,7 @@
 
 <!-- published-scripts:start -->
 
-**[安装 / 更新 Card Offer Hub 1.7.0](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/card-offer-hub-all.user.js)** — 唯一安装包，包含下列 7 家银行。
+**[安装 / 更新 Card Offer Hub 1.8.0](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/card-offer-hub-all.user.js)** — 唯一安装包，包含下列 7 家银行。
 
 安装一次，覆盖银行主域名和所有子域名；网银显示操作面板，其他页面提供 Offers 入口和缓存搜索。所有银行共用一个发布版本。[地址匹配说明](docs/website-matching.md)
 
@@ -27,6 +27,8 @@
 ## 跨银行搜索
 
 面板中的 **Search all banks** 可同时搜索六家银行已保存的 Offer，按银行或状态筛选，查看卡片、扫描时间和有效期，再打开对应银行页面。搜索条件会保留；**Reload saved results** 只读取本地缓存。各家银行需要先手动扫描一次。详见[使用说明](bundles/all/README.md#跨银行搜索)。
+
+**Export all** 把全部已保存优惠（含详情和条款）下载成 JSON，本机 AI agent 用 `npm run -s offers -- --query "<商户>"` 或仓库内的 `card-offers` skill 读取。详见[优惠导出与本地 AI 读取](docs/offer-export.md)。
 
 六家银行使用统一的浅色界面，按每卡、账户和 Amex 组合三种业务模型组织流程。Citi 选卡后可直接 **Add saved offers** 使用缓存添加，或 **Refresh & add offers** 刷新后自动添加。搜索只改变列表，批量添加始终处理已选范围。详见[统一操作流程](docs/unified-workflow.md)和[面板 UI/UX 重设计](docs/ui-redesign.md)。
 
@@ -49,8 +51,10 @@ issuers/<issuer>/<tool>/   # 银行模块：无版本号的清单 + src/ 分模�
 shared/                    # 银行间共享模块，按需引用
 bundles/all/               # 唯一发布清单、版本号、本地路由和跨银行搜索
 scripts/build/             # 零依赖构建：清单 -> 合并 -> dist/
+scripts/offers/            # 读取导出的优惠 JSON，供本地 AI agent 使用
 dist/                      # 发布产物，Tampermonkey 实际抓取的文件；由构建生成，不要手改
 docs/                      # 接口依据与维护记录
+.claude/skills/            # 仓库内的 Claude Code skill（card-offers 读取导出）
 tests/<issuer>/            # 合成数据的离线回归
 tests/build/               # 构建与发布产物自身的回归
 ```

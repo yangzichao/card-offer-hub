@@ -20,6 +20,12 @@ work/
 !scripts/build/**
 !tests/build/
 !tests/build/**
+# A global ".claude" pattern hides the versioned agent skill. Local Claude
+# settings stay ignored; only .claude/skills/ is tracked.
+!.claude/
+.claude/*
+!.claude/skills/
+!.claude/skills/**
 
 # Browser captures and account/session data stay out of version control.
 *.har

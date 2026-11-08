@@ -19,6 +19,7 @@ function amexSavedDisplayRecords(bank, snapshot, savedCards) {
             throw new Error('Invalid saved card results');
         }
         return card.offers.map(offer => hubOfferRecord(bank, {
+            ...amexSavedOfferText(offer.groupKey),
             merchant: offer.name, description: offer.description || offer.title,
             displayStatus: hubStatus(offer.status) === 'available' && offer.enrollable !== true ? 'other' : hubStatus(offer.status),
             expires: offer.expires || offer.expiry, category: offer.category
@@ -26,4 +27,15 @@ function amexSavedDisplayRecords(bank, snapshot, savedCards) {
             card: accounts.get(card.accountToken) || 'Saved card', scannedAt: card.scannedAt, incomplete: !card.complete
         }));
     });
+}
+// normalizeHubOffer already saves the visible long description and terms inside
+// groupKey (whitespace collapsed): [type, name, description, expiry, long, terms].
+function amexSavedOfferText(groupKey) {
+    try {
+        const parts = JSON.parse(groupKey);
+        if (Array.isArray(parts) && parts.length === 6 && parts.every(part => typeof part === 'string')) {
+            return { details: parts[4], terms: parts[5] };
+        }
+    } catch { /* Unrecognized keys simply have no saved full text. */ }
+    return {};
 }

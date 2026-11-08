@@ -29,6 +29,7 @@
         "runtime/action-runner.js",
         "persistence/pacing-storage.js",
         "offers/display-records.js",
+        "offers/detail-store.js",
         "ui/workflow-panel.js",
         "runtime/action-lifecycle.js",
         "pacing/policy.js",

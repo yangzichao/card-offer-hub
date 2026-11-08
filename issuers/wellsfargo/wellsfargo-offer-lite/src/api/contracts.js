@@ -25,7 +25,9 @@ function normalizeOffers(payload) {
                 offerId: details.merchantOfferId, status,
                 merchant: typeof details.merchantName === 'string' ? details.merchantName : 'Merchant',
                 title: typeof details.shortDescription === 'string' ? details.shortDescription : '',
-                expires: typeof details.expirationDate === 'string' ? details.expirationDate : ''
+                expires: typeof details.expirationDate === 'string' ? details.expirationDate : '',
+                // Full text for saved results and export only; Wells Fargo lists no separate terms.
+                details: typeof details.longDescription === 'string' ? details.longDescription : ''
             };
             const existing = offers.get(offer.offerId);
             if (existing) {

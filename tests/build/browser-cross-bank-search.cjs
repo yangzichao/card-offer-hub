@@ -50,6 +50,15 @@ async function run() {
         assert.equal(await link.getAttribute('rel'), 'noopener noreferrer');
         await page.getByRole('combobox', { name: 'Filter by bank', exact: true }).selectOption('citi-offer-lite');
         assert.match(await page.locator('.hub-empty').innerText(), /No matching offers/);
+        // Export ignores the current search and filters and writes every saved offer.
+        const [download] = await Promise.all([page.waitForEvent('download'),
+            page.getByRole('button', { name: 'Export all saved offers', exact: true }).click()]);
+        assert.match(download.suggestedFilename(), /^card-offer-hub-offers-.+\.json$/);
+        const exported = JSON.parse(readFileSync(await download.path(), 'utf8'));
+        assert.equal(exported.format, 'card-offer-hub-offers');
+        assert.equal(exported.offers.length, 7);
+        assert.doesNotMatch(JSON.stringify(exported), /synthetic-amex-card|card-citi|card-chase/);
+        assert.match(await page.locator('#hub-export-status').innerText(), /Exported 7 saved offers to card-offer-hub-offers-/);
         await page.reload();
         await open();
         assert.equal(await query.inputValue(), 'everyday');
@@ -113,7 +122,7 @@ async function run() {
         await page.clock.runFor(60000);
         assert.deepEqual(requests, [], 'search, filters, refresh and idle time must not call any network');
         assert.deepEqual(errors, []);
-        console.log('PASS: cross-bank search, card labels, status and bank filters, saved preferences, reload, focus/Escape, local refresh, corruption, XSS text handling, no requests and mobile layout.');
+        console.log('PASS: cross-bank search, export of all saved offers, card labels, status and bank filters, saved preferences, reload, focus/Escape, local refresh, corruption, XSS text handling, no requests and mobile layout.');
     } finally { await browser.close(); }
 }
 run().catch(error => { console.error(error); process.exitCode = 1; });

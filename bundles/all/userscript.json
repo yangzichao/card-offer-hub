@@ -1,7 +1,7 @@
 {
     "id": "card-offer-hub-all",
     "name": "Card Offer Hub — All Banks",
-    "version": "1.7.0",
+    "version": "1.8.0",
     "description": "All seven Card Offer Hub tools in one install; manual scanning and activation on the matching bank or store website",
     "author": "Zichao Yang",
     "sources": [
@@ -9,6 +9,7 @@
         "search/preferences.js",
         "search/dialog-styles.js",
         "search/render-results.js",
+        "search/export.js",
         "search/dialog.js",
         "search/launcher.js",
         "entry/bank-entry.js",

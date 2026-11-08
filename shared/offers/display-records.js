@@ -14,9 +14,15 @@ function hubOfferRecord(bank, offer, context) {
     return { bankId: bank.id, bankName: bank.label, merchant, description,
         card: context.card || 'Account-wide', scannedAt: hubTimestamp(context.scannedAt),
         incomplete: Boolean(context.incomplete), status: offer.displayStatus,
-        expires: hubText(offer.expires), category: hubText(offer.category), url: bank.url };
+        expires: hubText(offer.expires), category: hubText(offer.category),
+        details: hubText(offer.details), terms: hubText(offer.terms), url: bank.url };
 }
-function hubWorkspaceDisplayRecords(bank, snapshot, normalizeOffer, workflowType) {
+// Saved full text is optional: a damaged or newer detail store only hides the
+// details, never the bank's saved offers.
+function hubSavedOfferDetails(savedDetails) {
+    try { return hubDecodeOfferDetails(savedDetails); } catch { return new Map(); }
+}
+function hubWorkspaceDisplayRecords(bank, snapshot, normalizeOffer, workflowType, savedDetails = null) {
     snapshot = hubMigrateWorkflowSnapshot(snapshot, workflowType, 3);
     const cardScoped = HUB_WORKFLOW_TEMPLATES[workflowType].scope === 'card';
     if (!Array.isArray(snapshot.offers) || !Array.isArray(snapshot.accounts)) {
@@ -26,7 +32,8 @@ function hubWorkspaceDisplayRecords(bank, snapshot, normalizeOffer, workflowType
         if (!account || typeof account.accountId !== 'string' || typeof account.name !== 'string') throw new Error('Invalid saved card');
         return [account.accountId, account.name];
     }));
-    return snapshot.offers.map(offer => hubOfferRecord(bank, normalizeOffer(offer), {
+    const details = hubSavedOfferDetails(savedDetails);
+    return snapshot.offers.map(offer => hubOfferRecord(bank, { ...normalizeOffer(offer), ...details.get(workspaceOfferKey(offer)) }, {
         card: accounts.get(offer?.accountId) || (cardScoped ? 'Saved card' : 'Account-wide'),
         scannedAt: snapshot.lastScanAt
     }));

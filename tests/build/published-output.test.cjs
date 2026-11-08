@@ -83,7 +83,9 @@ test('no project file is excluded from version control', () => {
     const SKIPPED_DIRECTORIES = new Set(['.git', 'node_modules', 'work', 'analysis', 'coverage']);
     function projectFilesRecursively(directory) {
         return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-            if (entry.name.startsWith('.') && entry.name !== '.github' && entry.name !== '.gitignore') return [];
+            if (entry.name.startsWith('.') && !['.github', '.gitignore', '.claude'].includes(entry.name)) return [];
+            // Only the shared agent skills under .claude/ are project files.
+            if (relative(projectRoot, directory) === '.claude' && entry.name !== 'skills') return [];
             if (SKIPPED_DIRECTORIES.has(entry.name)) return [];
             const absolutePath = join(directory, entry.name);
             if (entry.isDirectory()) return projectFilesRecursively(absolutePath);

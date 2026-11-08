@@ -1,6 +1,7 @@
 const { saveWorkspace, requireWorkspaceSaved, restoreWorkspace, recordWorkspaceScan,
     markWorkspaceOfferPending, finishWorkspaceOffer, bindWorkspaceScope } = createHubWorkspaceStore({
     state, workflowType: SETTINGS.workflow, fields: WORKSPACE_FIELDS, storage: issuerStorage, storageKey: `${SETTINGS.id}:workspace`,
+    detailStorageKey: `${SETTINGS.id}:offer-details`,
     onError: () => renderPanel(),
     readConsent: () => state.consent, writeConsent: value => { state.consent = value; },
     markPendingRecord: record => { record.result = 'Unconfirmed'; record.eligible = false; }

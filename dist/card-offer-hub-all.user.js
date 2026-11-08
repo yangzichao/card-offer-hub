@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Card Offer Hub — All Banks
 // @namespace    https://github.com/yangzichao/card-offer-hub
-// @version      1.7.0
+// @version      1.8.0
 // @description  All seven Card Offer Hub tools in one install; manual scanning and activation on the matching bank or store website
 // @author       Zichao Yang
 // @match        https://*.americanexpress.com/*
@@ -296,9 +296,15 @@
         return { bankId: bank.id, bankName: bank.label, merchant, description,
             card: context.card || 'Account-wide', scannedAt: hubTimestamp(context.scannedAt),
             incomplete: Boolean(context.incomplete), status: offer.displayStatus,
-            expires: hubText(offer.expires), category: hubText(offer.category), url: bank.url };
+            expires: hubText(offer.expires), category: hubText(offer.category),
+            details: hubText(offer.details), terms: hubText(offer.terms), url: bank.url };
     }
-    function hubWorkspaceDisplayRecords(bank, snapshot, normalizeOffer, workflowType) {
+    // Saved full text is optional: a damaged or newer detail store only hides the
+    // details, never the bank's saved offers.
+    function hubSavedOfferDetails(savedDetails) {
+        try { return hubDecodeOfferDetails(savedDetails); } catch { return new Map(); }
+    }
+    function hubWorkspaceDisplayRecords(bank, snapshot, normalizeOffer, workflowType, savedDetails = null) {
         snapshot = hubMigrateWorkflowSnapshot(snapshot, workflowType, 3);
         const cardScoped = HUB_WORKFLOW_TEMPLATES[workflowType].scope === 'card';
         if (!Array.isArray(snapshot.offers) || !Array.isArray(snapshot.accounts)) {
@@ -308,10 +314,64 @@
             if (!account || typeof account.accountId !== 'string' || typeof account.name !== 'string') throw new Error('Invalid saved card');
             return [account.accountId, account.name];
         }));
-        return snapshot.offers.map(offer => hubOfferRecord(bank, normalizeOffer(offer), {
+        const details = hubSavedOfferDetails(savedDetails);
+        return snapshot.offers.map(offer => hubOfferRecord(bank, { ...normalizeOffer(offer), ...details.get(workspaceOfferKey(offer)) }, {
             card: accounts.get(offer?.accountId) || (cardScoped ? 'Saved card' : 'Account-wide'),
             scannedAt: snapshot.lastScanAt
         }));
+    }
+
+    // Source: shared/offers/detail-store.js
+    // Long offer text (full description and terms) is kept apart from the workspace
+    // snapshot: it is written once per completed scan, never on each add, and
+    // identical text shared by many offers or cards is stored once.
+    const HUB_OFFER_DETAIL_SCHEMA_VERSION = 1;
+    const HUB_OFFER_DETAIL_MAX_CHARACTERS = 8000;
+    function hubOfferDetailText(value) {
+        return typeof value === 'string' ? value.replace(/\r\n?/g, '\n').trim().slice(0, HUB_OFFER_DETAIL_MAX_CHARACTERS) : '';
+    }
+    // Returns Map(offerKey -> { details, terms }). Unknown versions and malformed
+    // data throw so callers can preserve them instead of overwriting.
+    function hubDecodeOfferDetails(saved) {
+        if (saved === null || saved === undefined) return new Map();
+        if (!saved || saved.schemaVersion !== HUB_OFFER_DETAIL_SCHEMA_VERSION || !Array.isArray(saved.texts)
+            || !saved.entries || typeof saved.entries !== 'object' || Array.isArray(saved.entries)) {
+            throw new Error('Unsupported saved offer details');
+        }
+        const text = index => {
+            if (index === -1) return '';
+            if (!Number.isSafeInteger(index) || typeof saved.texts[index] !== 'string') throw new Error('Invalid saved offer details');
+            return saved.texts[index];
+        };
+        return new Map(Object.entries(saved.entries).map(([key, value]) => {
+            if (!Array.isArray(value) || value.length !== 2) throw new Error('Invalid saved offer details');
+            return [key, { details: text(value[0]), terms: text(value[1]) }];
+        }));
+    }
+    function hubEncodeOfferDetails(detailsByKey, savedAt) {
+        const texts = [], indexes = new Map(), entries = {};
+        const intern = value => {
+            if (!value) return -1;
+            if (!indexes.has(value)) { indexes.set(value, texts.length); texts.push(value); }
+            return indexes.get(value);
+        };
+        for (const [key, value] of detailsByKey) {
+            if (value.details || value.terms) entries[key] = [intern(value.details), intern(value.terms)];
+        }
+        return { schemaVersion: HUB_OFFER_DETAIL_SCHEMA_VERSION, savedAt, texts, entries };
+    }
+    // Offers read in this scan carry runtime details/terms. Offers restored from an
+    // earlier scan (for example, cards not refreshed this time) keep their saved text.
+    // Offers no longer in the workspace are dropped.
+    function hubMergeOfferDetails(previous, offers, keyOf) {
+        const next = new Map();
+        for (const offer of offers) {
+            const key = keyOf(offer);
+            const fresh = typeof offer.details === 'string' || typeof offer.terms === 'string';
+            const value = fresh ? { details: hubOfferDetailText(offer.details), terms: hubOfferDetailText(offer.terms) } : previous.get(key);
+            if (value) next.set(key, value);
+        }
+        return next;
     }
 
     // Source: shared/runtime/action-lifecycle.js
@@ -823,7 +883,7 @@
     // Source: shared/persistence/workspace-storage.js
     function createHubWorkspaceStore({ state, fields, storage, storageKey, workflowType, onError = () => {},
         readConsent = () => false, writeConsent = () => {}, defaultSelectCards = false,
-        markPendingRecord = record => { record.status = 'UNCONFIRMED'; } }) {
+        markPendingRecord = record => { record.status = 'UNCONFIRMED'; }, detailStorageKey = null }) {
         const pendingWorkspaceOffers = new Set();
         function saveWorkspace() {
             if (state.storageError) return false;
@@ -882,6 +942,20 @@
             state.restoredWorkspace = false;
             pendingWorkspaceOffers.clear();
             requireWorkspaceSaved();
+            saveWorkspaceOfferDetails();
+        }
+        // Full offer text is written once per completed scan. A newer or damaged
+        // detail store is preserved and blocks further requests, like the workspace.
+        function saveWorkspaceOfferDetails() {
+            if (!detailStorageKey) return;
+            try {
+                const previous = hubDecodeOfferDetails(storage.get(detailStorageKey, null));
+                storage.set(detailStorageKey, hubEncodeOfferDetails(hubMergeOfferDetails(previous, state.offers, workspaceOfferKey), Date.now()));
+            } catch {
+                state.storageError = 'Cannot save full offer details. Further requests are blocked; fix Tampermonkey storage and reload.';
+                onError(state.storageError);
+                throw new Error(state.storageError);
+            }
         }
         function markWorkspaceOfferPending(offer) {
             pendingWorkspaceOffers.add(workspaceOfferKey(offer));
@@ -1146,6 +1220,7 @@ const HUB_BANKS = [{ ...{"id":"amex-offer-lite","issuer":"amex","label":"Amex","
                 throw new Error('Invalid saved card results');
             }
             return card.offers.map(offer => hubOfferRecord(bank, {
+                ...amexSavedOfferText(offer.groupKey),
                 merchant: offer.name, description: offer.description || offer.title,
                 displayStatus: hubStatus(offer.status) === 'available' && offer.enrollable !== true ? 'other' : hubStatus(offer.status),
                 expires: offer.expires || offer.expiry, category: offer.category
@@ -1153,6 +1228,17 @@ const HUB_BANKS = [{ ...{"id":"amex-offer-lite","issuer":"amex","label":"Amex","
                 card: accounts.get(card.accountToken) || 'Saved card', scannedAt: card.scannedAt, incomplete: !card.complete
             }));
         });
+    }
+    // normalizeHubOffer already saves the visible long description and terms inside
+    // groupKey (whitespace collapsed): [type, name, description, expiry, long, terms].
+    function amexSavedOfferText(groupKey) {
+        try {
+            const parts = JSON.parse(groupKey);
+            if (Array.isArray(parts) && parts.length === 6 && parts.every(part => typeof part === 'string')) {
+                return { details: parts[4], terms: parts[5] };
+            }
+        } catch { /* Unrecognized keys simply have no saved full text. */ }
+        return {};
     }
 return readIssuerSavedResults;
 })() },
@@ -1164,7 +1250,7 @@ return readIssuerSavedResults;
         return hubWorkspaceDisplayRecords(bank, snapshot, offer => ({
             merchant: offer.name, description: offer.headline,
             displayStatus: offer.result === 'Unconfirmed' ? 'review' : offer.activated === true ? 'added' : offer.eligible === true ? 'available' : 'other'
-        }), "account");
+        }), "account", readValue(`${"bofa-offer-lite"}:offer-details`, null));
     }
 return readIssuerSavedResults;
 })() },
@@ -1176,7 +1262,7 @@ return readIssuerSavedResults;
         return hubWorkspaceDisplayRecords(bank, snapshot, offer => ({
             merchant: offer.merchant, description: offer.title, displayStatus: hubStatus(offer.status),
             expires: offer.expires, category: offer.category
-        }), "per-card");
+        }), "per-card", readValue(`${"chase-offer-lite"}:offer-details`, null));
     }
 return readIssuerSavedResults;
 })() },
@@ -1200,7 +1286,7 @@ return readIssuerSavedResults;
         return hubWorkspaceDisplayRecords(bank, snapshot, offer => ({
             merchant: offer.merchant, description: offer.title, displayStatus: hubStatus(offer.status),
             expires: offer.expires, category: offer.category
-        }), "account");
+        }), "account", readValue(`${"kroger-coupon-lite"}:offer-details`, null));
     }
 return readIssuerSavedResults;
 })() },
@@ -1212,7 +1298,7 @@ return readIssuerSavedResults;
         return hubWorkspaceDisplayRecords(bank, snapshot, offer => ({
             merchant: offer.merchant, description: offer.title, displayStatus: hubStatus(offer.status),
             expires: offer.expires, category: offer.category
-        }), "account");
+        }), "account", readValue(`${"usbank-offer-lite"}:offer-details`, null));
     }
 return readIssuerSavedResults;
 })() },
@@ -1224,10 +1310,11 @@ return readIssuerSavedResults;
         return hubWorkspaceDisplayRecords(bank, snapshot, offer => ({
             merchant: offer.merchant, description: offer.title, displayStatus: hubStatus(offer.status),
             expires: offer.expires, category: offer.category
-        }), "account");
+        }), "account", readValue(`${"wellsfargo-offer-lite"}:offer-details`, null));
     }
 return readIssuerSavedResults;
 })() }];
+const HUB_RELEASE_VERSION = "1.8.0";
 // Read the existing snapshots directly; search never copies them into another store.
 function hubReadSavedResults() {
     const records = [], coverage = [];
@@ -1291,7 +1378,7 @@ dialog::backdrop{background:#1c1e2152;backdrop-filter:blur(2px)}dialog header{po
 .hub-result h3{font-size:14px;letter-spacing:0;text-transform:none;color:var(--hub-ink);font-weight:600;margin:0;overflow-wrap:anywhere}.hub-result p{overflow-wrap:anywhere;margin:2px 0 0;color:var(--hub-ink-soft)}
 .hub-result-meta{font-size:11.5px;color:var(--hub-muted);display:flex;gap:4px 12px;flex-wrap:wrap;margin:6px 0 4px}.hub-result a{font-size:12px;font-weight:550;text-decoration:none}.hub-result a:hover{text-decoration:underline}
 .hub-state{display:inline-flex;align-items:center;gap:5px;padding:1px 8px;border:1px solid var(--hub-line);border-radius:99px;background:var(--hub-surface);color:var(--hub-ink-soft);font-size:11px;font-weight:550;line-height:1.6;white-space:nowrap}.hub-state.available::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--hub-accent)}.hub-state.added{color:var(--hub-accent-strong);background:var(--hub-tint);border-color:var(--hub-accent-line)}.hub-state.review{color:var(--hub-warn-ink);background:var(--hub-warn-bg);border-color:var(--hub-warn-line)}.hub-state.other{border-color:transparent;background:var(--hub-canvas);color:var(--hub-muted)}
-.hub-empty{padding:32px 18px;text-align:center;color:var(--hub-muted)}.hub-more{width:100%;margin-top:10px}.hub-search-error{color:var(--hub-danger);font-size:12px}.hub-search-error:empty{display:none}
+.hub-empty{padding:32px 18px;text-align:center;color:var(--hub-muted)}.hub-more{width:100%;margin-top:10px}.hub-search-error{color:var(--hub-danger);font-size:12px}.hub-search-error:empty{display:none}.hub-export-status{margin:0;color:var(--hub-muted);font-size:12px}.hub-export-status:empty{display:none}
 .hub-coverage{margin-top:18px}.hub-coverage ul{list-style:none;padding:0;margin:10px 0 0;display:grid;grid-template-columns:1fr 1fr;gap:6px}.hub-coverage li{display:flex;justify-content:space-between;gap:12px;padding:7px 10px;background:var(--hub-canvas);border-radius:var(--hub-radius-sm)}.hub-coverage p{margin:8px 0 0}
 @media(max-width:600px){dialog{width:calc(100vw - 16px);max-height:94dvh;border-radius:14px}dialog header{padding:12px 10px 12px 16px}.hub-search-content{padding:14px 16px 18px}.hub-filters label{flex:1;min-width:120px}.hub-filters select{width:100%;min-width:0}.hub-filter-actions{margin-left:0;width:100%}.hub-filter-actions button{flex:1;border-color:var(--hub-line-strong)}.hub-coverage ul{grid-template-columns:1fr}.hub-result{padding:12px 14px}.hub-search-summary span{max-width:150px;text-align:right}}
 `;
@@ -1344,6 +1431,47 @@ function hubRenderSearchResults(root, saved, preferences, limit) {
         ? 'Some saved results could not be read and are excluded. Original data has been preserved; see bank coverage below.' : '';
 }
 
+// A local file for people and AI agents. It holds exactly what cross-bank
+// search shows (display fields plus saved full text); no account identifiers,
+// request data or credentials exist in these records.
+const HUB_OFFER_EXPORT_FORMAT = 'card-offer-hub-offers';
+const HUB_OFFER_EXPORT_SCHEMA_VERSION = 1;
+function hubIsoTime(milliseconds) {
+    return milliseconds > 0 ? new Date(milliseconds).toISOString() : null;
+}
+function hubBuildOfferExport(saved, exportedAt) {
+    const offers = saved.records.map(record => ({
+        bankId: record.bankId, bankName: record.bankName, card: record.card,
+        merchant: record.merchant, description: record.description, details: record.details || '', terms: record.terms || '',
+        category: record.category, status: record.status, expires: record.expires,
+        scannedAt: hubIsoTime(record.scannedAt), incomplete: record.incomplete, url: record.url
+    })).sort((left, right) => left.bankName.localeCompare(right.bankName) || left.card.localeCompare(right.card)
+        || left.merchant.localeCompare(right.merchant));
+    return {
+        format: HUB_OFFER_EXPORT_FORMAT, schemaVersion: HUB_OFFER_EXPORT_SCHEMA_VERSION,
+        exportedAt: hubIsoTime(exportedAt), release: HUB_RELEASE_VERSION,
+        note: 'Saved results from each bank\'s last manual scan. Status is as of scannedAt; confirm current terms on the bank website.',
+        statuses: { available: 'Available when scanned', added: 'Added', review: 'Needs review', other: 'Other / skipped' },
+        coverage: saved.coverage.map(entry => ({ bankId: entry.bank.id, bankName: entry.bank.label, state: entry.state, count: entry.count })),
+        offers
+    };
+}
+function hubOfferExportFileName(exportedAt) {
+    return `${HUB_OFFER_EXPORT_FORMAT}-${new Date(exportedAt).toISOString().replace(/[:.]/g, '-')}.json`;
+}
+// Same download path as the pacing debug log: a Blob link the user clicked for.
+function hubDownloadOfferExport(saved, exportedAt = Date.now()) {
+    const file = new Blob([JSON.stringify(hubBuildOfferExport(saved, exportedAt), null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(file);
+    const link = hubNode('a');
+    link.href = url;
+    link.download = hubOfferExportFileName(exportedAt);
+    document.body.append(link);
+    try { link.click(); }
+    finally { link.remove(); URL.revokeObjectURL(url); }
+    return link.download;
+}
+
 function openHubSearch(launcher) {
     if (document.getElementById('card-offer-hub-search')) return;
     const host = hubNode('div');
@@ -1360,8 +1488,10 @@ function openHubSearch(launcher) {
             <label>Bank<select id="hub-bank" aria-label="Filter by bank"><option value="">All banks</option></select></label>
             <label>Status<select id="hub-status" aria-label="Filter by offer status"><option value="">All statuses</option><option value="available">Available when scanned</option><option value="added">Added</option><option value="review">Needs review</option><option value="other">Other / skipped</option></select></label>
             <span class="hub-filter-actions"><button id="hub-reload" aria-label="Reload saved results">Reload saved results</button>
-            <button id="hub-reset" aria-label="Clear cross-bank filters">Clear filters</button></span>
+            <button id="hub-reset" aria-label="Clear cross-bank filters">Clear filters</button>
+            <button id="hub-export" aria-label="Export all saved offers" title="Download every saved offer, with full details where saved, as a JSON file for AI tools and backups">Export all</button></span>
           </div>
+          <p id="hub-export-status" class="hub-export-status" role="status" aria-live="polite"></p>
           <p id="hub-preferences-error" class="hub-search-error" role="alert"></p>
           <p id="hub-data-warning" class="hub-search-error" role="alert"></p>
           <div class="hub-search-summary" role="status" aria-live="polite"><strong id="hub-result-count"></strong><span id="hub-result-coverage" class="muted"></span></div>
@@ -1394,6 +1524,17 @@ function openHubSearch(launcher) {
     root.getElementById('hub-reset').onclick = () => { query.value = bank.value = status.value = ''; changed(); query.focus(); };
     root.getElementById('hub-reload').onclick = () => { saved = hubReadSavedResults(); limit = 60; render(); };
     root.getElementById('hub-load-more').onclick = () => { limit += 60; render(); };
+    // Exports every saved offer, ignoring the current search and filters.
+    root.getElementById('hub-export').onclick = () => {
+        const exportStatus = root.getElementById('hub-export-status');
+        saved = hubReadSavedResults(); render();
+        try {
+            const fileName = hubDownloadOfferExport(saved);
+            exportStatus.textContent = `Exported ${saved.records.length} saved offers to ${fileName} in your downloads.`;
+        } catch {
+            exportStatus.textContent = 'Export failed. Your saved offers were not changed.';
+        }
+    };
     const dialog = root.querySelector('dialog');
     const close = () => { dialog.close(); host.remove(); if (launcher?.isConnected) launcher.focus(); };
     root.querySelector('.hub-close').onclick = close;
@@ -1516,14 +1657,14 @@ function dispatchIssuer(configuration, startIssuer) {
 }
 
 // --- Issuer dispatches ---
-dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://global.americanexpress.com/offers","version":"1.7.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*americanexpress\\.com/.*$"],"patterns":["^https://global\\.americanexpress\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://global.americanexpress.com/offers","version":"1.8.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*americanexpress\\.com/.*$"],"patterns":["^https://global\\.americanexpress\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: amex-offer-lite ---
 (function () {
     'use strict';
 
     // Source: core/state.js
     const SETTINGS = Object.freeze({
-        version: "1.7.0", capabilities: {"activation":true,"scope":"card"}, workflow: "amex-combination",
+        version: "1.8.0", capabilities: {"activation":true,"scope":"card"}, workflow: "amex-combination",
         requestGapMs: 500,
         rateLimitCooldownMs: 120000,
         requestTimeoutMs: 30000,
@@ -2831,7 +2972,7 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
 // --- End issuer body: amex-offer-lite ---
 });
 
-dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"https://deals.merchant-rewards.com/","version":"1.7.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*bankofamerica\\.com/.*$","^https://deals\\.merchant-rewards\\.com/.*$"],"patterns":["^https://deals\\.merchant-rewards\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"https://deals.merchant-rewards.com/","version":"1.8.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*bankofamerica\\.com/.*$","^https://deals\\.merchant-rewards\\.com/.*$"],"patterns":["^https://deals\\.merchant-rewards\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: bofa-offer-lite ---
 (function () {
     'use strict';
@@ -2839,7 +2980,7 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "bofa-offer-lite", name: "BankAmeriDeals Lite", version: "1.7.0",
+        id: "bofa-offer-lite", name: "BankAmeriDeals Lite", version: "1.8.0",
         gapMilliseconds: 500, timeoutMilliseconds: 45000, pageSize: 24,
         defaultCooldownMilliseconds: 300000
     };
@@ -2904,6 +3045,7 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
     const { saveWorkspace, requireWorkspaceSaved, restoreWorkspace, recordWorkspaceScan,
         markWorkspaceOfferPending, finishWorkspaceOffer, bindWorkspaceScope } = createHubWorkspaceStore({
         state, workflowType: SETTINGS.workflow, fields: WORKSPACE_FIELDS, storage: issuerStorage, storageKey: `${SETTINGS.id}:workspace`,
+        detailStorageKey: `${SETTINGS.id}:offer-details`,
         onError: () => renderPanel(),
         readConsent: () => state.consent, writeConsent: value => { state.consent = value; },
         markPendingRecord: record => { record.result = 'Unconfirmed'; record.eligible = false; }
@@ -2978,6 +3120,9 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
         return {
             id: raw.offer_id, name: typeof raw.merchant_name === 'string' ? raw.merchant_name : 'Merchant',
             headline: typeof raw.headline === 'string' ? raw.headline : '',
+            // Full text for saved results and export only; never used to decide a write.
+            details: typeof raw.description === 'string' ? raw.description : '',
+            terms: typeof raw.terms_and_conditions === 'string' ? raw.terms_and_conditions : '',
             eligible: !reason, activated: raw.is_activated, reason, result: ''
         };
     }
@@ -3136,7 +3281,7 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
 // --- End issuer body: bofa-offer-lite ---
 });
 
-dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://secure.chase.com/web/auth/dashboard","version":"1.7.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*chase\\.com/.*$"],"patterns":["^https://secure\\.chase\\.com/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://secure.chase.com/web/auth/dashboard","version":"1.8.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*chase\\.com/.*$"],"patterns":["^https://secure\\.chase\\.com/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: chase-offer-lite ---
 (function () {
     'use strict';
@@ -3144,7 +3289,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"card"}, workflow: "per-card",
-        id: "chase-offer-lite", name: "Chase Offer Lite", version: "1.7.0",
+        id: "chase-offer-lite", name: "Chase Offer Lite", version: "1.8.0",
         gapMilliseconds: 500, timeoutMilliseconds: 45000,
         defaultCooldownMilliseconds: 300000
     };
@@ -3222,6 +3367,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
     const { saveWorkspace, requireWorkspaceSaved, restoreWorkspace, recordWorkspaceScan,
         markWorkspaceOfferPending, finishWorkspaceOffer, bindWorkspaceScope } = createHubWorkspaceStore({
         state, workflowType: SETTINGS.workflow, fields: WORKSPACE_FIELDS, storage: issuerStorage, storageKey: `${SETTINGS.id}:workspace`,
+        detailStorageKey: `${SETTINGS.id}:offer-details`,
         onError: () => renderPanel(), defaultSelectCards: true
     });
     function workspaceCacheNotice() { return hubWorkspaceCacheNotice(state); }
@@ -3295,7 +3441,10 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
                 title: typeof raw.offerDisplayDetails?.shortMessageText === 'string' ? raw.offerDisplayDetails.shortMessageText : '',
                 category: Array.isArray(raw.offerCategories) ? raw.offerCategories.map(value => typeof value === 'string' ? value : value?.offerCategoryName)
                     .filter(value => typeof value === 'string').join(', ') : '',
-                expires: typeof raw.offerDetails?.offerEndTimestamp === 'string' ? raw.offerDetails.offerEndTimestamp : ''
+                expires: typeof raw.offerDetails?.offerEndTimestamp === 'string' ? raw.offerDetails.offerEndTimestamp : '',
+                // Full text for saved results and export only; never used to decide a write.
+                details: typeof raw.offerDisplayDetails?.rewardDescriptionText === 'string' ? raw.offerDisplayDetails.rewardDescriptionText : '',
+                terms: typeof raw.offerDisplayDetails?.termsAndConditionsText === 'string' ? raw.offerDisplayDetails.termsAndConditionsText : ''
             });
         }
         return [...offers.values()];
@@ -3920,7 +4069,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
 // --- End issuer body: chase-offer-lite ---
 });
 
-dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://online.citi.com/US/nga/products-offers/merchantoffers","version":"1.7.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*citi\\.com/.*$"],"patterns":["^https://online\\.citi\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://online.citi.com/US/nga/products-offers/merchantoffers","version":"1.8.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*citi\\.com/.*$"],"patterns":["^https://online\\.citi\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: citi-offer-lite ---
 (function () {
     'use strict';
@@ -3928,7 +4077,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"card"}, workflow: "per-card",
-        id: "citi-offer-lite", name: "Citi Offer Lite", version: "1.7.0",
+        id: "citi-offer-lite", name: "Citi Offer Lite", version: "1.8.0",
         apiBase: '/gcgapi/prod/public/v1',
         retrievePath: '/digital/customers/creditCards/merchantOffers/retrieve',
         enrollmentPath: '/digital/customers/creditCards/accounts/rewards/specialOffers/enrollMerchantOffer',
@@ -4478,7 +4627,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
 // --- End issuer body: citi-offer-lite ---
 });
 
-dispatchIssuer({"id":"kroger-coupon-lite","label":"Kroger","offersUrl":"https://www.kroger.com/savings/cl/coupons/","version":"1.7.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*kroger\\.com/.*$"],"patterns":["^https://www\\.kroger\\.com/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"kroger-coupon-lite","label":"Kroger","offersUrl":"https://www.kroger.com/savings/cl/coupons/","version":"1.8.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*kroger\\.com/.*$"],"patterns":["^https://www\\.kroger\\.com/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: kroger-coupon-lite ---
 (function () {
     'use strict';
@@ -4486,7 +4635,7 @@ dispatchIssuer({"id":"kroger-coupon-lite","label":"Kroger","offersUrl":"https://
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "kroger-coupon-lite", name: "Kroger Coupon Lite", version: "1.7.0",
+        id: "kroger-coupon-lite", name: "Kroger Coupon Lite", version: "1.8.0",
         origin: 'https://www.kroger.com',
         gapMilliseconds: 500, timeoutMilliseconds: 30000,
         defaultCooldownMilliseconds: 300000,
@@ -4556,6 +4705,7 @@ dispatchIssuer({"id":"kroger-coupon-lite","label":"Kroger","offersUrl":"https://
     const { saveWorkspace, requireWorkspaceSaved, restoreWorkspace, recordWorkspaceScan,
         markWorkspaceOfferPending, finishWorkspaceOffer, bindWorkspaceScope } = createHubWorkspaceStore({
         state, workflowType: SETTINGS.workflow, fields: WORKSPACE_FIELDS, storage: issuerStorage, storageKey: `${SETTINGS.id}:workspace`,
+        detailStorageKey: `${SETTINGS.id}:offer-details`,
         onError: () => renderPanel()
     });
     function workspaceCacheNotice() { return hubWorkspaceCacheNotice(state); }
@@ -4597,7 +4747,9 @@ dispatchIssuer({"id":"kroger-coupon-lite","label":"Kroger","offersUrl":"https://
             merchant: krogerText(raw.brand) || 'Kroger',
             title: krogerText(raw.displayDescription) || krogerText(raw.shortDescription) || krogerText(raw.title),
             category: Array.isArray(raw.categories) ? raw.categories.map(krogerText).filter(Boolean).join(', ') : '',
-            expires: krogerText(raw.expirationDate)
+            expires: krogerText(raw.expirationDate),
+            // Full text for saved results and export only; never used to decide a clip.
+            details: krogerText(raw.longDescription), terms: krogerText(raw.requirementDescription)
         };
     }
     function normalizeKrogerCouponPage(payload) {
@@ -4943,7 +5095,7 @@ dispatchIssuer({"id":"kroger-coupon-lite","label":"Kroger","offersUrl":"https://
 // --- End issuer body: kroger-coupon-lite ---
 });
 
-dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://onlinebanking.usbank.com/digital/servicing/dominjection/cashback-deals","version":"1.7.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*usbank\\.com/.*$"],"patterns":["^https://onlinebanking\\.usbank\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://onlinebanking.usbank.com/digital/servicing/dominjection/cashback-deals","version":"1.8.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*usbank\\.com/.*$"],"patterns":["^https://onlinebanking\\.usbank\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: usbank-offer-lite ---
 (function () {
     'use strict';
@@ -4951,7 +5103,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "usbank-offer-lite", name: "US Bank Offer Lite", version: "1.7.0",
+        id: "usbank-offer-lite", name: "US Bank Offer Lite", version: "1.8.0",
         endpoint: '/digital/api/customer-management/graphql/v2',
         gapMilliseconds: 500, timeoutMilliseconds: 45000,
         defaultCooldownMilliseconds: 300000
@@ -5018,6 +5170,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
     const { saveWorkspace, requireWorkspaceSaved, restoreWorkspace, recordWorkspaceScan,
         markWorkspaceOfferPending, finishWorkspaceOffer, bindWorkspaceScope } = createHubWorkspaceStore({
         state, workflowType: SETTINGS.workflow, fields: WORKSPACE_FIELDS, storage: issuerStorage, storageKey: `${SETTINGS.id}:workspace`,
+        detailStorageKey: `${SETTINGS.id}:offer-details`,
         onError: () => renderPanel()
     });
     function workspaceCacheNotice() { return hubWorkspaceCacheNotice(state); }
@@ -5118,6 +5271,9 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
                 merchant: typeof ad.merchantName === 'string' ? ad.merchantName : 'Merchant',
                 title: typeof ad.assets?.copy?.value?.headline === 'string' ? ad.assets.copy.value.headline : '',
                 category: typeof ad.categoryName === 'string' ? ad.categoryName : '',
+                // Full text for saved results and export only; never used to decide a write.
+                details: typeof ad.assets?.copy?.value?.marketingCopy === 'string' ? ad.assets.copy.value.marketingCopy : '',
+                terms: typeof ad.assets?.copy?.value?.termsAndConditions === 'string' ? ad.assets.copy.value.termsAndConditions : '',
                 starts: ad.startDate, expires: ad.endDate, activationState: ad.activationState,
                 status: ad.activationState === 'ACTIVATED' ? 'ACTIVATED' : 'SKIPPED',
                 adType: ad.adType, visibilityState: ad.visibilityState,
@@ -5350,7 +5506,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
 // --- End issuer body: usbank-offer-lite ---
 });
 
-dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"https://web.secure.wellsfargo.com/auth/deals-portal","version":"1.7.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*wellsfargo\\.com/.*$"],"patterns":["^https://web\\.secure\\.wellsfargo\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"https://web.secure.wellsfargo.com/auth/deals-portal","version":"1.8.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*wellsfargo\\.com/.*$"],"patterns":["^https://web\\.secure\\.wellsfargo\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: wellsfargo-offer-lite ---
 (function () {
     'use strict';
@@ -5358,7 +5514,7 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "wellsfargo-offer-lite", name: "Wells Fargo Offer Lite", version: "1.7.0",
+        id: "wellsfargo-offer-lite", name: "Wells Fargo Offer Lite", version: "1.8.0",
         retrievePath: '/deals-portal/as/getDeals', enrollmentPath: '/deals-portal/as/activateCLDeal',
         gapMilliseconds: 500, timeoutMilliseconds: 45000, defaultCooldownMilliseconds: 300000
     };
@@ -5420,6 +5576,7 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"
     const { saveWorkspace, requireWorkspaceSaved, restoreWorkspace, recordWorkspaceScan,
         markWorkspaceOfferPending, finishWorkspaceOffer, bindWorkspaceScope } = createHubWorkspaceStore({
         state, workflowType: SETTINGS.workflow, fields: WORKSPACE_FIELDS, storage: issuerStorage, storageKey: `${SETTINGS.id}:workspace`,
+        detailStorageKey: `${SETTINGS.id}:offer-details`,
         onError: () => renderPanel(),
         readConsent: () => state.accountConsent, writeConsent: value => { state.accountConsent = value; }
     });
@@ -5509,7 +5666,9 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"
                     offerId: details.merchantOfferId, status,
                     merchant: typeof details.merchantName === 'string' ? details.merchantName : 'Merchant',
                     title: typeof details.shortDescription === 'string' ? details.shortDescription : '',
-                    expires: typeof details.expirationDate === 'string' ? details.expirationDate : ''
+                    expires: typeof details.expirationDate === 'string' ? details.expirationDate : '',
+                    // Full text for saved results and export only; Wells Fargo lists no separate terms.
+                    details: typeof details.longDescription === 'string' ? details.longDescription : ''
                 };
                 const existing = offers.get(offer.offerId);
                 if (existing) {

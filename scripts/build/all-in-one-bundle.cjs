@@ -34,7 +34,7 @@ function buildAllInOneBundle(scripts) {
         return `dispatchIssuer(${JSON.stringify(config)}, function (GM_getValue, GM_setValue) {\n// --- Issuer body: ${script.id} ---\n${body}// --- End issuer body: ${script.id} ---\n});`;
     });
     const header = buildMetadataBlock(manifest).replace('bundles/all/src', 'bundles/all and issuers');
-    const output = `${header}\n(function () {\n'use strict';\n// --- Shared runtime ---\n${sharedSource}\n// --- End shared runtime ---\nconst HUB_BANKS = [${banks.join(',\n')}];\n${runtimeSource}\n\n// --- Issuer dispatches ---\n${components.join('\n\n')}\n})();\n`;
+    const output = `${header}\n(function () {\n'use strict';\n// --- Shared runtime ---\n${sharedSource}\n// --- End shared runtime ---\nconst HUB_BANKS = [${banks.join(',\n')}];\nconst HUB_RELEASE_VERSION = ${JSON.stringify(manifest.version)};\n${runtimeSource}\n\n// --- Issuer dispatches ---\n${components.join('\n\n')}\n})();\n`;
     new Script(output, { filename: `${manifest.id}.user.js` });
     if (countMetadataBlocks(output) !== 1) throw new Error('The published userscript must have exactly one metadata block.');
     return output;

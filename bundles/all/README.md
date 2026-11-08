@@ -17,6 +17,7 @@
 - 搜索、银行和状态筛选会保存在本地；一次显示 60 条，点击 Show more 可继续查看。
 - **Reload saved results** 只重新读取本地缓存，可读取其他银行页面刚保存的结果；不会访问银行接口，也不会替用户扫描或添加。
 - Available when scanned 表示扫描时可用，当前资格和优惠条款需到银行核验；Needs review 不会当成已添加。
+- **Export all** 下载全部已保存优惠的 JSON（含详情和条款），供本地 AI agent 读取：`npm run -s offers -- --query "<商户>"`。各银行升级后需重新扫描一次才有全文；Citi 列表不含条款。详见[优惠导出与本地 AI 读取](../../docs/offer-export.md)。
 - Saved bank coverage 可查看哪些银行尚未扫描，或存储存在读取问题。未知或损坏的数据保留原样，其他银行仍可搜索。
 
 六家银行使用同一套界面和 **Choose scope → Scan offers → Review & add** 三步流程。搜索只过滤显示，Add all offers 的范围不随搜索改变；跨银行搜索读取统一版中保存的数据。详见[统一操作流程](../../docs/unified-workflow.md)。首次使用，需要在每家银行手动扫描一次；仅安装插件不会自动获取其他银行数据。

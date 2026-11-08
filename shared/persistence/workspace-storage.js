@@ -1,6 +1,6 @@
 function createHubWorkspaceStore({ state, fields, storage, storageKey, workflowType, onError = () => {},
     readConsent = () => false, writeConsent = () => {}, defaultSelectCards = false,
-    markPendingRecord = record => { record.status = 'UNCONFIRMED'; } }) {
+    markPendingRecord = record => { record.status = 'UNCONFIRMED'; }, detailStorageKey = null }) {
     const pendingWorkspaceOffers = new Set();
     function saveWorkspace() {
         if (state.storageError) return false;
@@ -59,6 +59,20 @@ function createHubWorkspaceStore({ state, fields, storage, storageKey, workflowT
         state.restoredWorkspace = false;
         pendingWorkspaceOffers.clear();
         requireWorkspaceSaved();
+        saveWorkspaceOfferDetails();
+    }
+    // Full offer text is written once per completed scan. A newer or damaged
+    // detail store is preserved and blocks further requests, like the workspace.
+    function saveWorkspaceOfferDetails() {
+        if (!detailStorageKey) return;
+        try {
+            const previous = hubDecodeOfferDetails(storage.get(detailStorageKey, null));
+            storage.set(detailStorageKey, hubEncodeOfferDetails(hubMergeOfferDetails(previous, state.offers, workspaceOfferKey), Date.now()));
+        } catch {
+            state.storageError = 'Cannot save full offer details. Further requests are blocked; fix Tampermonkey storage and reload.';
+            onError(state.storageError);
+            throw new Error(state.storageError);
+        }
     }
     function markWorkspaceOfferPending(offer) {
         pendingWorkspaceOffers.add(workspaceOfferKey(offer));

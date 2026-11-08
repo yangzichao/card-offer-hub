@@ -1,6 +1,7 @@
 const { saveWorkspace, requireWorkspaceSaved, restoreWorkspace, recordWorkspaceScan,
     markWorkspaceOfferPending, finishWorkspaceOffer, bindWorkspaceScope } = createHubWorkspaceStore({
     state, workflowType: SETTINGS.workflow, fields: WORKSPACE_FIELDS, storage: issuerStorage, storageKey: `${SETTINGS.id}:workspace`,
+    detailStorageKey: `${SETTINGS.id}:offer-details`,
     onError: () => renderPanel()
 });
 function workspaceCacheNotice() { return hubWorkspaceCacheNotice(state); }

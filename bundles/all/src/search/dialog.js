@@ -14,8 +14,10 @@ function openHubSearch(launcher) {
             <label>Bank<select id="hub-bank" aria-label="Filter by bank"><option value="">All banks</option></select></label>
             <label>Status<select id="hub-status" aria-label="Filter by offer status"><option value="">All statuses</option><option value="available">Available when scanned</option><option value="added">Added</option><option value="review">Needs review</option><option value="other">Other / skipped</option></select></label>
             <span class="hub-filter-actions"><button id="hub-reload" aria-label="Reload saved results">Reload saved results</button>
-            <button id="hub-reset" aria-label="Clear cross-bank filters">Clear filters</button></span>
+            <button id="hub-reset" aria-label="Clear cross-bank filters">Clear filters</button>
+            <button id="hub-export" aria-label="Export all saved offers" title="Download every saved offer, with full details where saved, as a JSON file for AI tools and backups">Export all</button></span>
           </div>
+          <p id="hub-export-status" class="hub-export-status" role="status" aria-live="polite"></p>
           <p id="hub-preferences-error" class="hub-search-error" role="alert"></p>
           <p id="hub-data-warning" class="hub-search-error" role="alert"></p>
           <div class="hub-search-summary" role="status" aria-live="polite"><strong id="hub-result-count"></strong><span id="hub-result-coverage" class="muted"></span></div>
@@ -48,6 +50,17 @@ function openHubSearch(launcher) {
     root.getElementById('hub-reset').onclick = () => { query.value = bank.value = status.value = ''; changed(); query.focus(); };
     root.getElementById('hub-reload').onclick = () => { saved = hubReadSavedResults(); limit = 60; render(); };
     root.getElementById('hub-load-more').onclick = () => { limit += 60; render(); };
+    // Exports every saved offer, ignoring the current search and filters.
+    root.getElementById('hub-export').onclick = () => {
+        const exportStatus = root.getElementById('hub-export-status');
+        saved = hubReadSavedResults(); render();
+        try {
+            const fileName = hubDownloadOfferExport(saved);
+            exportStatus.textContent = `Exported ${saved.records.length} saved offers to ${fileName} in your downloads.`;
+        } catch {
+            exportStatus.textContent = 'Export failed. Your saved offers were not changed.';
+        }
+    };
     const dialog = root.querySelector('dialog');
     const close = () => { dialog.close(); host.remove(); if (launcher?.isConnected) launcher.focus(); };
     root.querySelector('.hub-close').onclick = close;

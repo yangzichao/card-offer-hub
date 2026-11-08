@@ -4,5 +4,5 @@ function readIssuerSavedResults(bank, readValue) {
     return hubWorkspaceDisplayRecords(bank, snapshot, offer => ({
         merchant: offer.merchant, description: offer.title, displayStatus: hubStatus(offer.status),
         expires: offer.expires, category: offer.category
-    }), __USERSCRIPT_WORKFLOW__);
+    }), __USERSCRIPT_WORKFLOW__, readValue(`${__USERSCRIPT_ID__}:offer-details`, null));
 }

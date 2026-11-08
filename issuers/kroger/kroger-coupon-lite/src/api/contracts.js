@@ -33,7 +33,9 @@ function normalizeKrogerCoupon(raw) {
         merchant: krogerText(raw.brand) || 'Kroger',
         title: krogerText(raw.displayDescription) || krogerText(raw.shortDescription) || krogerText(raw.title),
         category: Array.isArray(raw.categories) ? raw.categories.map(krogerText).filter(Boolean).join(', ') : '',
-        expires: krogerText(raw.expirationDate)
+        expires: krogerText(raw.expirationDate),
+        // Full text for saved results and export only; never used to decide a clip.
+        details: krogerText(raw.longDescription), terms: krogerText(raw.requirementDescription)
     };
 }
 function normalizeKrogerCouponPage(payload) {

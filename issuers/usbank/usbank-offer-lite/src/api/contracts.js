@@ -27,6 +27,9 @@ function normalizeListing(payload) {
             merchant: typeof ad.merchantName === 'string' ? ad.merchantName : 'Merchant',
             title: typeof ad.assets?.copy?.value?.headline === 'string' ? ad.assets.copy.value.headline : '',
             category: typeof ad.categoryName === 'string' ? ad.categoryName : '',
+            // Full text for saved results and export only; never used to decide a write.
+            details: typeof ad.assets?.copy?.value?.marketingCopy === 'string' ? ad.assets.copy.value.marketingCopy : '',
+            terms: typeof ad.assets?.copy?.value?.termsAndConditions === 'string' ? ad.assets.copy.value.termsAndConditions : '',
             starts: ad.startDate, expires: ad.endDate, activationState: ad.activationState,
             status: ad.activationState === 'ACTIVATED' ? 'ACTIVATED' : 'SKIPPED',
             adType: ad.adType, visibilityState: ad.visibilityState,

@@ -22,6 +22,7 @@
         "ui/workflow-layout.js",
         "runtime/request-scheduler.js",
         "offers/display-records.js",
+        "offers/detail-store.js",
         "runtime/action-lifecycle.js",
         "pacing/policy.js",
         "pacing/profile.js",

@@ -65,7 +65,10 @@ function normalizeOffers(payload, requestedAccountId, expectedEnterprisePartyIde
             title: typeof raw.offerDisplayDetails?.shortMessageText === 'string' ? raw.offerDisplayDetails.shortMessageText : '',
             category: Array.isArray(raw.offerCategories) ? raw.offerCategories.map(value => typeof value === 'string' ? value : value?.offerCategoryName)
                 .filter(value => typeof value === 'string').join(', ') : '',
-            expires: typeof raw.offerDetails?.offerEndTimestamp === 'string' ? raw.offerDetails.offerEndTimestamp : ''
+            expires: typeof raw.offerDetails?.offerEndTimestamp === 'string' ? raw.offerDetails.offerEndTimestamp : '',
+            // Full text for saved results and export only; never used to decide a write.
+            details: typeof raw.offerDisplayDetails?.rewardDescriptionText === 'string' ? raw.offerDisplayDetails.rewardDescriptionText : '',
+            terms: typeof raw.offerDisplayDetails?.termsAndConditionsText === 'string' ? raw.offerDisplayDetails.termsAndConditionsText : ''
         });
     }
     return [...offers.values()];
