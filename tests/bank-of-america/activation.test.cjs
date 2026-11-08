@@ -25,7 +25,7 @@ test('manual pagination, consent, empty PUT and readback, response-completion pa
     assert.equal(harness.requests.length, 3);
     harness.state.consent = true;
     await harness.activateOffers();
-    assert.match(harness.state.status, /Finished: 1\/1/);
+    assert.match(harness.state.status, /Finished: 1 of 1 added\./);
     const writes = harness.requests.filter(item => item.method === 'PUT');
     assert.equal(writes.length, 1);
     assert.equal(writes[0].body, undefined);
@@ -37,8 +37,8 @@ test('manual pagination, consent, empty PUT and readback, response-completion pa
     assert.ok(!stored.includes(token()));
     assert.ok(!stored.includes('latitude'));
 });
-for (const mode of ['unknown', '429', 'readback']) test(`${mode} halts without retries`, async () => {
-    const harness = createHarness(responder([offer('101'), offer('102')], mode));
+test('429 halts the run without retries', async () => {
+    const harness = createHarness(responder([offer('101'), offer('102')], '429'));
     await harness.scanOffers();
     harness.state.consent = true;
     await harness.activateOffers();
@@ -48,11 +48,117 @@ for (const mode of ['unknown', '429', 'readback']) test(`${mode} halts without r
     const count = harness.requests.length;
     await harness.activateOffers();
     assert.equal(harness.requests.length, count);
-    if (mode === '429') {
-        await harness.scanOffers();
-        assert.match(harness.state.status, /Rate limited/);
-        assert.equal(harness.requests.length, count);
+    await harness.scanOffers();
+    assert.match(harness.state.status, /Rate limited/);
+    assert.equal(harness.requests.length, count);
+});
+test('an acknowledgement without ok is settled by the read-back, once per offer', async () => {
+    const harness = createHarness(responder([offer('101'), offer('102')], 'unknown'));
+    await harness.scanOffers();
+    harness.state.consent = true;
+    await harness.activateOffers();
+    assert.equal(harness.state.confirmed, 2);
+    assert.equal(harness.requests.filter(item => item.method === 'PUT').length, 2);
+    assert.match(harness.state.status, /Finished: 2 of 2 added\./);
+});
+test('an offer that never reads back activated is re-sent once, then skipped for the next offer', async () => {
+    const harness = createHarness(responder([offer('101'), offer('102')], 'readback'));
+    await harness.scanOffers();
+    harness.state.consent = true;
+    await harness.activateOffers();
+    const writes = harness.requests.filter(item => item.method === 'PUT').map(item => item.path);
+    assert.deepEqual(writes, ['/api/activate-offer/101', '/api/activate-offer/101', '/api/activate-offer/102', '/api/activate-offer/102']);
+    assert.equal(harness.state.confirmed, 0);
+    assert.deepEqual(Array.from(harness.state.offers, item => item.result), ['Not added', 'Not added']);
+    assert.match(harness.state.status, /Finished: 0 of 2 added\. 2 not added after a retry; Add tries them again\. Not added: Synthetic Merchant 101, Synthetic Merchant 102\./);
+    assert.equal(harness.state.needsScan, false, 'Add can try them again without a new scan');
+    await harness.activateOffers();
+    assert.equal(harness.requests.filter(item => item.method === 'PUT').length, 8);
+});
+test('one failing offer is retried once and the run continues with the rest', async () => {
+    const offers = [offer('101'), offer('102'), offer('103')];
+    const normal = responder(offers);
+    const harness = createHarness(request => {
+        if (request.method === 'PUT' && request.path.endsWith('/102')) return jsonResponse({}, 500);
+        return normal(request);
+    });
+    await harness.scanOffers();
+    harness.state.consent = true;
+    await harness.activateOffers();
+    const writes = harness.requests.filter(item => item.method === 'PUT').map(item => item.path.split('/').pop());
+    assert.deepEqual(writes, ['101', '102', '102', '103']);
+    assert.equal(harness.state.confirmed, 2);
+    assert.deepEqual(Array.from(harness.state.offers, item => [item.result, item.activated]),
+        [['Confirmed', true], ['Not added', false], ['Confirmed', true]]);
+    assert.match(harness.state.status, /Finished: 2 of 3 added\..*Not added: Synthetic Merchant 102\./);
+    for (let index = 1; index < harness.requests.length; index++) {
+        assert.ok(harness.requests[index].startedAt >= harness.requests[index - 1].finishedAt, 'still one request at a time');
     }
+});
+test('a details read that fails twice skips the offer without writing it', async () => {
+    const normal = responder([offer('101'), offer('102')]);
+    const harness = createHarness(request => {
+        if (request.path === '/api/offers-details' && request.body.offer_id === '101') return jsonResponse({}, 404);
+        return normal(request);
+    });
+    await harness.scanOffers();
+    harness.state.consent = true;
+    await harness.activateOffers();
+    assert.deepEqual(harness.requests.filter(item => item.method === 'PUT').map(item => item.path), ['/api/activate-offer/102']);
+    assert.equal(harness.requests.filter(item => item.body?.offer_id === '101').length, 2, 'one read retry');
+    assert.equal(harness.state.offers[0].result, 'Not added');
+    assert.equal(harness.state.confirmed, 1);
+});
+test('three failing offers in a row pause the run; Add continues later', async () => {
+    const offers = ['101', '102', '103', '104'].map(id => offer(id));
+    const harness = createHarness(responder(offers, 'readback'));
+    await harness.scanOffers();
+    harness.state.consent = true;
+    await harness.activateOffers();
+    const written = new Set(harness.requests.filter(item => item.method === 'PUT').map(item => item.path.split('/').pop()));
+    assert.deepEqual([...written], ['101', '102', '103']);
+    assert.match(harness.state.status, /^Paused: 3 offers in a row could not be added.* 1 not tried yet\. Click Add again to continue\./);
+    assert.equal(harness.state.needsScan, false);
+});
+test('a lost write that reads back activated counts; a lost read-back ends the run', async () => {
+    const normal = responder([offer('101'), offer('102')]);
+    let dropWrite = true;
+    const harness = createHarness(request => {
+        const response = normal(request);
+        if (request.method === 'PUT' && dropWrite) { dropWrite = false; throw new TypeError('Failed to fetch'); }
+        return response;
+    });
+    await harness.scanOffers();
+    harness.state.consent = true;
+    await harness.activateOffers();
+    assert.equal(harness.state.confirmed, 2);
+    assert.equal(harness.requests.filter(item => item.method === 'PUT').length, 2);
+
+    let writes = 0;
+    const fresh = responder([offer('101'), offer('102')]);
+    const offline = createHarness(request => {
+        if (request.method === 'PUT') writes++;
+        if (writes && request.path === '/api/offers-details') throw new TypeError('Failed to fetch');
+        return fresh(request);
+    });
+    await offline.scanOffers();
+    offline.state.consent = true;
+    await offline.activateOffers();
+    assert.match(offline.state.status, /Network request failed/);
+    assert.equal(writes, 1);
+    assert.equal(offline.state.offers[0].result, 'Unconfirmed');
+    assert.equal(offline.state.needsScan, true);
+});
+test('sign-in errors during activation end the run', async () => {
+    const normal = responder([offer('101'), offer('102')]);
+    const harness = createHarness(request => request.method === 'PUT' ? jsonResponse({}, 401) : normal(request));
+    await harness.scanOffers();
+    harness.state.consent = true;
+    await harness.activateOffers();
+    assert.match(harness.state.status, /HTTP 401\. Sign in and scan again/);
+    assert.equal(harness.requests.filter(item => item.method === 'PUT').length, 1);
+    assert.equal(harness.state.offers[0].result, 'Unconfirmed');
+    assert.equal(harness.state.needsScan, true);
 });
 test('session switch cannot activate', async () => {
     const harness = createHarness(responder());
@@ -85,14 +191,38 @@ test('stop during pacing prevents subsequent requests', async () => {
     assert.equal(harness.requests.length, 1);
     assert.match(harness.state.status, /Stopped/);
 });
-test('ambiguous pagination fails closed', async () => {
-    for (const payload of [{ offers: [offer()], total: 2 }, { offers: [offer(), offer()], total: 2 },
-        { offers: [], total: 1 }, { offers: [offer()], total: 1, user_information_available: false }]) {
+test('an empty list despite a reported total, or no user information, fails closed', async () => {
+    for (const payload of [{ offers: [], total: 1 }, { offers: [offer()], total: 1, user_information_available: false }]) {
         const harness = createHarness(request => request.path === '/geo' ? jsonResponse({ latitude: 0, longitude: 0 }) : jsonResponse(payload));
         await harness.scanOffers();
         assert.equal(harness.state.needsScan, true);
         assert.equal(harness.state.offers.length, 0);
     }
+});
+test('a total that changes on every page, as observed live, still completes the scan', async () => {
+    const offers = Array.from({ length: 60 }, (_, index) => offer(String(200 + index)));
+    // Live Deals returned 841, 843, 840, 831, 843 for consecutive pages; the list
+    // also shifts, so one offer from page 1 appears again on page 2.
+    const pages = [
+        { offers: offers.slice(0, 24), total: 61 },
+        { offers: [offers[23], ...offers.slice(24, 47)], total: 63 },
+        { offers: offers.slice(47), total: 58 }
+    ];
+    const harness = createHarness(request => request.path === '/geo' ? jsonResponse({ latitude: 0, longitude: 0 })
+        : jsonResponse(pages[request.body.page_offset / 24]));
+    await harness.scanOffers();
+    assert.equal(harness.state.needsScan, false);
+    assert.equal(harness.state.offers.length, 60);
+    assert.equal(new Set(Array.from(harness.state.offers, item => item.id)).size, 60);
+    assert.deepEqual(harness.requests.filter(request => request.path.endsWith('search')).map(request => request.body.page_offset), [0, 24, 48]);
+    assert.match(harness.state.status, /Scan complete: 60 eligible, 0 skipped/);
+});
+test('a full last page is followed by one more request that ends on an empty page', async () => {
+    const offers = Array.from({ length: 24 }, (_, index) => offer(String(300 + index)));
+    const harness = createHarness(responder(offers));
+    await harness.scanOffers();
+    assert.equal(harness.state.offers.length, 24);
+    assert.deepEqual(harness.requests.filter(request => request.path.endsWith('search')).map(request => request.body.page_offset), [0, 24]);
 });
 test('strict endpoint allowlist and location validation', async () => {
     const harness = createHarness(responder());
@@ -117,15 +247,16 @@ test('429 cooldown survives reload and never shrinks', async () => {
     restored.restorePacing();
     assert.equal(restored.state.cooldownUntil, cooldown + 100000);
 });
-test('changed preflight eligibility prevents a write', async () => {
-    const normal = responder();
-    const harness = createHarness(request => request.path === '/api/offers-details'
+test('changed preflight eligibility skips that offer without a write and continues', async () => {
+    const normal = responder([offer('101'), offer('102')]);
+    const harness = createHarness(request => request.path === '/api/offers-details' && request.body.offer_id === '101'
         ? jsonResponse({ offer: offer('101', { activation_type: 'LINK' }) }) : normal(request));
     await harness.scanOffers();
     harness.state.consent = true;
     await harness.activateOffers();
-    assert.match(harness.state.status, /eligibility changed/);
-    assert.equal(harness.requests.filter(request => request.method === 'PUT').length, 0);
+    assert.match(harness.state.status, /Finished: 1 of 2 added\. 1 no longer eligible\./);
+    assert.deepEqual(harness.requests.filter(request => request.method === 'PUT').map(request => request.path), ['/api/activate-offer/102']);
+    assert.equal(harness.state.offers[0].reason, 'Shopping link / unsupported activation');
 });
 test('stop during a write leaves it unconfirmed and never sends a second write', async () => {
     const normal = responder();

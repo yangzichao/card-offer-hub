@@ -24,7 +24,7 @@
 
 每次只发送一个 `clientEvents` 事件，使用最新列表的 `sessionTokenId`、`requestId`（映射到 `clientEventId`）、对应优惠的 `offerId` 和 `adServeToken`。事件的 `curationId: Featured`、`section: Summary`、`channel: OLB` 与捕获一致。`displayPosition` 使用脚本最新列表里的位置；它是展示元数据，实际银行页面当时的筛选位置不能由列表 rank 推导。时间戳新生成，不重放历史时间。
 
-激活响应只有 `data.getActivateOffer.requestId`，**没有明确的激活状态**。因此本实现把它当作接收确认；随后发起一次新的完整列表查询，要求同一 offerId 明确变为 `ACTIVATED`。服务端不确认、优惠消失、重复冲突或回查报错时，标记 `UNCONFIRMED` 并停止整个队列。不会把 DOM 中的绿勾当成服务器证据。
+激活响应只有 `data.getActivateOffer.requestId`，**没有明确的激活状态**。因此本实现把它当作接收确认；随后发起一次新的完整列表查询，要求同一 offerId 明确变为 `ACTIVATED`。回查仍是可添加时再发一次，仍未确认就记下并继续下一个；优惠消失或重复冲突标记 `UNCONFIRMED` 并继续；回查本身报错才停止整个队列。见[单个优惠失败后继续](offer-failure-continuation.md)。不会把 DOM 中的绿勾当成服务器证据。
 
 列表中 `NEW`、`SERVED` 可作为候选；空状态、AUTO_ACTIVATED 等保持跳过。前端静态源码确实识别 `ACTIVATED`，但用户提供的 HAR 没有激活后的列表，因此真实回查时序尚未验证。
 
@@ -46,6 +46,6 @@
 - 带 Bearer 头后真实列表和激活能否成功；不带时服务器返回什么（推测 401，未验证）。
 - `AccessToken` 在页面停留期间是否会刷新或过期，过期后脚本看到的是「sign-in token is unavailable」还是 HTTP 401。
 - 客户级优惠在银行侧覆盖哪些卡片；本脚本不提供未证明的逐卡能力。
-- 激活后列表何时返回 `ACTIVATED`，是否存在银行侧缓存或最终一致性延迟。即使延迟也保持一次回查后停止，不自动重试。
+- 激活后列表何时返回 `ACTIVATED`，是否存在银行侧缓存或最终一致性延迟。有延迟时第一次回查可能显示未激活并触发一次重发，重发是否无害待验证。
 - 500 毫秒请求间隔下的实际限流、Cookie 过期行为、会话切换和停止操作。
 - 发布仍需用户明确要求 commit / push；生成本地产物不代表 GitHub 安装链接已上线。

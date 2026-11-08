@@ -33,6 +33,6 @@ function renderPanel() {
     renderHubWorkflow(panel, { template: offerWorkflow, count: offerWorkflow.preview().length, hasScope: state.accountConsent,
         needsScan: state.needsScan, busy: state.busy, storageError: state.storageError,
         coolingDown: Date.now() < state.cooldownUntil, readOnly: !SETTINGS.capabilities.activation,
-        progress: state.activeAction === 'add' && state.total ? { completed: state.confirmed, total: state.total } : null });
+        progress: state.activeAction === 'add' && state.total ? { completed: state.completed, total: state.total } : null });
     renderOffers();
 }

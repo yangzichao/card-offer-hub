@@ -75,7 +75,7 @@ async function main() {
         await page.getByRole('button', { name: 'Add all offers', exact: true }).click();
         assert.equal(await page.getByRole('checkbox').isEnabled(), false);
         await page.getByRole('searchbox', { name: 'Search saved offers' }).fill('does-not-match');
-        await successful.advanceUntil(/Finished: 2\/2/);
+        await successful.advanceUntil(/Finished: 2 of 2 added\./);
         assert.deepEqual(successful.requests.map(request => request.method), ['GET', 'GET', 'POST', 'POST']);
         assert.ok(successful.requests.slice(1).every((request, index) => request.time - successful.requests[index].time >= 500));
         for (const request of successful.requests.filter(item => item.method === 'POST')) {
@@ -100,11 +100,15 @@ async function main() {
             const failed = await fixture(browser, mode);
             await failed.consentAndScan();
             await failed.page.getByRole('button', { name: 'Add all offers' }).click();
-            await failed.advanceUntil(mode === '429' ? /HTTP 429/ : /not explicitly confirmed/);
-            assert.equal(failed.requests.length, 3);
-            assert.equal(await failed.page.getByRole('button', { name: 'Add all offers' }).isEnabled(), false);
+            // unconfirmed: each offer is checked against the list, re-sent once, then skipped.
+            await failed.advanceUntil(mode === '429' ? /HTTP 429/ : /Finished: 0 of 2 added\. 2 not added after a retry; Add tries them again\./);
+            const requestCount = mode === '429' ? 3 : 10;
+            assert.equal(failed.requests.length, requestCount);
+            assert.deepEqual(failed.requests.filter(request => request.method === 'POST').map(request => Object.keys(request.body.offerIdCheckSumMap)[0]),
+                mode === '429' ? ['1001'] : ['1001', '1001', '1002', '1002']);
+            assert.equal(await failed.page.getByRole('button', { name: 'Add all offers' }).isEnabled(), mode === 'unconfirmed');
             await failed.page.clock.runFor(60000);
-            assert.equal(failed.requests.length, 3, 'errors never automatically retry');
+            assert.equal(failed.requests.length, requestCount, 'nothing runs again without a click');
             if (mode === '429') {
                 await failed.page.getByRole('button', { name: 'Scan offers', exact: true }).click();
                 await failed.advanceUntil(/Rate limited/);

@@ -7,7 +7,7 @@ const SETTINGS = {
 const state = {
     lastScanAt: 0, workspaceScope: '', restoredWorkspace: false,
     activeAction: null, busy: false, stopRequested: false, needsScan: true, consent: false,
-    sessionToken: '', proximity: null, offers: [], confirmed: 0, total: 0, search: '',
+    sessionToken: '', proximity: null, offers: [], confirmed: 0, completed: 0, total: 0, search: '',
     nextRequestAt: 0, cooldownUntil: 0, storageError: '',
     status: 'Nothing runs automatically. Scan the current signed-in Deals profile first.',
     panel: null, collapsed: false

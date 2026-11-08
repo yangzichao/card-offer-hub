@@ -12,7 +12,8 @@ test('manual scan and selection; activation read-back after every write, serial 
     assert.equal(harness.requests.length, 6);
     assert.equal(harness.maximumActive(), 1);
     assert.equal(harness.state.confirmed, 2);
-    assert.equal(harness.state.needsScan, true);
+    assert.equal(harness.state.needsScan, false, 'every offer was refreshed, so Add can run again');
+    assert.match(harness.state.status, /Finished: 2 of 2 added\./);
     for (let index = 1; index < harness.requests.length; index++) {
         assert.equal(harness.requests[index].startedAt - harness.requests[index - 1].finishedAt, 1000);
     }
@@ -38,8 +39,50 @@ test('only selected offers activate; refresh uses changed serving tokens', async
     assert.equal(harness.state.confirmed, 1);
 });
 
-test('acknowledged but unchanged, missing, duplicate, or failed read-back stops all later writes', async () => {
-    for (const readBack of [listing(), listing([]), listing([offer('a', 'ACTIVATED'), offer('a')]), { errors: [{ message: 'private' }] }]) {
+test('an unchanged read-back re-sends once, then the run moves on to the next offer', async () => {
+    const harness = createHarness(request => jsonResponse(isActivation(request) ? acknowledgement() : listing([offer('a'), offer('b')])));
+    await harness.scanOffers(); harness.selectAllOffers(); await harness.activateSelectedOffers();
+    assert.deepEqual(harness.requests.filter(isActivation).map(request => request.body.variables.request.clientEvents[0].clientOfferId), ['a', 'a', 'b', 'b']);
+    assert.equal(harness.state.confirmed, 0);
+    assert.match(harness.state.status, /Finished: 0 of 2 added\. 2 not added after a retry; Add tries them again\. Not added: Example a, Example b\./);
+    assert.deepEqual(Array.from(harness.state.offers, item => item.status), ['AVAILABLE', 'AVAILABLE']);
+    assert.equal(harness.state.needsScan, false);
+});
+
+test('one offer that fails is retried once while the others are added', async () => {
+    const respond = successfulResponder(['a', 'b', 'c']);
+    const harness = createHarness(request => {
+        if (isActivation(request) && request.body.variables.request.clientEvents[0].clientOfferId === 'b') return jsonResponse({}, 500);
+        return respond(request);
+    });
+    await harness.scanOffers(); harness.selectAllOffers(); await harness.activateSelectedOffers();
+    assert.deepEqual(harness.requests.filter(isActivation).map(request => request.body.variables.request.clientEvents[0].clientOfferId), ['a', 'b', 'b', 'c']);
+    assert.equal(harness.state.confirmed, 2);
+    assert.deepEqual(Array.from(harness.state.offers, item => item.status), ['ACTIVATED', 'AVAILABLE', 'ACTIVATED']);
+    assert.match(harness.state.status, /Finished: 2 of 3 added\..*Not added: Example b\./);
+    assert.equal(harness.state.storageError, '');
+});
+
+test('three failing offers in a row pause the run with the rest untouched', async () => {
+    const harness = createHarness(request => jsonResponse(isActivation(request) ? acknowledgement()
+        : listing(['a', 'b', 'c', 'd'].map(id => offer(id)))));
+    await harness.scanOffers(); harness.selectAllOffers(); await harness.activateSelectedOffers();
+    const sent = new Set(harness.requests.filter(isActivation).map(request => request.body.variables.request.clientEvents[0].clientOfferId));
+    assert.deepEqual([...sent], ['a', 'b', 'c']);
+    assert.match(harness.state.status, /^Paused: 3 offers in a row could not be added.* 1 not tried yet\./);
+    assert.equal(harness.state.needsScan, false);
+});
+
+test('a missing, duplicate or failed read-back after a write is never treated as success', async () => {
+    const cases = [
+        // Offer a vanished after its write: unverified, and the run goes on to b.
+        { readBack: listing([offer('b')]), writes: 3, ended: false },
+        // The read-back lists a twice: unverified; b is gone, so nothing else is sent.
+        { readBack: listing([offer('a', 'ACTIVATED'), offer('a')]), writes: 1, ended: false },
+        // The read itself fails: the run ends.
+        { readBack: { errors: [{ message: 'private' }] }, writes: 1, ended: true }
+    ];
+    for (const { readBack, writes, ended } of cases) {
         let written = false;
         const harness = createHarness(request => {
             if (isActivation(request)) { written = true; return jsonResponse(acknowledgement()); }
@@ -47,27 +90,46 @@ test('acknowledged but unchanged, missing, duplicate, or failed read-back stops 
         });
         await harness.scanOffers(); harness.selectAllOffers(); await harness.activateSelectedOffers();
         assert.equal(harness.state.confirmed, 0);
-        assert.equal(harness.state.offers[0].status, 'UNCONFIRMED');
-        assert.equal(harness.requests.filter(isActivation).length, 1);
+        assert.equal(harness.requests.filter(isActivation).length, writes);
+        assert.equal(harness.state.needsScan, ended);
+        if (ended) assert.equal(harness.state.offers[0].status, 'UNCONFIRMED');
+        else assert.match(harness.state.status, /could not be verified; scan to check them/);
+        if (writes === 1 && !ended) assert.equal(harness.state.offers.find(item => item.offerId === 'a').status, 'UNCONFIRMED');
+        const count = harness.requests.length;
         await harness.activateSelectedOffers();
-        assert.equal(harness.requests.length, 4);
-        assert.equal(harness.state.needsScan, true);
+        const sentA = harness.requests.filter(request => isActivation(request) && request.body.variables.request.clientEvents[0].clientOfferId === 'a');
+        assert.equal(sentA.length, 1, 'an unverified offer is never re-sent by the next click');
+        if (ended) assert.equal(harness.requests.length, count);
     }
 });
 
-test('HTTP errors, malformed response, and timeouts never replay a write or continue the queue', async () => {
+test('sign-in errors and login pages end the run after one write', async () => {
     for (const response of [
-        () => jsonResponse({}, 401), () => jsonResponse({}, 403), () => jsonResponse({}, 500),
-        () => jsonResponse({ data: { getActivateOffer: {} } }),
-        () => jsonResponse({ ...acknowledgement(), errors: [{ message: 'sensitive' }] }),
-        () => { const error = new Error(); error.name = 'AbortError'; throw error; },
+        () => jsonResponse({}, 401), () => jsonResponse({}, 403),
         () => ({ ok: true, status: 200, headers: { get: () => null }, text: async () => '<html>login</html>' })
     ]) {
         const harness = createHarness(request => isActivation(request) ? response() : jsonResponse(listing([offer('a'), offer('b')])));
         await harness.scanOffers(); harness.selectAllOffers(); await harness.activateSelectedOffers();
         assert.equal(harness.requests.length, 3);
         assert.equal(harness.state.confirmed, 0);
+        assert.equal(harness.state.offers[0].status, 'UNCONFIRMED');
         assert.equal(harness.state.needsScan, true);
+    }
+});
+
+test('one offer\'s server error, GraphQL error, missing acknowledgement or timeout is checked, re-sent once, then skipped', async () => {
+    for (const response of [
+        () => jsonResponse({}, 500), () => jsonResponse({ data: { getActivateOffer: {} } }),
+        () => jsonResponse({ ...acknowledgement(), errors: [{ message: 'sensitive' }] }),
+        () => { const error = new Error(); error.name = 'AbortError'; throw error; }
+    ]) {
+        const harness = createHarness(request => isActivation(request) ? response() : jsonResponse(listing([offer('a'), offer('b')])));
+        await harness.scanOffers(); harness.selectAllOffers(); await harness.activateSelectedOffers();
+        // scan, refresh, then write → read → write → read for each of the two offers.
+        assert.equal(harness.requests.length, 10);
+        assert.equal(harness.state.confirmed, 0);
+        assert.match(harness.state.status, /Finished: 0 of 2 added\. 2 not added after a retry/);
+        assert.doesNotMatch(harness.state.status, /sensitive/);
     }
 });
 

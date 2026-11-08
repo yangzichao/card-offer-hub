@@ -15,7 +15,8 @@ Location is fetched from observed same-origin `/geo` on a manual scan, not hardc
 - No startup requests; scan and explicit profile consent precede activation.
 - Ordinary card-linked CLICK/OFFER_DETAILS_CLICK offers only; LINK, Upside and all unknown workflows excluded.
 - Preflight detail eligibility and post-write detail readback for every activation; only explicit `{ok:true}` plus exact-ID `is_activated:true` counts as confirmed.
-- Requests serial and spaced 0.5 seconds after complete body consumption; 429 Retry-After and max cooldown persisted. No retries.
+- Pagination: Deals recomputes `total` on every page (live: 841, 843, 840, 831, 843), so the scan pages until a short page and de-duplicates shifted IDs instead of failing on a changed total.
+- Requests serial and spaced 0.5 seconds after complete body consumption; 429 Retry-After and max cooldown persisted. One offer's failure never stops the run: it is read back, re-sent once only if still eligible and not activated, then recorded; see [单个优惠失败后继续](offer-failure-continuation.md).
 - Current session compared before every request; Web Locks prevents concurrent runs of this userscript across tabs. Does not coordinate the bank site's own requests or other scripts.
 - Failed/unknown storage preserved and blocks requests. Pacing reservation protects reloads during an in-flight request.
 - No sensitive captures committed; tests use synthetic fixtures and browser routes intercept all network calls.

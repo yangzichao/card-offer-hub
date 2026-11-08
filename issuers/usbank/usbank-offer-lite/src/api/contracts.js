@@ -3,7 +3,9 @@ function graphqlData(payload, field) {
     // its raw error messages, which may contain customer/session identifiers.
     if (!payload || (payload.errors !== undefined
         && (!Array.isArray(payload.errors) || payload.errors.length))) {
-        throw new Error('US Bank returned a GraphQL error. Scan again after resolving the error.');
+        const error = new Error('US Bank returned a GraphQL error. Scan again after resolving the error.');
+        error.name = 'UsBankGraphqlError';
+        throw error;
     }
     const data = payload.data?.[field];
     if (!data || typeof data !== 'object' || Array.isArray(data)) {

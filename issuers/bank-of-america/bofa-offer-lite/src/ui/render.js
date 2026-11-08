@@ -5,9 +5,11 @@ function renderOffers() {
     const visible = state.offers.filter(offer => hubMatchesSearch(offer, state.search));
     if (!visible.length) hubShowEmptyOffers(list, state.search);
     for (const offer of visible) {
-        const status = offer.result === 'Unconfirmed' ? 'Needs review' : offer.activated ? 'Added' : offer.eligible ? 'Available' : 'Skipped';
-        list.append(hubOfferRow({ merchant: offer.name, title: offer.headline, status,
-            meta: [status === 'Skipped' ? offer.reason || 'Not eligible' : ''] }));
+        const status = offer.result === 'Unconfirmed' ? 'Needs review' : offer.activated ? 'Added'
+            : offer.result === 'Not added' ? 'Not added' : offer.eligible ? 'Available' : 'Skipped';
+        const note = status === 'Skipped' ? offer.reason || 'Not eligible'
+            : status === 'Not added' ? 'Deals did not activate it after a retry. Add tries it again.' : '';
+        list.append(hubOfferRow({ merchant: offer.name, title: offer.headline, status, meta: [note] }));
     }
 }
 function renderPanel() {
@@ -23,9 +25,9 @@ function renderPanel() {
     panel.getElementById('scan').disabled = blocked;
     panel.getElementById('stop').disabled = !state.busy || state.stopRequested;
     const available = state.offers.filter(offer => offer.eligible && !offer.activated).length;
-    panel.getElementById('counts').textContent = `${state.offers.length} offers · ${available} available · ${state.confirmed}/${state.total} added this run`;
+    panel.getElementById('counts').textContent = `${state.offers.length} offers · ${available} available · ${state.confirmed} added this run`;
     renderHubWorkflow(panel, { template: offerWorkflow, readOnly: !SETTINGS.capabilities.activation, count: offerWorkflow.preview().length, hasScope: state.consent, needsScan: state.needsScan,
         busy: state.busy, storageError: state.storageError, coolingDown: Date.now() < state.cooldownUntil,
-        progress: state.activeAction === 'add' && state.total ? { completed: state.confirmed, total: state.total } : null });
+        progress: state.activeAction === 'add' && state.total ? { completed: state.completed, total: state.total } : null });
     renderOffers();
 }

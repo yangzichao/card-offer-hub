@@ -82,7 +82,8 @@ test('BoA write acknowledgement is neutral, and an unconfirmed readback clears i
     assert.equal(harness.state.confirmed, 0);
     assert.equal(harness.state.pacing.successCount, 0);
     assert.equal(harness.state.pacing.currentGapMs, 1000);
-    assert.equal(harness.requests.filter(request => request.method === 'PUT').length, 1);
+    // One verified re-send after the first read-back still shows it available.
+    assert.equal(harness.requests.filter(request => request.method === 'PUT').length, 2);
 });
 
 test('US Bank acknowledgement cannot make an unconfirmed activation a successful pacing sample', async () => {
@@ -93,7 +94,8 @@ test('US Bank acknowledgement cannot make an unconfirmed activation a successful
     assert.equal(harness.state.confirmed, 0);
     assert.equal(harness.state.pacing.successCount, 0);
     assert.equal(harness.state.pacing.currentGapMs, 1000);
-    assert.equal(harness.requests.filter(usbank.isActivation).length, 1);
+    // One verified re-send after the first read-back still shows it available.
+    assert.equal(harness.requests.filter(usbank.isActivation).length, 2);
 });
 
 test('Amex shares a bank lock and stops before sending if another tab owns it', async () => {

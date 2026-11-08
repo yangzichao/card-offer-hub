@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Card Offer Hub — All Banks
 // @namespace    https://github.com/yangzichao/card-offer-hub
-// @version      1.8.0
+// @version      1.8.1
 // @description  All seven Card Offer Hub tools in one install; manual scanning and activation on the matching bank or store website
 // @author       Zichao Yang
 // @match        https://*.americanexpress.com/*
@@ -1036,9 +1036,13 @@
             catch { throw new Error(`${label} returned a non-JSON response. Sign in and scan again.`); }
         } catch (error) {
             // Browser network errors can include URLs or credentials. Never display them.
-            if (error.name === 'AbortError') throw new Error('Request timed out; result is unconfirmed. Scan again.');
-            if (error instanceof TypeError || error.name === 'TypeError') throw new Error('Network request failed; result is unconfirmed. Scan again.');
-            throw error;
+            // requestUnconfirmed: the request may or may not have reached the bank.
+            let unconfirmed = null;
+            if (error.name === 'AbortError') unconfirmed = new Error('Request timed out; result is unconfirmed. Scan again.');
+            else if (error instanceof TypeError || error.name === 'TypeError') unconfirmed = new Error('Network request failed; result is unconfirmed. Scan again.');
+            if (!unconfirmed) throw error;
+            unconfirmed.requestUnconfirmed = true;
+            throw unconfirmed;
         } finally {
             clearTimeout(timeout);
         }
@@ -1070,6 +1074,107 @@
             });
         }
         return { sendRequest, retryAfterMilliseconds, waitForRequestSlot: scheduler.waitForRequestSlot };
+    }
+
+    // Source: shared/runtime/offer-attempt.js
+    // One offer inside an unattended Add run. A problem with this one offer never
+    // ends the run: an unclear write is checked with a fresh read, re-sent once only
+    // when that read shows the offer still available and not added, and otherwise
+    // recorded so the run moves on to the next offer. Sign-in (401/403), rate
+    // limits (429), session changes, Stop and storage failures still end the run.
+    const HUB_OFFER_MAXIMUM_SENDS = 2;
+    const HUB_CONSECUTIVE_OFFER_FAILURE_PAUSE = 3;
+    const HUB_OFFER_FAILURE_OUTCOMES = ['not-added', 'unconfirmed', 'check-failed'];
+
+    // A completed HTTP error response that can concern only this offer.
+    function hubOfferScopedHttpError(error) {
+        return error?.name === 'HubHttpError' && Number.isInteger(error.httpStatus)
+            && error.httpStatus >= 400 && error.httpStatus <= 599 && ![401, 403, 429].includes(error.httpStatus);
+    }
+    // A write with an unknown result: this offer's HTTP error, or a dropped or
+    // timed-out request. The fresh read that follows decides what happened; if
+    // that read fails on the network too, the run stops.
+    function hubOfferScopedWriteError(error) {
+        return hubOfferScopedHttpError(error) || error?.requestUnconfirmed === true;
+    }
+
+    // readStatus(): a fresh read of this offer → 'added' | 'available' | 'unavailable'.
+    // send(): one write; resolves true only when the response itself explicitly confirms it.
+    // Outcomes: added, already-added, unavailable (explicit answers before any
+    // write), not-added (verified still available), unconfirmed (sent, then no read
+    // showed it added or still available), check-failed (nothing sent).
+    async function hubAttemptOffer({ readStatus, send, initialStatus = null,
+        isWriteFailure = hubOfferScopedWriteError, maximumSends = HUB_OFFER_MAXIMUM_SENDS }) {
+        async function readOnce() {
+            try { return await readStatus(); }
+            catch (error) { if (!hubOfferScopedHttpError(error)) throw error; }
+            // A read has no side effects; one more after the normal request gap.
+            try { return await readStatus(); }
+            catch (error) { if (!hubOfferScopedHttpError(error)) throw error; return 'unknown'; }
+        }
+        let status = initialStatus ?? await readOnce();
+        let sends = 0;
+        for (;;) {
+            if (status === 'added') return { outcome: sends ? 'added' : 'already-added', sends };
+            // Gone or ineligible right after a write is not an explicit answer to that write.
+            if (status === 'unavailable') return { outcome: sends ? 'unconfirmed' : 'unavailable', sends };
+            if (status === 'unknown') return { outcome: sends ? 'unconfirmed' : 'check-failed', sends };
+            if (status !== 'available') throw new Error('Offer status was not recognized. Scan again.');
+            if (sends >= maximumSends) return { outcome: 'not-added', sends };
+            sends++;
+            let confirmed = false;
+            try { confirmed = (await send()) === true; }
+            catch (error) { if (!isWriteFailure(error)) throw error; }
+            if (confirmed) return { outcome: 'added', sends };
+            status = await readOnce();
+        }
+    }
+
+    // Counts for one run, the progress note, the pause rule and the final summary.
+    function createHubOfferRunTally(total) {
+        const counts = { added: 0, 'already-added': 0, unavailable: 0, 'not-added': 0, unconfirmed: 0, 'check-failed': 0 };
+        const failedNames = [];
+        let processed = 0;
+        let consecutiveFailures = 0;
+        function failures() { return counts['not-added'] + counts.unconfirmed + counts['check-failed']; }
+        function names() {
+            const shown = failedNames.slice(0, 3).join(', ');
+            return failedNames.length > 3 ? `${shown} and ${failedNames.length - 3} more` : shown;
+        }
+        return {
+            counts,
+            get processed() { return processed; },
+            get added() { return counts.added; },
+            // Returns true when the run should pause: several offers in a row failed,
+            // which points at a problem with the bank rather than with one offer.
+            record(outcome, name) {
+                if (!(outcome in counts)) throw new Error('Unknown offer outcome.');
+                counts[outcome]++;
+                processed++;
+                const failed = HUB_OFFER_FAILURE_OUTCOMES.includes(outcome);
+                if (failed) failedNames.push(name || 'Offer');
+                consecutiveFailures = failed ? consecutiveFailures + 1 : 0;
+                return consecutiveFailures >= HUB_CONSECUTIVE_OFFER_FAILURE_PAUSE && processed < total;
+            },
+            progressNote() {
+                return failures() ? ` ${failures()} could not be added so far; continuing with the rest.` : '';
+            },
+            summary() {
+                const parts = [`${counts.added} of ${total} added.`];
+                if (counts['already-added']) parts.push(`${counts['already-added']} were already added.`);
+                if (counts.unavailable) parts.push(`${counts.unavailable} no longer eligible.`);
+                if (counts['not-added'] + counts['check-failed']) {
+                    parts.push(`${counts['not-added'] + counts['check-failed']} not added after a retry; Add tries them again.`);
+                }
+                if (counts.unconfirmed) parts.push(`${counts.unconfirmed} could not be verified; scan to check them.`);
+                if (failures()) parts.push(`Not added: ${names()}.`);
+                return parts.join(' ');
+            },
+            pauseMessage() {
+                return `Paused: ${HUB_CONSECUTIVE_OFFER_FAILURE_PAUSE} offers in a row could not be added, so the bank may be having trouble. `
+                    + `${total - processed} not tried yet. Click Add again to continue. ${this.summary()}`;
+            }
+        };
     }
 
     // Source: shared/runtime/action-runner.js
@@ -1314,7 +1419,7 @@ return readIssuerSavedResults;
     }
 return readIssuerSavedResults;
 })() }];
-const HUB_RELEASE_VERSION = "1.8.0";
+const HUB_RELEASE_VERSION = "1.8.1";
 // Read the existing snapshots directly; search never copies them into another store.
 function hubReadSavedResults() {
     const records = [], coverage = [];
@@ -1657,14 +1762,14 @@ function dispatchIssuer(configuration, startIssuer) {
 }
 
 // --- Issuer dispatches ---
-dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://global.americanexpress.com/offers","version":"1.8.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*americanexpress\\.com/.*$"],"patterns":["^https://global\\.americanexpress\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://global.americanexpress.com/offers","version":"1.8.1","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*americanexpress\\.com/.*$"],"patterns":["^https://global\\.americanexpress\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: amex-offer-lite ---
 (function () {
     'use strict';
 
     // Source: core/state.js
     const SETTINGS = Object.freeze({
-        version: "1.8.0", capabilities: {"activation":true,"scope":"card"}, workflow: "amex-combination",
+        version: "1.8.1", capabilities: {"activation":true,"scope":"card"}, workflow: "amex-combination",
         requestGapMs: 500,
         rateLimitCooldownMs: 120000,
         requestTimeoutMs: 30000,
@@ -2972,7 +3077,7 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
 // --- End issuer body: amex-offer-lite ---
 });
 
-dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"https://deals.merchant-rewards.com/","version":"1.8.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*bankofamerica\\.com/.*$","^https://deals\\.merchant-rewards\\.com/.*$"],"patterns":["^https://deals\\.merchant-rewards\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"https://deals.merchant-rewards.com/","version":"1.8.1","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*bankofamerica\\.com/.*$","^https://deals\\.merchant-rewards\\.com/.*$"],"patterns":["^https://deals\\.merchant-rewards\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: bofa-offer-lite ---
 (function () {
     'use strict';
@@ -2980,14 +3085,14 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "bofa-offer-lite", name: "BankAmeriDeals Lite", version: "1.8.0",
+        id: "bofa-offer-lite", name: "BankAmeriDeals Lite", version: "1.8.1",
         gapMilliseconds: 500, timeoutMilliseconds: 45000, pageSize: 24,
         defaultCooldownMilliseconds: 300000
     };
     const state = {
         lastScanAt: 0, workspaceScope: '', restoredWorkspace: false,
         activeAction: null, busy: false, stopRequested: false, needsScan: true, consent: false,
-        sessionToken: '', proximity: null, offers: [], confirmed: 0, total: 0, search: '',
+        sessionToken: '', proximity: null, offers: [], confirmed: 0, completed: 0, total: 0, search: '',
         nextRequestAt: 0, cooldownUntil: 0, storageError: '',
         status: 'Nothing runs automatically. Scan the current signed-in Deals profile first.',
         panel: null, collapsed: false
@@ -3155,25 +3260,25 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
             bindWorkspaceScope(await workspaceScopeFingerprint(state.sessionToken));
             updateStatus('Reading current Deals location…');
             state.proximity = normalizeLocation(await requestJson('/geo', 'GET'));
+            // Deals recomputes `total` on every page (observed 841, 843, 840, 831, 843
+            // on consecutive pages), so it is only a hint. Page until a short page,
+            // and drop repeats caused by the list shifting between pages.
             const collected = new Map();
-            let expectedTotal = null;
-            for (let offset = 0; ; offset += SETTINGS.pageSize) {
+            let largestReportedTotal = 0;
+            const maximumPages = Math.ceil(10000 / SETTINGS.pageSize) + 1;
+            for (let pageIndex = 0; ; pageIndex++) {
+                if (pageIndex >= maximumPages) throw new Error('Deals kept returning offers past its limit. Scan again.');
                 updateStatus(`Scanning offers: ${collected.size} loaded…`);
                 const page = normalizePage(await requestJson('/api/offers-search', 'POST', {
                     apply_filter: {}, proximity_target: state.proximity, sort_by: 'merchant_name_asc',
-                    page_size: SETTINGS.pageSize, page_offset: offset
+                    page_size: SETTINGS.pageSize, page_offset: pageIndex * SETTINGS.pageSize
                 }));
                 ensureRunning();
-                if (expectedTotal !== null && expectedTotal !== page.total) throw new Error('Offer list changed during pagination. Scan again.');
-                expectedTotal = page.total;
-                for (const offer of page.offers) {
-                    if (collected.has(offer.id)) throw new Error('Repeated offer during pagination. Scan again.');
-                    collected.set(offer.id, offer);
-                }
-                if (collected.size > expectedTotal) throw new Error('Inconsistent offer count. Scan again.');
-                if (collected.size === expectedTotal) break;
-                if (page.offers.length !== SETTINGS.pageSize) throw new Error('Incomplete offer page. Scan again.');
+                largestReportedTotal = Math.max(largestReportedTotal, page.total);
+                for (const offer of page.offers) if (!collected.has(offer.id)) collected.set(offer.id, offer);
+                if (page.offers.length < SETTINGS.pageSize) break;
             }
+            if (!collected.size && largestReportedTotal > 0) throw new Error('Deals reported offers but returned none. Scan again.');
             state.offers = [...collected.values()];
             state.needsScan = false;
             recordWorkspaceScan();
@@ -3186,37 +3291,59 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
             offer_id: id, proximity_target: state.proximity
         }, detail => requireActivated ? detail.activated : detail.eligible), id);
     }
+    // The details read is the explicit answer: activated, still eligible, or not.
+    async function readBofaOfferStatus(offer) {
+        const current = await fetchOfferDetail(offer.id, offer.result === 'Unconfirmed');
+        ensureRunning();
+        const status = current.activated ? 'added' : current.eligible ? 'available' : 'unavailable';
+        // Still eligible and not activated settles an unclear write: nothing changed.
+        Object.assign(offer, current, { result: status === 'available' ? '' : offer.result });
+        return status;
+    }
+    // One offer never ends the run. Each is checked first, the write is verified by
+    // reading it back, and an offer still eligible after that is sent once more.
     async function activateOffers() {
         if (state.needsScan || !state.consent) return;
         return runExclusive(async () => {
             ensureRunning();
             const queue = offerWorkflow.plan().map(record => record.source);
+            const tally = createHubOfferRunTally(queue.length);
             state.total = queue.length;
             state.needsScan = true;
             state.confirmed = 0;
+            state.completed = 0;
             for (const offer of queue) {
-                updateStatus(`Checking offer ${state.confirmed + 1}/${queue.length}…`);
-                const current = await fetchOfferDetail(offer.id);
-                ensureRunning();
-                if (!current.eligible) {
-                    Object.assign(offer, current);
-                    throw new Error('Offer eligibility changed since scanning. Scan again before continuing.');
+                const position = `${tally.processed + 1}/${queue.length}`;
+                updateStatus(`Checking offer ${position}: ${offer.name}…${tally.progressNote()}`);
+                const { outcome } = await hubAttemptOffer({
+                    readStatus: () => readBofaOfferStatus(offer),
+                    async send() {
+                        offerWorkflow.assertAction(offer);
+                        offer.result = 'Unconfirmed';
+                        markWorkspaceOfferPending(offer);
+                        updateStatus(`Activating offer ${position}: ${offer.name}…${tally.progressNote()}`);
+                        // An acknowledgement is not success; the read-back decides.
+                        await requestJson(`/api/activate-offer/${offer.id}`, 'PUT');
+                        ensureRunning();
+                        updateStatus(`Verifying offer ${position}: ${offer.name}…`);
+                        return false;
+                    }
+                });
+                offer.result = { added: 'Confirmed', 'already-added': 'Confirmed', unavailable: '',
+                    'not-added': 'Not added', unconfirmed: 'Unconfirmed', 'check-failed': 'Not added' }[outcome];
+                if (outcome === 'added') state.confirmed++;
+                state.completed++;
+                if (offer.result !== 'Unconfirmed') finishWorkspaceOffer(offer);
+                renderPanel();
+                if (tally.record(outcome, offer.name)) {
+                    state.needsScan = false;
+                    updateStatus(tally.pauseMessage());
+                    return;
                 }
-                offerWorkflow.assertAction(offer);
-                offer.result = 'Unconfirmed';
-                markWorkspaceOfferPending(offer);
-                updateStatus(`Activating offer ${state.confirmed + 1}/${queue.length}…`);
-                const result = await requestJson(`/api/activate-offer/${offer.id}`, 'PUT');
-                if (result?.ok !== true) throw new Error('Activation not explicitly confirmed. Scan again.');
-                updateStatus('Activation accepted; verifying saved state…');
-                const verified = await fetchOfferDetail(offer.id, true);
-                ensureRunning();
-                if (!verified.activated) throw new Error('Activation readback is unconfirmed. Scan again.');
-                Object.assign(offer, verified, { result: 'Confirmed' });
-                state.confirmed++;
-                finishWorkspaceOffer(offer);
             }
-            updateStatus(`Finished: ${state.confirmed}/${queue.length} activations confirmed by readback. Scan again to refresh.`);
+            // Every offer was re-checked against Deals, so Add can run again without a scan.
+            state.needsScan = false;
+            updateStatus(`Finished: ${tally.summary()}`);
         }, 'add');
     }
 
@@ -3247,9 +3374,11 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
         const visible = state.offers.filter(offer => hubMatchesSearch(offer, state.search));
         if (!visible.length) hubShowEmptyOffers(list, state.search);
         for (const offer of visible) {
-            const status = offer.result === 'Unconfirmed' ? 'Needs review' : offer.activated ? 'Added' : offer.eligible ? 'Available' : 'Skipped';
-            list.append(hubOfferRow({ merchant: offer.name, title: offer.headline, status,
-                meta: [status === 'Skipped' ? offer.reason || 'Not eligible' : ''] }));
+            const status = offer.result === 'Unconfirmed' ? 'Needs review' : offer.activated ? 'Added'
+                : offer.result === 'Not added' ? 'Not added' : offer.eligible ? 'Available' : 'Skipped';
+            const note = status === 'Skipped' ? offer.reason || 'Not eligible'
+                : status === 'Not added' ? 'Deals did not activate it after a retry. Add tries it again.' : '';
+            list.append(hubOfferRow({ merchant: offer.name, title: offer.headline, status, meta: [note] }));
         }
     }
     function renderPanel() {
@@ -3265,10 +3394,10 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
         panel.getElementById('scan').disabled = blocked;
         panel.getElementById('stop').disabled = !state.busy || state.stopRequested;
         const available = state.offers.filter(offer => offer.eligible && !offer.activated).length;
-        panel.getElementById('counts').textContent = `${state.offers.length} offers · ${available} available · ${state.confirmed}/${state.total} added this run`;
+        panel.getElementById('counts').textContent = `${state.offers.length} offers · ${available} available · ${state.confirmed} added this run`;
         renderHubWorkflow(panel, { template: offerWorkflow, readOnly: !SETTINGS.capabilities.activation, count: offerWorkflow.preview().length, hasScope: state.consent, needsScan: state.needsScan,
             busy: state.busy, storageError: state.storageError, coolingDown: Date.now() < state.cooldownUntil,
-            progress: state.activeAction === 'add' && state.total ? { completed: state.confirmed, total: state.total } : null });
+            progress: state.activeAction === 'add' && state.total ? { completed: state.completed, total: state.total } : null });
         renderOffers();
     }
 
@@ -3281,7 +3410,7 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
 // --- End issuer body: bofa-offer-lite ---
 });
 
-dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://secure.chase.com/web/auth/dashboard","version":"1.8.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*chase\\.com/.*$"],"patterns":["^https://secure\\.chase\\.com/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://secure.chase.com/web/auth/dashboard","version":"1.8.1","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*chase\\.com/.*$"],"patterns":["^https://secure\\.chase\\.com/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: chase-offer-lite ---
 (function () {
     'use strict';
@@ -3289,7 +3418,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"card"}, workflow: "per-card",
-        id: "chase-offer-lite", name: "Chase Offer Lite", version: "1.8.0",
+        id: "chase-offer-lite", name: "Chase Offer Lite", version: "1.8.1",
         gapMilliseconds: 500, timeoutMilliseconds: 45000,
         defaultCooldownMilliseconds: 300000
     };
@@ -4069,7 +4198,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
 // --- End issuer body: chase-offer-lite ---
 });
 
-dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://online.citi.com/US/nga/products-offers/merchantoffers","version":"1.8.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*citi\\.com/.*$"],"patterns":["^https://online\\.citi\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://online.citi.com/US/nga/products-offers/merchantoffers","version":"1.8.1","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*citi\\.com/.*$"],"patterns":["^https://online\\.citi\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: citi-offer-lite ---
 (function () {
     'use strict';
@@ -4077,7 +4206,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"card"}, workflow: "per-card",
-        id: "citi-offer-lite", name: "Citi Offer Lite", version: "1.8.0",
+        id: "citi-offer-lite", name: "Citi Offer Lite", version: "1.8.1",
         apiBase: '/gcgapi/prod/public/v1',
         retrievePath: '/digital/customers/creditCards/merchantOffers/retrieve',
         enrollmentPath: '/digital/customers/creditCards/accounts/rewards/specialOffers/enrollMerchantOffer',
@@ -4627,7 +4756,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
 // --- End issuer body: citi-offer-lite ---
 });
 
-dispatchIssuer({"id":"kroger-coupon-lite","label":"Kroger","offersUrl":"https://www.kroger.com/savings/cl/coupons/","version":"1.8.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*kroger\\.com/.*$"],"patterns":["^https://www\\.kroger\\.com/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"kroger-coupon-lite","label":"Kroger","offersUrl":"https://www.kroger.com/savings/cl/coupons/","version":"1.8.1","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*kroger\\.com/.*$"],"patterns":["^https://www\\.kroger\\.com/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: kroger-coupon-lite ---
 (function () {
     'use strict';
@@ -4635,7 +4764,7 @@ dispatchIssuer({"id":"kroger-coupon-lite","label":"Kroger","offersUrl":"https://
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "kroger-coupon-lite", name: "Kroger Coupon Lite", version: "1.8.0",
+        id: "kroger-coupon-lite", name: "Kroger Coupon Lite", version: "1.8.1",
         origin: 'https://www.kroger.com',
         gapMilliseconds: 500, timeoutMilliseconds: 30000,
         defaultCooldownMilliseconds: 300000,
@@ -4962,7 +5091,8 @@ dispatchIssuer({"id":"kroger-coupon-lite","label":"Kroger","offersUrl":"https://
     // Source: workflows/clip-all.js
     // One click: reload every coupon, then clip each available one in order.
     // Every coupon is sent at most once per click. A clip without an explicit
-    // confirmation is recorded as UNCONFIRMED and is never retried in this run.
+    // confirmation, or with its own HTTP error, is recorded as UNCONFIRMED and the
+    // run moves on; the next click reloads the list and tries it again.
     function clipAllKrogerCoupons() {
         return runExclusive(async () => {
             state.processed = 0;
@@ -4979,12 +5109,13 @@ dispatchIssuer({"id":"kroger-coupon-lite","label":"Kroger","offersUrl":"https://
                 offerWorkflow.assertAction(coupon);
                 updateStatus(`Clipping ${state.processed + 1} of ${queue.length}: ${coupon.merchant}…`);
                 markWorkspaceOfferPending(coupon);
-                let payload;
+                let payload = null;
                 try {
                     payload = await requestKrogerClip(coupon, accountKey);
                 } catch (error) {
                     coupon.status = 'UNCONFIRMED';
-                    throw error;
+                    // Sign-in, rate limits, Stop and storage failures still end the run.
+                    if (!hubOfferScopedWriteError(error)) throw error;
                 }
                 state.processed++;
                 if (krogerClipConfirmed(payload, coupon)) {
@@ -5095,7 +5226,7 @@ dispatchIssuer({"id":"kroger-coupon-lite","label":"Kroger","offersUrl":"https://
 // --- End issuer body: kroger-coupon-lite ---
 });
 
-dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://onlinebanking.usbank.com/digital/servicing/dominjection/cashback-deals","version":"1.8.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*usbank\\.com/.*$"],"patterns":["^https://onlinebanking\\.usbank\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://onlinebanking.usbank.com/digital/servicing/dominjection/cashback-deals","version":"1.8.1","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*usbank\\.com/.*$"],"patterns":["^https://onlinebanking\\.usbank\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: usbank-offer-lite ---
 (function () {
     'use strict';
@@ -5103,7 +5234,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "usbank-offer-lite", name: "US Bank Offer Lite", version: "1.8.0",
+        id: "usbank-offer-lite", name: "US Bank Offer Lite", version: "1.8.1",
         endpoint: '/digital/api/customer-management/graphql/v2',
         gapMilliseconds: 500, timeoutMilliseconds: 45000,
         defaultCooldownMilliseconds: 300000
@@ -5113,7 +5244,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
         offers: [], selected: new Set(), session: null, activeAction: null, busy: false, stopRequested: false,
         needsScan: true, nextRequestAt: 0, cooldownUntil: 0, storageError: '',
         status: 'Open Cash Back Deals, then scan. Nothing runs automatically.',
-        confirmed: 0, total: 0, panel: null, collapsed: false, search: ''
+        confirmed: 0, completed: 0, total: 0, panel: null, collapsed: false, search: ''
     };
     function updateStatus(message) {
         state.status = message;
@@ -5247,7 +5378,9 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
         // its raw error messages, which may contain customer/session identifiers.
         if (!payload || (payload.errors !== undefined
             && (!Array.isArray(payload.errors) || payload.errors.length))) {
-            throw new Error('US Bank returned a GraphQL error. Scan again after resolving the error.');
+            const error = new Error('US Bank returned a GraphQL error. Scan again after resolving the error.');
+            error.name = 'UsBankGraphqlError';
+            throw error;
         }
         const data = payload.data?.[field];
         if (!data || typeof data !== 'object' || Array.isArray(data)) {
@@ -5387,48 +5520,81 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
         if (state.needsScan) return;
         return activateOfferIds(offerWorkflow.plan().map(record => record.offerId));
     }
+    // Selections may only name offers that are still available in the latest listing.
+    function applyUsbankListing(listing) {
+        state.offers = listing.offers;
+        state.selected = new Set([...state.selected].filter(id => listing.offers.some(offer => offer.offerId === id && offer.status === 'AVAILABLE')));
+    }
+    function usbankOfferStatus(listing, offerId) {
+        const offer = listing.offers.find(item => item.offerId === offerId);
+        return offer?.status === 'ACTIVATED' ? 'added' : offer?.status === 'AVAILABLE' ? 'available' : 'unavailable';
+    }
+    // A GraphQL error on one activation is that offer's answer, not a broken session.
+    function usbankActivationFailure(error) {
+        return hubOfferScopedWriteError(error) || error?.name === 'UsBankGraphqlError';
+    }
+    // One offer never ends the run. An activation is verified with one listing read;
+    // an offer that is still available after that is sent once more, then skipped.
     function activateOfferIds(selectedIds) {
         if (!selectedIds.length) return;
         return runExclusive(async () => {
             ensureSameSession(state.session);
             state.needsScan = true;
             state.confirmed = 0;
+            state.completed = 0;
             state.total = selectedIds.length;
+            const tally = createHubOfferRunTally(selectedIds.length);
             updateStatus('Refreshing selected offers before activation…');
             let listing = await fetchListing(state.session);
             state.offers = listing.offers;
             state.selected = new Set([...state.selected].filter(id => listing.offers.some(offer => offer.offerId === id)));
             for (const offerId of selectedIds) {
                 ensureRunning();
-                const offer = listing.offers.find(item => item.offerId === offerId);
-                if (offer?.status === 'ACTIVATED') { state.selected.delete(offerId); continue; }
-                if (!offer || offer.status !== 'AVAILABLE') throw new Error('A selected offer changed or disappeared. Scan and select again.');
-                updateStatus(`Activating ${offer.merchant}…`);
-                try {
-                    offerWorkflow.assertAction(offer);
-                    markWorkspaceOfferPending(offer);
-                    const payload = await requestGraphql(ACTIVATE_OFFER_QUERY, () => activationBody(offer, listing), state.session);
-                    offer.status = 'UNCONFIRMED';
-                    if (!activationAcknowledged(payload)) throw new Error('Activation was not acknowledged. Scan again; no automatic retry.');
-                    updateStatus(`Verifying ${offer.merchant} with US Bank…`);
-                    // An acknowledgement is not success. One read-back is allowed;
-                    // a missing/unchanged result stops the entire queue, without polling.
-                    const verified = await fetchListing(state.session, offerId);
-                    if (!activationConfirmed(verified, offerId)) throw new Error('Activation was not explicitly confirmed. Scan again before continuing.');
-                    listing = verified;
-                    state.offers = listing.offers;
-                    state.confirmed++;
-                    state.selected = new Set([...state.selected].filter(id => listing.offers.some(candidate => candidate.offerId === id && candidate.status === 'AVAILABLE')));
-                    finishWorkspaceOffer(offer);
-                    renderPanel();
-                } catch (error) {
-                    offer.status = 'UNCONFIRMED';
+                const merchant = listing.offers.find(item => item.offerId === offerId)?.merchant || 'Offer';
+                let sentOffer = null;
+                const { outcome } = await hubAttemptOffer({
+                    initialStatus: usbankOfferStatus(listing, offerId),
+                    isWriteFailure: usbankActivationFailure,
+                    async readStatus() {
+                        updateStatus(`Verifying ${merchant} with US Bank…`);
+                        listing = await fetchListing(state.session, offerId);
+                        ensureRunning();
+                        applyUsbankListing(listing);
+                        return usbankOfferStatus(listing, offerId);
+                    },
+                    async send() {
+                        const offer = listing.offers.find(item => item.offerId === offerId);
+                        updateStatus(`Activating ${tally.processed + 1}/${selectedIds.length}: ${merchant}…${tally.progressNote()}`);
+                        offerWorkflow.assertAction(offer);
+                        markWorkspaceOfferPending(offer);
+                        sentOffer = offer;
+                        // An acknowledgement is not success; the listing read decides.
+                        await requestGraphql(ACTIVATE_OFFER_QUERY, () => activationBody(offer, listing), state.session);
+                        offer.status = 'UNCONFIRMED';
+                        return false;
+                    }
+                }).catch(error => {
+                    // Stop, sign-in or rate limits end the run; a sent write stays unconfirmed.
+                    const current = state.offers.find(item => item.offerId === offerId);
+                    if (sentOffer && current && current.status !== 'ACTIVATED') current.status = 'UNCONFIRMED';
                     throw error;
+                });
+                const current = state.offers.find(item => item.offerId === offerId);
+                if (current && outcome === 'unconfirmed') current.status = 'UNCONFIRMED';
+                if (outcome === 'added') state.confirmed++;
+                state.completed++;
+                if (sentOffer && outcome !== 'unconfirmed') finishWorkspaceOffer(sentOffer);
+                renderPanel();
+                if (tally.record(outcome, merchant)) {
+                    state.needsScan = false;
+                    updateStatus(tally.pauseMessage());
+                    return;
                 }
             }
             ensureRunning();
-            // Every new run requires a fresh manual scan; existing eligible selections survive.
-            updateStatus(`Finished: ${state.confirmed}/${state.total} newly confirmed. Already activated offers were skipped. Scan again for a new selection.`);
+            // Each offer was refreshed from US Bank, so Add can run again without a scan.
+            state.needsScan = false;
+            updateStatus(`Finished: ${tally.summary()}`);
         }, 'add');
     }
 
@@ -5492,7 +5658,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
         panel.getElementById('counts').textContent = `${state.offers.length} offers · ${available} available · ${state.selected.size} selected · ${state.confirmed}/${state.total} newly confirmed`;
         renderHubWorkflow(panel, { template: offerWorkflow, readOnly: !SETTINGS.capabilities.activation, count: offerWorkflow.preview().length, needsScan: state.needsScan, busy: state.busy,
             storageError: state.storageError, coolingDown: Date.now() < state.cooldownUntil,
-            progress: state.activeAction === 'add' && state.total ? { completed: state.confirmed, total: state.total } : null });
+            progress: state.activeAction === 'add' && state.total ? { completed: state.completed, total: state.total } : null });
         hubSetActionLabel(panel.getElementById('activate'), 'Add selected offers', state.selected.size);
         renderOffers();
     }
@@ -5506,7 +5672,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
 // --- End issuer body: usbank-offer-lite ---
 });
 
-dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"https://web.secure.wellsfargo.com/auth/deals-portal","version":"1.8.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*wellsfargo\\.com/.*$"],"patterns":["^https://web\\.secure\\.wellsfargo\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"https://web.secure.wellsfargo.com/auth/deals-portal","version":"1.8.1","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*wellsfargo\\.com/.*$"],"patterns":["^https://web\\.secure\\.wellsfargo\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: wellsfargo-offer-lite ---
 (function () {
     'use strict';
@@ -5514,7 +5680,7 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "wellsfargo-offer-lite", name: "Wells Fargo Offer Lite", version: "1.8.0",
+        id: "wellsfargo-offer-lite", name: "Wells Fargo Offer Lite", version: "1.8.1",
         retrievePath: '/deals-portal/as/getDeals', enrollmentPath: '/deals-portal/as/activateCLDeal',
         gapMilliseconds: 500, timeoutMilliseconds: 45000, defaultCooldownMilliseconds: 300000
     };
@@ -5715,6 +5881,16 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"
             updateStatus(`Scan complete: ${state.offers.filter(offer => offer.status === 'AVAILABLE').length} eligible offers. Confirm the account scope before adding.`);
         });
     }
+    // The account list is the only read that shows an offer's activation state.
+    async function readWellsFargoOfferStatus(offer) {
+        updateStatus(`Checking ${offer.merchant} with Wells Fargo…`);
+        const fresh = normalizeOffers(await requestJson(SETTINGS.retrievePath)).find(item => item.offerId === offer.offerId);
+        ensureRunning();
+        offer.status = fresh ? fresh.status : 'UNSUPPORTED';
+        return offer.status === 'ACTIVATED' ? 'added' : offer.status === 'AVAILABLE' ? 'available' : 'unavailable';
+    }
+    // One offer never ends the run. A missing SUCCESS is checked against the account
+    // list; an offer that is still available is sent once more, then skipped.
     function addAllOffers() {
         if (!state.accountConsent || state.needsScan) return;
         return runExclusive(async () => {
@@ -5724,26 +5900,38 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"
             if (!state.accountConsent) throw new Error('The signed-in account session changed. Confirm account activation again.');
             const queue = offerWorkflow.plan().map(record => record.source);
             state.total = queue.length;
+            const tally = createHubOfferRunTally(queue.length);
             for (const offer of queue) {
                 ensureRunning();
-                updateStatus(`Activating ${state.completed + 1}/${state.total}: ${offer.merchant}. Waiting for the next request slot…`);
-                try {
-                    offerWorkflow.assertAction(offer);
-                    markWorkspaceOfferPending(offer);
-                    const payload = await requestJson(SETTINGS.enrollmentPath, enrollmentBody(offer));
-                    if (!enrollmentConfirmed(payload)) throw new Error('Activation was not explicitly confirmed. Scan again before continuing.');
-                    offer.status = 'ACTIVATED';
-                    state.confirmed++;
-                    state.completed++;
-                    finishWorkspaceOffer(offer);
-                    renderPanel();
-                } catch (error) {
-                    if (offer.status !== 'ACTIVATED') offer.status = 'UNCONFIRMED';
+                let sent = false;
+                const { outcome } = await hubAttemptOffer({
+                    initialStatus: 'available',
+                    readStatus: () => readWellsFargoOfferStatus(offer),
+                    async send() {
+                        updateStatus(`Activating ${tally.processed + 1}/${state.total}: ${offer.merchant}. Waiting for the next request slot…${tally.progressNote()}`);
+                        offerWorkflow.assertAction(offer);
+                        markWorkspaceOfferPending(offer);
+                        sent = true;
+                        const payload = await requestJson(SETTINGS.enrollmentPath, enrollmentBody(offer));
+                        return enrollmentConfirmed(payload);
+                    }
+                }).catch(error => {
+                    // Stop, sign-in or rate limits end the run; a sent write stays unconfirmed.
+                    if (sent && offer.status !== 'ACTIVATED') offer.status = 'UNCONFIRMED';
                     throw error;
+                });
+                if (outcome === 'added') { offer.status = 'ACTIVATED'; state.confirmed++; }
+                if (outcome === 'unconfirmed') offer.status = 'UNCONFIRMED';
+                state.completed++;
+                if (sent && outcome !== 'unconfirmed') finishWorkspaceOffer(offer);
+                renderPanel();
+                if (tally.record(outcome, offer.merchant)) {
+                    updateStatus(tally.pauseMessage());
+                    return;
                 }
             }
             ensureRunning();
-            updateStatus(`Finished: ${state.confirmed}/${state.total} confirmed. Refresh the Wells Fargo page to update its deal badges.`);
+            updateStatus(`Finished: ${tally.summary()} Refresh the Wells Fargo page to update its deal badges.`);
         }, 'add');
     }
 
@@ -5805,7 +5993,7 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"
         renderHubWorkflow(panel, { template: offerWorkflow, count: offerWorkflow.preview().length, hasScope: state.accountConsent,
             needsScan: state.needsScan, busy: state.busy, storageError: state.storageError,
             coolingDown: Date.now() < state.cooldownUntil, readOnly: !SETTINGS.capabilities.activation,
-            progress: state.activeAction === 'add' && state.total ? { completed: state.confirmed, total: state.total } : null });
+            progress: state.activeAction === 'add' && state.total ? { completed: state.completed, total: state.total } : null });
         renderOffers();
     }
 

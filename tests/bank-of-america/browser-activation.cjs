@@ -61,9 +61,15 @@ async function main() {
             await page.getByRole('checkbox').check();
             await page.getByRole('button', { name: 'Add all offers' }).click();
             if (mode === 'stop') await page.getByRole('button', { name: 'Stop' }).click();
-            await item.until(mode === 'success' ? /Finished: 1\/1/ : mode === '429' ? /HTTP 429/ : mode === 'stop' ? /Stopped/ : /unconfirmed|not explicitly confirmed/);
-            assert.equal(item.requests.filter(request => request.method === 'PUT').length, mode === 'stop' ? 0 : 1);
-            assert.equal(await page.getByRole('button', { name: 'Add all offers' }).isEnabled(), false);
+            // unknown: an acknowledgement without ok that reads back activated still counts.
+            await item.until(['success', 'unknown'].includes(mode) ? /Finished: 1 of 1 added\./ : mode === '429' ? /HTTP 429/
+                : mode === 'stop' ? /Stopped/ : /Finished: 0 of 1 added\. 1 not added after a retry; Add tries them again\./);
+            assert.equal(item.requests.filter(request => request.method === 'PUT').length, mode === 'stop' ? 0 : mode === 'readback' ? 2 : 1);
+            // Only an offer verified as still available can be tried again without a new scan.
+            assert.equal(await page.getByRole('button', { name: 'Add all offers' }).isEnabled(), mode === 'readback');
+            if (mode === 'readback') {
+                assert.match(await page.locator('#offers').innerText(), /Not added[\s\S]*Deals did not activate it after a retry\. Add tries it again\./);
+            }
             for (let index = 1; index < item.requests.length; index++) assert.ok(item.requests[index].time - item.requests[index - 1].time >= 500);
             const count = item.requests.length;
             await page.clock.runFor(60000);

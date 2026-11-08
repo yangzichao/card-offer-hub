@@ -92,7 +92,7 @@ async function main() {
         await page.getByRole('searchbox', { name: 'Search saved offers' }).fill('Example a');
         await page.getByRole('button', { name: 'Select all available offers' }).click();
         await page.getByRole('button', { name: 'Add selected offers' }).click();
-        await successful.advanceUntil(/Finished: 2\/2/);
+        await successful.advanceUntil(/Finished: 2 of 2 added\./);
         assert.equal(successful.requests.length, 7);
         assert.deepEqual(successful.requests.map(request => request.activation), [false, false, false, true, false, true, false]);
         assert.deepEqual(successful.requests.filter(request => request.activation).map(request => request.body.variables.request.clientEvents[0].clientOfferId), ['a', 'b']);
@@ -112,10 +112,12 @@ async function main() {
             const failed = await fixture(browser, mode);
             await failed.scanAndSelect();
             await failed.page.getByRole('button', { name: 'Add selected offers' }).click();
-            await failed.advanceUntil(mode === '429' ? /HTTP 429/ : /not explicitly confirmed/);
+            // unconfirmed: each offer is read back, re-sent once, then skipped; the run finishes.
+            await failed.advanceUntil(mode === '429' ? /HTTP 429/ : /Finished: 0 of 2 added\. 2 not added after a retry; Add tries them again\./);
             const requestCount = failed.requests.length;
-            assert.equal(failed.requests.filter(request => request.activation).length, 1);
-            assert.equal(await failed.page.getByRole('button', { name: 'Add selected offers' }).isEnabled(), false);
+            assert.deepEqual(failed.requests.filter(request => request.activation).map(request => request.body.variables.request.clientEvents[0].clientOfferId),
+                mode === '429' ? ['a'] : ['a', 'a', 'b', 'b']);
+            assert.equal(await failed.page.getByRole('button', { name: 'Add selected offers' }).isEnabled(), mode === 'unconfirmed');
             await failed.page.clock.runFor(60000);
             assert.equal(failed.requests.length, requestCount);
             if (mode === '429') {

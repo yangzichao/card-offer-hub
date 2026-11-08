@@ -29,9 +29,13 @@ async function hubSendJsonRequest({ url, options, timeoutMilliseconds, label, on
         catch { throw new Error(`${label} returned a non-JSON response. Sign in and scan again.`); }
     } catch (error) {
         // Browser network errors can include URLs or credentials. Never display them.
-        if (error.name === 'AbortError') throw new Error('Request timed out; result is unconfirmed. Scan again.');
-        if (error instanceof TypeError || error.name === 'TypeError') throw new Error('Network request failed; result is unconfirmed. Scan again.');
-        throw error;
+        // requestUnconfirmed: the request may or may not have reached the bank.
+        let unconfirmed = null;
+        if (error.name === 'AbortError') unconfirmed = new Error('Request timed out; result is unconfirmed. Scan again.');
+        else if (error instanceof TypeError || error.name === 'TypeError') unconfirmed = new Error('Network request failed; result is unconfirmed. Scan again.');
+        if (!unconfirmed) throw error;
+        unconfirmed.requestUnconfirmed = true;
+        throw unconfirmed;
     } finally {
         clearTimeout(timeout);
     }

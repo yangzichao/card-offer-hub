@@ -1,6 +1,7 @@
 // One click: reload every coupon, then clip each available one in order.
 // Every coupon is sent at most once per click. A clip without an explicit
-// confirmation is recorded as UNCONFIRMED and is never retried in this run.
+// confirmation, or with its own HTTP error, is recorded as UNCONFIRMED and the
+// run moves on; the next click reloads the list and tries it again.
 function clipAllKrogerCoupons() {
     return runExclusive(async () => {
         state.processed = 0;
@@ -17,12 +18,13 @@ function clipAllKrogerCoupons() {
             offerWorkflow.assertAction(coupon);
             updateStatus(`Clipping ${state.processed + 1} of ${queue.length}: ${coupon.merchant}…`);
             markWorkspaceOfferPending(coupon);
-            let payload;
+            let payload = null;
             try {
                 payload = await requestKrogerClip(coupon, accountKey);
             } catch (error) {
                 coupon.status = 'UNCONFIRMED';
-                throw error;
+                // Sign-in, rate limits, Stop and storage failures still end the run.
+                if (!hubOfferScopedWriteError(error)) throw error;
             }
             state.processed++;
             if (krogerClipConfirmed(payload, coupon)) {

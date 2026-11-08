@@ -34,7 +34,7 @@ function renderPanel() {
     panel.getElementById('counts').textContent = `${state.offers.length} offers · ${available} available · ${state.selected.size} selected · ${state.confirmed}/${state.total} newly confirmed`;
     renderHubWorkflow(panel, { template: offerWorkflow, readOnly: !SETTINGS.capabilities.activation, count: offerWorkflow.preview().length, needsScan: state.needsScan, busy: state.busy,
         storageError: state.storageError, coolingDown: Date.now() < state.cooldownUntil,
-        progress: state.activeAction === 'add' && state.total ? { completed: state.confirmed, total: state.total } : null });
+        progress: state.activeAction === 'add' && state.total ? { completed: state.completed, total: state.total } : null });
     hubSetActionLabel(panel.getElementById('activate'), 'Add selected offers', state.selected.size);
     renderOffers();
 }

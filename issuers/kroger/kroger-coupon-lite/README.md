@@ -15,7 +15,7 @@
 
 - 列表读取和 Kroger 页面用同一个筛选（`filter.status=unclipped` + `active`），每页 72 条，按实际返回条数推进 offset，直到 `hasMore === false`。页数超过上限或空页但 `hasMore` 仍为 true 都会停止，不领取。
 - 只领取 `canBeAddedToCard === true`、`addedToCard === false` 且带 `krogerCouponNumber` 的优惠券。重复出现但状态不同的记录标为冲突，不领取。
-- 每个优惠券每次点击最多发送一次。HTTP 200 但响应没有该券号记为未确认，继续下一个；连续三个未确认且还有剩余时暂停。HTTP 错误、超时、断网、非 JSON、429 和存储故障停止本轮，不自动重试。
+- 每个优惠券每次点击最多发送一次。HTTP 200 但响应没有该券号，或这张券自己的 HTTP 错误、超时、断网，都记为未确认并继续下一个；连续三个未确认且还有剩余时暂停。下次点击重新读取列表，未领取的券会再试。登录失效、非 JSON、429 和存储故障停止本轮。详见[单个优惠失败后继续](../../../docs/offer-failure-continuation.md)。
 - 请求串行，间隔从上一个响应完成开始算，使用共享的自动调速；429 按 `Retry-After` 冷却，缺失时 5 分钟。
 - Kroger 页面请求里带门店与配送方式上下文头（`x-laf-object`、`x-modality` 等），页面存储里读不到。脚本在 document-start 被动观察页面自己发往 `/atlas/v1/` 的同源请求，只复制白名单里的这几个头，放在内存里，不写入存储。页面还没发出过这类请求时，按钮会提示等页面加载完。
 - 账户区分用 `localStorage['msal.2.account.keys']` 的 SHA-256 指纹，原值不保存；运行中账户变化会停止。

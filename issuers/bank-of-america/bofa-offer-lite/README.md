@@ -13,7 +13,7 @@
 
 只处理 `CARD_LINKED` + `activation_required: true` + `activation_type: CLICK` + 单一 `OFFER_DETAILS_CLICK` trigger 的未激活优惠。跳过购物跳转 LINK、affiliate、merchant-fulfilled、未知类型、已激活项目。Upside 是独立领取流程，不会请求或处理。部分优惠的有效期从激活开始计算。
 
-此平台以当前会话限定 profile，抓包没有 Citi 式逐卡参数；脚本不会宣称替所有银行卡添加。切换登录状态必须重扫。网络错误、429、结构变化和不明确结果都会停止，不自动重试。429 冷却持久化；多标签页通过 Web Locks 互斥。
+此平台以当前会话限定 profile，抓包没有 Citi 式逐卡参数；脚本不会宣称替所有银行卡添加。切换登录状态必须重扫。Deals 每页返回的 `total` 会变（实测 831–843），所以只翻到不足一页为止，重复 ID 去重，不因 total 变化中止。单个优惠不再 eligible 就跳过；激活未确认、读回未激活或这个优惠自己的 HTTP 错误时，先读详情核验，仍可添加就再发一次，仍不行记为 Not added 并继续下一个，下次点 Add 会再试。连续 3 个失败暂停。登录失效、429、结构变化和断网仍停止整轮。详见[单个优惠失败后继续](../../../docs/offer-failure-continuation.md)。429 冷却持久化；多标签页通过 Web Locks 互斥。
 
 仅在内存中读取当前页面 query token / `LS_TOKEN`，不保存、不输出、不上传 HAR、token 或位置。本地保存优惠展示结果、账户确认和面板状态，限速时间继续独立保存。恢复后必须手动扫描；会话变化会清除旧账户确认。仅存 SHA-256 会话指纹用于比较，不存原始凭证。加载脚本不会发请求。
 

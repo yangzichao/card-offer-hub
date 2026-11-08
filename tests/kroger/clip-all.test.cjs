@@ -60,11 +60,23 @@ test('an unconfirmed clip is recorded and skipped; three in a row pause with the
     assert.equal(h.state.needsScan, true);
 });
 
-test('HTTP errors, rate limits and network failures stop the run without retrying', async () => {
+test('one coupon\'s HTTP error or dropped request is recorded and the run continues', async () => {
+    for (const failure of [() => jsonResponse({ errors: [] }, 400), () => jsonResponse({}, 500), () => { throw new TypeError('Failed to fetch'); }]) {
+        const coupons = couponIds(3).map(id => coupon(id));
+        const responder = storeResponder(coupons);
+        const h = createHarness(request => isClip(request) && request.body.couponId === '1000002' ? failure() : responder(request));
+        await h.clipAllKrogerCoupons();
+        assert.deepEqual(h.requests.filter(isClip).map(request => request.body.couponId), ['1000001', '1000002', '1000003']);
+        assert.match(h.state.status, /Finished: 2 of 3 clipped\. 1 not confirmed; Clip all coupons checks them again next time\./);
+        assert.equal(h.state.offers.find(offer => offer.offerId === '1000002').status, 'UNCONFIRMED');
+        assert.equal(h.state.offers.find(offer => offer.offerId === '1000003').status, 'ACTIVATED');
+    }
+});
+
+test('sign-in errors and rate limits stop the run without retrying', async () => {
     for (const [failure, message] of [
-        [() => jsonResponse({ errors: [] }, 400), /HTTP 400/],
-        [() => jsonResponse({}, 429, '120'), /HTTP 429/],
-        [() => { throw new TypeError('Failed to fetch'); }, /Network request failed/]
+        [() => jsonResponse({}, 401), /HTTP 401/],
+        [() => jsonResponse({}, 429, '120'), /HTTP 429/]
     ]) {
         const coupons = couponIds(3).map(id => coupon(id));
         const responder = storeResponder(coupons);

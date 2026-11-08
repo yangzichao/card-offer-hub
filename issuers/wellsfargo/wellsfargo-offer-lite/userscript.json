@@ -26,6 +26,7 @@
         "persistence/workspace-ui.js",
         "runtime/request-scheduler.js",
         "runtime/json-transport.js",
+        "runtime/offer-attempt.js",
         "runtime/action-runner.js",
         "persistence/pacing-storage.js",
         "offers/display-records.js",

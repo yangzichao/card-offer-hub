@@ -27,7 +27,7 @@ test('a different selected offer disappearing during read-back does not corrupt 
     assert.equal(harness.requests.filter(isActivation).length, 1);
     assert.equal(harness.state.confirmed, 1);
     assert.equal(harness.state.storageError, '');
-    assert.equal(harness.state.needsScan, true);
+    assert.equal(harness.state.needsScan, false);
     const restored = createHarness(successfulResponder(), { storage: harness.storage });
     restored.restoreWorkspace();
     assert.equal(restored.state.offers[0].status, 'ACTIVATED');
