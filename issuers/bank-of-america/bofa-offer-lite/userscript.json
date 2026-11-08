@@ -49,6 +49,7 @@
         "core/workflow.js",
         "core/storage.js",
         "core/workspace-fields.js",
+        "core/offer-visibility.js",
         "core/workspace.js",
         "api/session.js",
         "api/request-runtime.js",

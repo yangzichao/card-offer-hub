@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Card Offer Hub — All Banks
 // @namespace    https://github.com/yangzichao/card-offer-hub
-// @version      1.8.1
+// @version      1.8.2
 // @description  All seven Card Offer Hub tools in one install; manual scanning and activation on the matching bank or store website
 // @author       Zichao Yang
 // @match        https://*.americanexpress.com/*
@@ -1349,13 +1349,14 @@ return readIssuerSavedResults;
 })() },
 { ...{"id":"bofa-offer-lite","issuer":"bank-of-america","label":"BankAmeriDeals","url":"https://deals.merchant-rewards.com/"}, readSavedResults: (function () {
     // Source: bank-of-america/snapshots/saved-results.js
+    // Shopping links and offers that need no activation are not shown ('other').
     function readIssuerSavedResults(bank, readValue) {
         const snapshot = readValue(`${"bofa-offer-lite"}:workspace`, null);
         if (snapshot === null) return null;
         return hubWorkspaceDisplayRecords(bank, snapshot, offer => ({
             merchant: offer.name, description: offer.headline,
             displayStatus: offer.result === 'Unconfirmed' ? 'review' : offer.activated === true ? 'added' : offer.eligible === true ? 'available' : 'other'
-        }), "account", readValue(`${"bofa-offer-lite"}:offer-details`, null));
+        }), "account", readValue(`${"bofa-offer-lite"}:offer-details`, null)).filter(record => record.status !== 'other');
     }
 return readIssuerSavedResults;
 })() },
@@ -1419,7 +1420,7 @@ return readIssuerSavedResults;
     }
 return readIssuerSavedResults;
 })() }];
-const HUB_RELEASE_VERSION = "1.8.1";
+const HUB_RELEASE_VERSION = "1.8.2";
 // Read the existing snapshots directly; search never copies them into another store.
 function hubReadSavedResults() {
     const records = [], coverage = [];
@@ -1762,14 +1763,14 @@ function dispatchIssuer(configuration, startIssuer) {
 }
 
 // --- Issuer dispatches ---
-dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://global.americanexpress.com/offers","version":"1.8.1","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*americanexpress\\.com/.*$"],"patterns":["^https://global\\.americanexpress\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://global.americanexpress.com/offers","version":"1.8.2","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*americanexpress\\.com/.*$"],"patterns":["^https://global\\.americanexpress\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: amex-offer-lite ---
 (function () {
     'use strict';
 
     // Source: core/state.js
     const SETTINGS = Object.freeze({
-        version: "1.8.1", capabilities: {"activation":true,"scope":"card"}, workflow: "amex-combination",
+        version: "1.8.2", capabilities: {"activation":true,"scope":"card"}, workflow: "amex-combination",
         requestGapMs: 500,
         rateLimitCooldownMs: 120000,
         requestTimeoutMs: 30000,
@@ -3077,7 +3078,7 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
 // --- End issuer body: amex-offer-lite ---
 });
 
-dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"https://deals.merchant-rewards.com/","version":"1.8.1","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*bankofamerica\\.com/.*$","^https://deals\\.merchant-rewards\\.com/.*$"],"patterns":["^https://deals\\.merchant-rewards\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"https://deals.merchant-rewards.com/","version":"1.8.2","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*bankofamerica\\.com/.*$","^https://deals\\.merchant-rewards\\.com/.*$"],"patterns":["^https://deals\\.merchant-rewards\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: bofa-offer-lite ---
 (function () {
     'use strict';
@@ -3085,7 +3086,7 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "bofa-offer-lite", name: "BankAmeriDeals Lite", version: "1.8.1",
+        id: "bofa-offer-lite", name: "BankAmeriDeals Lite", version: "1.8.2",
         gapMilliseconds: 500, timeoutMilliseconds: 45000, pageSize: 24,
         defaultCooldownMilliseconds: 300000
     };
@@ -3146,8 +3147,17 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
         }
     };
 
+    // Source: core/offer-visibility.js
+    // Deals mixes real card-linked offers with shopping links (AFFILIATE,
+    // MERCHANT_FULFILLED, OUTBOUND_LINK_CLICK) and offers that need no activation.
+    // Live sample (2026-11-08): 36 of 168 listed offers could be added. Only offers
+    // that can be added, are added, or still need review are kept and shown.
+    function isBofaOfferShown(offer) {
+        return offer.eligible === true || offer.activated === true || ['Unconfirmed', 'Not added'].includes(offer.result);
+    }
+
     // Source: core/workspace.js
-    const { saveWorkspace, requireWorkspaceSaved, restoreWorkspace, recordWorkspaceScan,
+    const { saveWorkspace, requireWorkspaceSaved, restoreWorkspace: restoreSavedWorkspace, recordWorkspaceScan,
         markWorkspaceOfferPending, finishWorkspaceOffer, bindWorkspaceScope } = createHubWorkspaceStore({
         state, workflowType: SETTINGS.workflow, fields: WORKSPACE_FIELDS, storage: issuerStorage, storageKey: `${SETTINGS.id}:workspace`,
         detailStorageKey: `${SETTINGS.id}:offer-details`,
@@ -3155,6 +3165,11 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
         readConsent: () => state.consent, writeConsent: value => { state.consent = value; },
         markPendingRecord: record => { record.result = 'Unconfirmed'; record.eligible = false; }
     });
+    // Saves from 1.8.1 and earlier also kept shopping links; drop them on restore.
+    function restoreWorkspace() {
+        restoreSavedWorkspace();
+        state.offers = state.offers.filter(isBofaOfferShown);
+    }
     function workspaceCacheNotice() { return hubWorkspaceCacheNotice(state); }
     function restoreWorkspacePanel(panel, bankName) { hubRestoreWorkspacePanel(panel, bankName, state); }
 
@@ -3279,11 +3294,13 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
                 if (page.offers.length < SETTINGS.pageSize) break;
             }
             if (!collected.size && largestReportedTotal > 0) throw new Error('Deals reported offers but returned none. Scan again.');
-            state.offers = [...collected.values()];
+            state.offers = [...collected.values()].filter(isBofaOfferShown);
             state.needsScan = false;
             recordWorkspaceScan();
             const available = state.offers.filter(offer => offer.eligible).length;
-            updateStatus(`Scan complete: ${available} eligible, ${state.offers.length - available} skipped. Upside offers are excluded.`);
+            const hidden = collected.size - state.offers.length;
+            updateStatus(`Scan complete: ${available} to add, ${state.offers.length - available} already added.`
+                + (hidden ? ` Hid ${hidden} shopping links and offers that need no activation.` : ''));
         });
     }
     async function fetchOfferDetail(id, requireActivated = false) {
@@ -3410,7 +3427,7 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
 // --- End issuer body: bofa-offer-lite ---
 });
 
-dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://secure.chase.com/web/auth/dashboard","version":"1.8.1","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*chase\\.com/.*$"],"patterns":["^https://secure\\.chase\\.com/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://secure.chase.com/web/auth/dashboard","version":"1.8.2","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*chase\\.com/.*$"],"patterns":["^https://secure\\.chase\\.com/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: chase-offer-lite ---
 (function () {
     'use strict';
@@ -3418,7 +3435,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"card"}, workflow: "per-card",
-        id: "chase-offer-lite", name: "Chase Offer Lite", version: "1.8.1",
+        id: "chase-offer-lite", name: "Chase Offer Lite", version: "1.8.2",
         gapMilliseconds: 500, timeoutMilliseconds: 45000,
         defaultCooldownMilliseconds: 300000
     };
@@ -4198,7 +4215,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
 // --- End issuer body: chase-offer-lite ---
 });
 
-dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://online.citi.com/US/nga/products-offers/merchantoffers","version":"1.8.1","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*citi\\.com/.*$"],"patterns":["^https://online\\.citi\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://online.citi.com/US/nga/products-offers/merchantoffers","version":"1.8.2","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*citi\\.com/.*$"],"patterns":["^https://online\\.citi\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: citi-offer-lite ---
 (function () {
     'use strict';
@@ -4206,7 +4223,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"card"}, workflow: "per-card",
-        id: "citi-offer-lite", name: "Citi Offer Lite", version: "1.8.1",
+        id: "citi-offer-lite", name: "Citi Offer Lite", version: "1.8.2",
         apiBase: '/gcgapi/prod/public/v1',
         retrievePath: '/digital/customers/creditCards/merchantOffers/retrieve',
         enrollmentPath: '/digital/customers/creditCards/accounts/rewards/specialOffers/enrollMerchantOffer',
@@ -4756,7 +4773,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
 // --- End issuer body: citi-offer-lite ---
 });
 
-dispatchIssuer({"id":"kroger-coupon-lite","label":"Kroger","offersUrl":"https://www.kroger.com/savings/cl/coupons/","version":"1.8.1","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*kroger\\.com/.*$"],"patterns":["^https://www\\.kroger\\.com/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"kroger-coupon-lite","label":"Kroger","offersUrl":"https://www.kroger.com/savings/cl/coupons/","version":"1.8.2","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*kroger\\.com/.*$"],"patterns":["^https://www\\.kroger\\.com/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: kroger-coupon-lite ---
 (function () {
     'use strict';
@@ -4764,7 +4781,7 @@ dispatchIssuer({"id":"kroger-coupon-lite","label":"Kroger","offersUrl":"https://
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "kroger-coupon-lite", name: "Kroger Coupon Lite", version: "1.8.1",
+        id: "kroger-coupon-lite", name: "Kroger Coupon Lite", version: "1.8.2",
         origin: 'https://www.kroger.com',
         gapMilliseconds: 500, timeoutMilliseconds: 30000,
         defaultCooldownMilliseconds: 300000,
@@ -5226,7 +5243,7 @@ dispatchIssuer({"id":"kroger-coupon-lite","label":"Kroger","offersUrl":"https://
 // --- End issuer body: kroger-coupon-lite ---
 });
 
-dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://onlinebanking.usbank.com/digital/servicing/dominjection/cashback-deals","version":"1.8.1","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*usbank\\.com/.*$"],"patterns":["^https://onlinebanking\\.usbank\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://onlinebanking.usbank.com/digital/servicing/dominjection/cashback-deals","version":"1.8.2","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*usbank\\.com/.*$"],"patterns":["^https://onlinebanking\\.usbank\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: usbank-offer-lite ---
 (function () {
     'use strict';
@@ -5234,7 +5251,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "usbank-offer-lite", name: "US Bank Offer Lite", version: "1.8.1",
+        id: "usbank-offer-lite", name: "US Bank Offer Lite", version: "1.8.2",
         endpoint: '/digital/api/customer-management/graphql/v2',
         gapMilliseconds: 500, timeoutMilliseconds: 45000,
         defaultCooldownMilliseconds: 300000
@@ -5672,7 +5689,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
 // --- End issuer body: usbank-offer-lite ---
 });
 
-dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"https://web.secure.wellsfargo.com/auth/deals-portal","version":"1.8.1","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*wellsfargo\\.com/.*$"],"patterns":["^https://web\\.secure\\.wellsfargo\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"https://web.secure.wellsfargo.com/auth/deals-portal","version":"1.8.2","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*wellsfargo\\.com/.*$"],"patterns":["^https://web\\.secure\\.wellsfargo\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: wellsfargo-offer-lite ---
 (function () {
     'use strict';
@@ -5680,7 +5697,7 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "wellsfargo-offer-lite", name: "Wells Fargo Offer Lite", version: "1.8.1",
+        id: "wellsfargo-offer-lite", name: "Wells Fargo Offer Lite", version: "1.8.2",
         retrievePath: '/deals-portal/as/getDeals', enrollmentPath: '/deals-portal/as/activateCLDeal',
         gapMilliseconds: 500, timeoutMilliseconds: 45000, defaultCooldownMilliseconds: 300000
     };

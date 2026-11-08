@@ -11,7 +11,7 @@
 
 每次请求完成后按本行已学习的间隔等待：首次 1 秒，最低 0.5 秒，限流时自动减速。每项优惠会先读取详情、空 body PUT 激活，再读取详情确认 `is_activated === true`。每项通常需要三个请求，三个请求共用本行的自动限速，实际时间还需加上服务器响应和冷却时间。停止按钮会等待当前请求结束，不中断正在提交的激活。
 
-只处理 `CARD_LINKED` + `activation_required: true` + `activation_type: CLICK` + 单一 `OFFER_DETAILS_CLICK` trigger 的未激活优惠。跳过购物跳转 LINK、affiliate、merchant-fulfilled、未知类型、已激活项目。Upside 是独立领取流程，不会请求或处理。部分优惠的有效期从激活开始计算。
+只处理 `CARD_LINKED` + `activation_required: true` + `activation_type: CLICK` + 单一 `OFFER_DETAILS_CLICK` trigger 的未激活优惠。购物跳转 LINK、affiliate、merchant-fulfilled、无需激活的优惠和未知类型直接隐藏，不进面板、不进跨银行搜索和导出，扫描状态只报隐藏数量；已激活的照常列出。Upside 是独立领取流程，不会请求或处理。部分优惠的有效期从激活开始计算。
 
 此平台以当前会话限定 profile，抓包没有 Citi 式逐卡参数；脚本不会宣称替所有银行卡添加。切换登录状态必须重扫。Deals 每页返回的 `total` 会变（实测 831–843），所以只翻到不足一页为止，重复 ID 去重，不因 total 变化中止。单个优惠不再 eligible 就跳过；激活未确认、读回未激活或这个优惠自己的 HTTP 错误时，先读详情核验，仍可添加就再发一次，仍不行记为 Not added 并继续下一个，下次点 Add 会再试。连续 3 个失败暂停。登录失效、429、结构变化和断网仍停止整轮。详见[单个优惠失败后继续](../../../docs/offer-failure-continuation.md)。429 冷却持久化；多标签页通过 Web Locks 互斥。
 

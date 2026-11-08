@@ -19,7 +19,8 @@ test('manual pagination, consent, empty PUT and readback, response-completion pa
     assert.equal(harness.requests.length, 0);
     await harness.scanOffers();
     assert.equal(harness.state.needsScan, false);
-    assert.equal(harness.state.offers.length, 25);
+    assert.equal(harness.state.offers.length, 1);
+    assert.match(harness.state.status, /Scan complete: 1 to add, 0 already added\. Hid 24 shopping links/);
     assert.deepEqual(harness.requests.filter(item => item.path.endsWith('search')).map(item => item.body.page_offset), [0, 24]);
     await harness.activateOffers();
     assert.equal(harness.requests.length, 3);
@@ -215,7 +216,7 @@ test('a total that changes on every page, as observed live, still completes the 
     assert.equal(harness.state.offers.length, 60);
     assert.equal(new Set(Array.from(harness.state.offers, item => item.id)).size, 60);
     assert.deepEqual(harness.requests.filter(request => request.path.endsWith('search')).map(request => request.body.page_offset), [0, 24, 48]);
-    assert.match(harness.state.status, /Scan complete: 60 eligible, 0 skipped/);
+    assert.match(harness.state.status, /^Scan complete: 60 to add, 0 already added\.$/);
 });
 test('a full last page is followed by one more request that ends on an empty page', async () => {
     const offers = Array.from({ length: 24 }, (_, index) => offer(String(300 + index)));
@@ -283,4 +284,33 @@ for (const mode of ['http', 'malformed', 'timeout']) test(`${mode} failure stops
     await harness.scanOffers();
     assert.equal(harness.state.needsScan, true);
     assert.equal(harness.requests.length, 1);
+});
+test('shopping links and offers that need no activation are hidden from scan, restore and search', async () => {
+    // Shapes seen live on 2026-11-08: only CARD_LINKED + CLICK + OFFER_DETAILS_CLICK can be added.
+    const listed = [
+        offer('101'),
+        offer('102', { is_activated: true }),
+        offer('103', { type: 'AFFILIATE', activation_type: null, activation_required: false, activation_triggers: null }),
+        offer('104', { type: 'MERCHANT_FULFILLED', activation_type: null, activation_required: false, activation_triggers: null }),
+        offer('105', { type: 'MERCHANT_FULFILLED' }),
+        offer('106', { activation_type: 'LINK', activation_triggers: ['OUTBOUND_LINK_CLICK'] }),
+        offer('107', { activation_type: null, activation_required: false, activation_triggers: null }),
+        offer('108', { activation_type: 'VIEW', activation_required: false, activation_triggers: ['OFFER_TILE_VIEW', 'OFFER_PAGE_VIEW'] })
+    ];
+    const harness = createHarness(responder(listed));
+    await harness.scanOffers();
+    assert.deepEqual(Array.from(harness.state.offers, item => item.id), ['101', '102']);
+    assert.equal(harness.state.status, 'Scan complete: 1 to add, 1 already added. Hid 6 shopping links and offers that need no activation.');
+    const key = [...harness.storage.keys()].find(item => item.endsWith(':workspace'));
+    assert.deepEqual(Array.from(harness.storage.get(key).offers, item => item.id), ['101', '102']);
+
+    // A save from 1.8.1 still holds the links; restore drops them, keeps records that need review.
+    const legacy = harness.storage.get(key);
+    legacy.offers.push(
+        { id: '103', name: 'Link', headline: '5% back', eligible: false, activated: false, reason: 'Not an ordinary card-linked offer', result: '' },
+        { id: '109', name: 'Pending', headline: '$5 back', eligible: false, activated: false, reason: '', result: 'Unconfirmed' },
+        { id: '110', name: 'Retry', headline: '$5 back', eligible: false, activated: false, reason: '', result: 'Not added' });
+    const restored = createHarness(responder(listed), { storage: new Map([[key, legacy]]) });
+    restored.restoreWorkspace();
+    assert.deepEqual(Array.from(restored.state.offers, item => item.id), ['101', '102', '109', '110']);
 });

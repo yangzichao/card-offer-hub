@@ -27,11 +27,13 @@ async function scanOffers() {
             if (page.offers.length < SETTINGS.pageSize) break;
         }
         if (!collected.size && largestReportedTotal > 0) throw new Error('Deals reported offers but returned none. Scan again.');
-        state.offers = [...collected.values()];
+        state.offers = [...collected.values()].filter(isBofaOfferShown);
         state.needsScan = false;
         recordWorkspaceScan();
         const available = state.offers.filter(offer => offer.eligible).length;
-        updateStatus(`Scan complete: ${available} eligible, ${state.offers.length - available} skipped. Upside offers are excluded.`);
+        const hidden = collected.size - state.offers.length;
+        updateStatus(`Scan complete: ${available} to add, ${state.offers.length - available} already added.`
+            + (hidden ? ` Hid ${hidden} shopping links and offers that need no activation.` : ''));
     });
 }
 async function fetchOfferDetail(id, requireActivated = false) {

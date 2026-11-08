@@ -57,7 +57,9 @@ async function main() {
             assert.equal(item.requests.length, 0);
             assert.equal(await page.getByRole('button', { name: 'Add all offers' }).isEnabled(), false);
             await page.getByRole('button', { name: 'Scan offers', exact: true }).click();
-            await item.until(/Scan complete: 1 eligible, 1 skipped/);
+            await item.until(/Scan complete: 1 to add, 0 already added\. Hid 1 shopping links/);
+            // The LINK offer is hidden, not listed as Skipped.
+            assert.doesNotMatch(await page.locator('#offers').innerText(), /Synthetic Merchant 102|Skipped/);
             await page.getByRole('checkbox').check();
             await page.getByRole('button', { name: 'Add all offers' }).click();
             if (mode === 'stop') await page.getByRole('button', { name: 'Stop' }).click();

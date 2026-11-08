@@ -54,6 +54,15 @@ test('uncertain BOFA and informational Amex offers cannot appear as available', 
     assert.equal(records.find(row => row.bankName === 'BankAmeriDeals').status, 'review');
     assert.equal(records.find(row => row.bankName === 'Amex').status, 'other');
 });
+test('saved BankAmeriDeals shopping links from older releases stay out of search and export', () => {
+    const h = harness();
+    const key = 'issuer:bofa-offer-lite:bofa-offer-lite:workspace';
+    const bofa = h.storage.get(key);
+    bofa.offers.push({ id: 'bofa-link', name: 'Link Store', headline: '5% back with this link', eligible: false, activated: false, reason: 'Not an ordinary card-linked offer', result: '' });
+    h.storage.set(key, bofa);
+    const banks = Array.from(h.hubReadSavedResults().records.filter(row => row.bankName === 'BankAmeriDeals'), row => row.merchant);
+    assert.deepEqual(banks, ['Harbor Home']);
+});
 
 test('search reads new workflow snapshots and excludes a mismatched bank without changing storage', () => {
     const h = harness();
