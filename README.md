@@ -1,12 +1,12 @@
 # Card Offer Hub
 
-一个 Tampermonkey 脚本管理六家银行的信用卡 Offer。只维护一个版本、一个安装入口，装一次后由 Tampermonkey 更新。
+一个 Tampermonkey 脚本管理六家银行的信用卡 Offer，另含 Kroger 数字优惠券一键领取。只维护一个版本、一个安装入口，装一次后由 Tampermonkey 更新。
 
 ## 安装入口
 
 <!-- published-scripts:start -->
 
-**[安装 / 更新 Card Offer Hub 1.6.6](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/card-offer-hub-all.user.js)** — 唯一安装包，包含下列 6 家银行。
+**[安装 / 更新 Card Offer Hub 1.7.0](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/card-offer-hub-all.user.js)** — 唯一安装包，包含下列 7 家银行。
 
 安装一次，覆盖银行主域名和所有子域名；网银显示操作面板，其他页面提供 Offers 入口和缓存搜索。所有银行共用一个发布版本。[地址匹配说明](docs/website-matching.md)
 
@@ -16,6 +16,7 @@
 | [BankAmeriDeals](issuers/bank-of-america/bofa-offer-lite/README.md) | https://*.bankofamerica.com/*<br>https://deals.merchant-rewards.com/* | [打开 Offers](https://deals.merchant-rewards.com/) |
 | [Chase](issuers/chase/chase-offer-lite/README.md) | https://*.chase.com/* | [打开 Offers](https://secure.chase.com/web/auth/dashboard) |
 | [Citi](issuers/citi/citi-offer-lite/README.md) | https://*.citi.com/* | [打开 Offers](https://online.citi.com/US/nga/products-offers/merchantoffers) |
+| [Kroger](issuers/kroger/kroger-coupon-lite/README.md) | https://*.kroger.com/* | [打开 Offers](https://www.kroger.com/savings/cl/coupons/) |
 | [US Bank](issuers/usbank/usbank-offer-lite/README.md) | https://*.usbank.com/* | [打开 Offers](https://onlinebanking.usbank.com/digital/servicing/dominjection/cashback-deals) |
 | [Wells Fargo](issuers/wellsfargo/wellsfargo-offer-lite/README.md) | https://*.wellsfargo.com/* | [打开 Offers](https://web.secure.wellsfargo.com/auth/deals-portal) |
 

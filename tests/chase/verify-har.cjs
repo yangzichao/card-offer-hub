@@ -2,7 +2,8 @@
 const { readFileSync } = require('node:fs');
 const { createHarness } = require('./helpers/userscript-harness.cjs');
 const { inspectClickEvidence } = require('./helpers/har-click-evidence.cjs');
-const expectedPath = '/svc/wr/profile/secure/gateway/ccb/marketing/offer-management/digital-customer-targeted-offers/v3/customer-offers';
+const resourcePath = '/ccb/marketing/offer-management/digital-customer-targeted-offers/v3/customer-offers';
+const expectedPaths = [`/svc/gw/mkt/secure/gateway${resourcePath}`, `/svc/wr/profile/secure/gateway${resourcePath}`];
 const capturePath = process.argv[2];
 if (!capturePath) {
     console.error('Usage: node tests/chase/verify-har.cjs /absolute/path/to/capture.har');
@@ -15,7 +16,7 @@ if (!capturePath) {
             maximumDiscoveredCards: 0, observedNonGetRequests: 0 };
         for (const entry of entries) {
             const url = new URL(entry.request.url);
-            if (url.origin !== 'https://secure.chase.com' || url.pathname !== expectedPath) continue;
+            if (url.origin !== 'https://secure.chase.com' || !expectedPaths.includes(url.pathname)) continue;
             if (entry.request.method !== 'GET') { summary.observedNonGetRequests++; continue; }
             if (entry.response.status < 200 || entry.response.status >= 300) continue;
             const content = entry.response.content;
@@ -34,7 +35,7 @@ if (!capturePath) {
             else if (partial) summary.partialLists++;
             else {
                 const component = url.searchParams.get('source-request-component-name');
-                if (!['OFFERS_HUB_ALL', 'OFFERS_HUB_CAROUSELS'].includes(component)
+                if (!['OFFERS_HUB_ALL', 'OFFERS_HUB_CAROUSELS', 'OFFERS_HUB_V2'].includes(component)
                     || url.searchParams.get('offer-count') !== ''
                     || url.searchParams.get('offerStatusNameList') !== 'NEW,ACTIVATED,SERVED') {
                     throw new Error('An unknown full-list request contract requires review.');

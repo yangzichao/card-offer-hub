@@ -8,6 +8,12 @@ const { loadAllInOneManifest } = require('../../scripts/build/all-in-one-manifes
 const scripts = loadScriptRegistry();
 const manifest = loadAllInOneManifest(scripts);
 const userscript = readFileSync(join(projectRoot, `dist/${manifest.id}.user.js`), 'utf8');
+// Issuers whose one-click action replaces the generic Scan / Add all pair.
+const actionLabels = {
+    citi: { scan: 'Refresh & add offers', bulk: 'Add saved offers' },
+    chase: { scan: 'Refresh & add offers', bulk: 'Add saved offers' },
+    kroger: { scan: 'Load coupons', bulk: 'Clip all coupons' }
+};
 const seeds = {};
 for (const script of scripts) {
     const prefix = `issuer:${script.id}:`;
@@ -70,10 +76,11 @@ async function run() {
             assert.equal(await page.locator('.panel').getAttribute('data-workflow'), script.workflow);
             assert.deepEqual(await page.locator('.hub-step > h3').allTextContents(), headings[script.workflow]);
             assert.equal(await page.getByRole('button', { name: 'Stop', exact: true }).count(), 0);
-            for (const name of [['citi', 'chase'].includes(script.issuer) ? 'Refresh & add offers' : 'Scan offers', 'Clear search']) {
+            const labels = actionLabels[script.issuer] || { scan: 'Scan offers', bulk: 'Add all offers' };
+            for (const name of [labels.scan, 'Clear search']) {
                 assert.equal(await page.getByRole('button', { name, exact: true }).count(), 1);
             }
-            const bulk = page.getByRole('button', { name: ['citi', 'chase'].includes(script.issuer) ? 'Add saved offers' : 'Add all offers', exact: true, includeHidden: true });
+            const bulk = page.getByRole('button', { name: labels.bulk, exact: true, includeHidden: true });
             assert.equal(await bulk.isVisible(), script.capabilities.activation);
             const bulkBeforeSearch = await bulk.textContent();
             const panelIds = await page.evaluate(() => [...document.querySelectorAll('body > div')]
@@ -82,7 +89,7 @@ async function run() {
             assert.equal(await page.evaluate(() => window.observerAtPageStart === 'observedChaseFetch'), script.issuer === 'chase');
             if (script.issuer !== 'amex') {
                 assert.equal(await page.locator('.offer').count(), 1, 'saved result restores');
-                assert.ok(await page.getByRole('checkbox', { checked: true }).count() > 0, 'saved choice restores');
+                if (!['kroger'].includes(script.issuer)) assert.ok(await page.getByRole('checkbox', { checked: true }).count() > 0, 'saved choice restores');
                 assert.equal(await page.locator('.offer .offer-status').count(), 1, 'every offer row shows its status');
             }
             assert.equal(await page.locator('.hub-primary-actions > button.primary:visible').count(), 1, 'one primary next step at a time');
@@ -143,7 +150,7 @@ async function run() {
             assert.deepEqual(requests, [], 'SPA navigation and panel repair do not scan');
             await page.close();
         }
-        console.log('PASS: all-in-one on six synthetic bank sites, early Chase observer, one matching panel, isolated storage, saved results and choices, reload, and no automatic requests.');
+        console.log('PASS: all-in-one on seven synthetic bank and store sites, early Chase observer, one matching panel, isolated storage, saved results and choices, reload, and no automatic requests.');
     } finally {
         await browser.close();
     }

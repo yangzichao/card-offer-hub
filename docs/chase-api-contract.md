@@ -47,8 +47,11 @@ A missing target, unchanged status, malformed/partial response, changed login, n
 At document start, passive fetch/XHR observers watch exact-origin `https://secure.chase.com` requests to:
 
 ```text
+/svc/gw/mkt/secure/gateway/ccb/marketing/offer-management/digital-customer-targeted-offers/v3/customer-offers
 /svc/wr/profile/secure/gateway/ccb/marketing/offer-management/digital-customer-targeted-offers/v3/customer-offers
 ```
+
+Both prefixes serve the same contract. On 2026-11-07 the live page had moved to `/svc/gw/mkt`; 1.6.6 only knew `/svc/wr/profile`, so it never captured a session. Since 1.6.7 the observer accepts either known prefix (anything else is rejected) and script reads use the prefix the page itself last used.
 
 Installing the observer sends no requests. The initial Load cards & offers action combines discovery with reading complete lists for every current card; it does not activate offers. Native page traffic establishes the current customer, cards and allowlisted runtime request headers. Account/profile identifiers remain strings, including leading zeros. `shoppingEligibilityIndicator` does not determine Offers eligibility. New cards are selected by default and saved opt-outs are preserved. Refresh & add offers reads every current card, including deselected cards, before adding only to selected cards. A changed customer loads new cards but stops before activation for selection review. Failed or stopped multi-card refreshes preserve the previous complete workspace.
 
@@ -87,3 +90,11 @@ Local verification for 1.6.2:
 - `npm run test:browser`: PASS, all 16 browser scripts plus 15 Gherkin scenarios / 155 steps; synthetic traffic only.
 - Desktop and 390px Chase screenshots inspected; action labels, selections and results fit the panel.
 - `git diff --check`: PASS.
+
+### Gateway move in 1.6.7 (2026-11-07)
+
+Live check on secure.chase.com: the page now loads Offers from `/svc/gw/mkt/...` and its full Offers list uses `source-request-component-name=OFFERS_HUB_V2`. After installing 1.6.7, script reads went to `/svc/gw/mkt/...` with `OFFERS_HUB_ALL` and returned HTTP 200; the user confirmed the Chase panel works. During manual probing before the fix, two hand-sent requests got HTTP 401 and Chase then signed the session out; the cause is unknown, and no manual requests were sent afterwards.
+
+Pending live verification: whether Chase will retire `/svc/wr/profile`; whether `OFFERS_HUB_ALL` keeps returning complete lists on the new gateway for every card.
+
+Local verification for 1.6.7: `npm run build`, `npm run check`, `npm test` and `npm run test:browser` all PASS; `tests/chase/gateway-paths.test.cjs` covers both prefixes and rejects unknown ones.

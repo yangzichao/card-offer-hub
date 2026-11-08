@@ -1,0 +1,76 @@
+{
+    "id": "kroger-coupon-lite",
+    "name": "Kroger Coupon Lite",
+    "description": "Clip every available Kroger digital coupon with one click, serially, counting only confirmed clips",
+    "author": "Zichao Yang",
+    "issuer": "kroger",
+    "matches": [
+        "https://*.kroger.com/*"
+    ],
+    "grants": [
+        "GM_getValue",
+        "GM_setValue",
+        "unsafeWindow"
+    ],
+    "connects": [],
+    "runAt": "document-start",
+    "noFrames": true,
+    "sharedModules": [
+        "ui/design-system.js",
+        "ui/panel-branding.js",
+        "ui/offer-row.js",
+        "ui/task-progress.js",
+        "ui/workflow-layout.js",
+        "persistence/workspace-records.js",
+        "persistence/workspace-storage.js",
+        "persistence/workspace-scope.js",
+        "persistence/workspace-ui.js",
+        "runtime/request-scheduler.js",
+        "runtime/json-transport.js",
+        "runtime/action-runner.js",
+        "persistence/pacing-storage.js",
+        "offers/display-records.js",
+        "ui/workflow-panel.js",
+        "runtime/action-lifecycle.js",
+        "pacing/policy.js",
+        "pacing/profile.js",
+        "pacing/learning.js",
+        "pacing/controller.js",
+        "ui/pacing-details.js",
+        "diagnostics/pacing-records.js",
+        "diagnostics/pacing-storage.js",
+        "diagnostics/pacing-download.js"
+    ],
+    "sources": [
+        "snapshots/saved-results.js",
+        "core/state.js",
+        "core/workflow.js",
+        "core/storage.js",
+        "core/workspace-fields.js",
+        "core/workspace.js",
+        "api/contracts.js",
+        "api/session.js",
+        "api/observer.js",
+        "api/request-runtime.js",
+        "api/transport.js",
+        "workflows/runner.js",
+        "workflows/coupons.js",
+        "workflows/clip-all.js",
+        "ui/styles.js",
+        "ui/actions.js",
+        "ui/panel.js",
+        "ui/render.js",
+        "initialize.js"
+    ],
+    "bankLabel": "Kroger",
+    "offersUrl": "https://www.kroger.com/savings/cl/coupons/",
+    "savedResultsSource": "snapshots/saved-results.js",
+    "capabilities": {
+        "activation": true,
+        "scope": "account"
+    },
+    "workflow": "account",
+    "adapterMatches": [
+        "https://www.kroger.com/*"
+    ]
+}

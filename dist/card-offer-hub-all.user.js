@@ -1,14 +1,15 @@
 // ==UserScript==
 // @name         Card Offer Hub — All Banks
 // @namespace    https://github.com/yangzichao/card-offer-hub
-// @version      1.6.6
-// @description  All six Card Offer Hub tools in one install; manual scanning and activation on the matching bank website
+// @version      1.7.0
+// @description  All seven Card Offer Hub tools in one install; manual scanning and activation on the matching bank or store website
 // @author       Zichao Yang
 // @match        https://*.americanexpress.com/*
 // @match        https://*.bankofamerica.com/*
 // @match        https://deals.merchant-rewards.com/*
 // @match        https://*.chase.com/*
 // @match        https://*.citi.com/*
+// @match        https://*.kroger.com/*
 // @match        https://*.usbank.com/*
 // @match        https://*.wellsfargo.com/*
 // @grant        GM_getValue
@@ -1191,6 +1192,18 @@ return readIssuerSavedResults;
     }
 return readIssuerSavedResults;
 })() },
+{ ...{"id":"kroger-coupon-lite","issuer":"kroger","label":"Kroger","url":"https://www.kroger.com/savings/cl/coupons/"}, readSavedResults: (function () {
+    // Source: kroger/snapshots/saved-results.js
+    function readIssuerSavedResults(bank, readValue) {
+        const snapshot = readValue(`${"kroger-coupon-lite"}:workspace`, null);
+        if (snapshot === null) return null;
+        return hubWorkspaceDisplayRecords(bank, snapshot, offer => ({
+            merchant: offer.merchant, description: offer.title, displayStatus: hubStatus(offer.status),
+            expires: offer.expires, category: offer.category
+        }), "account");
+    }
+return readIssuerSavedResults;
+})() },
 { ...{"id":"usbank-offer-lite","issuer":"usbank","label":"US Bank","url":"https://onlinebanking.usbank.com/digital/servicing/dominjection/cashback-deals"}, readSavedResults: (function () {
     // Source: usbank/snapshots/saved-results.js
     function readIssuerSavedResults(bank, readValue) {
@@ -1503,14 +1516,14 @@ function dispatchIssuer(configuration, startIssuer) {
 }
 
 // --- Issuer dispatches ---
-dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://global.americanexpress.com/offers","version":"1.6.6","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*americanexpress\\.com/.*$"],"patterns":["^https://global\\.americanexpress\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://global.americanexpress.com/offers","version":"1.7.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*americanexpress\\.com/.*$"],"patterns":["^https://global\\.americanexpress\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: amex-offer-lite ---
 (function () {
     'use strict';
 
     // Source: core/state.js
     const SETTINGS = Object.freeze({
-        version: "1.6.6", capabilities: {"activation":true,"scope":"card"}, workflow: "amex-combination",
+        version: "1.7.0", capabilities: {"activation":true,"scope":"card"}, workflow: "amex-combination",
         requestGapMs: 500,
         rateLimitCooldownMs: 120000,
         requestTimeoutMs: 30000,
@@ -2818,7 +2831,7 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
 // --- End issuer body: amex-offer-lite ---
 });
 
-dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"https://deals.merchant-rewards.com/","version":"1.6.6","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*bankofamerica\\.com/.*$","^https://deals\\.merchant-rewards\\.com/.*$"],"patterns":["^https://deals\\.merchant-rewards\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"https://deals.merchant-rewards.com/","version":"1.7.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*bankofamerica\\.com/.*$","^https://deals\\.merchant-rewards\\.com/.*$"],"patterns":["^https://deals\\.merchant-rewards\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: bofa-offer-lite ---
 (function () {
     'use strict';
@@ -2826,7 +2839,7 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "bofa-offer-lite", name: "BankAmeriDeals Lite", version: "1.6.6",
+        id: "bofa-offer-lite", name: "BankAmeriDeals Lite", version: "1.7.0",
         gapMilliseconds: 500, timeoutMilliseconds: 45000, pageSize: 24,
         defaultCooldownMilliseconds: 300000
     };
@@ -3123,7 +3136,7 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
 // --- End issuer body: bofa-offer-lite ---
 });
 
-dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://secure.chase.com/web/auth/dashboard","version":"1.6.6","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*chase\\.com/.*$"],"patterns":["^https://secure\\.chase\\.com/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://secure.chase.com/web/auth/dashboard","version":"1.7.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*chase\\.com/.*$"],"patterns":["^https://secure\\.chase\\.com/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: chase-offer-lite ---
 (function () {
     'use strict';
@@ -3131,7 +3144,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"card"}, workflow: "per-card",
-        id: "chase-offer-lite", name: "Chase Offer Lite", version: "1.6.6",
+        id: "chase-offer-lite", name: "Chase Offer Lite", version: "1.7.0",
         gapMilliseconds: 500, timeoutMilliseconds: 45000,
         defaultCooldownMilliseconds: 300000
     };
@@ -3215,7 +3228,14 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
     function restoreWorkspacePanel(panel, bankName) { hubRestoreWorkspacePanel(panel, bankName, state); }
 
     // Source: api/contracts.js
-    const CHASE_OFFERS_PATH = '/svc/wr/profile/secure/gateway/ccb/marketing/offer-management/digital-customer-targeted-offers/v3/customer-offers';
+    const CHASE_OFFERS_RESOURCE_PATH = '/ccb/marketing/offer-management/digital-customer-targeted-offers/v3/customer-offers';
+    // The same Offers list contract is served behind two gateway prefixes. The page
+    // moved from /svc/wr/profile to /svc/gw/mkt (observed live 2026-11-07); script
+    // reads follow whichever known prefix the page itself last used.
+    const CHASE_OFFERS_PATHS = [
+        `/svc/gw/mkt/secure/gateway${CHASE_OFFERS_RESOURCE_PATH}`,
+        `/svc/wr/profile/secure/gateway${CHASE_OFFERS_RESOURCE_PATH}`
+    ];
     function chaseIdentifier(value) {
         if (typeof value === 'number' && Number.isSafeInteger(value) && value > 0) return String(value);
         if (typeof value === 'string' && /^\d+$/.test(value) && /[1-9]/.test(value)) return value;
@@ -3287,7 +3307,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
             'source-application-system-name': 'CHASE_WEB', 'source-request-component-name': 'OFFERS_HUB_ALL'
         });
         return {
-            path: `${CHASE_OFFERS_PATH}?${parameters}`, method: 'GET',
+            path: `${session.offersPath}?${parameters}`, method: 'GET',
             headers: { 'path-params': JSON.stringify({ enterprisePartyIdentifier: session.enterprisePartyIdentifier,
                 primaryDigitalAccountIdentifierList: [chaseIdentifier(accountId)] }) }
         };
@@ -3362,7 +3382,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
     function captureSessionRequest(requestUrl, method, requestHeaders) {
         try {
             const url = new URL(requestUrl, 'https://secure.chase.com');
-            if (url.origin !== 'https://secure.chase.com' || url.pathname !== CHASE_OFFERS_PATH
+            if (url.origin !== 'https://secure.chase.com' || !CHASE_OFFERS_PATHS.includes(url.pathname)
                 || String(method || 'GET').toUpperCase() !== 'GET') return null;
             const headers = chaseReadHeaders(requestHeaders);
             const pathParameters = JSON.parse(headers['path-params']);
@@ -3384,7 +3404,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
                 chaseCapturedSession = null;
                 chaseCapturedAccounts = null;
             }
-            return { accountId, dashboardDiscovery, enterprisePartyIdentifier, headers: safeHeaders, sequence };
+            return { accountId, dashboardDiscovery, enterprisePartyIdentifier, offersPath: url.pathname, headers: safeHeaders, sequence };
         } catch { return null; }
     }
     function captureSessionResponse(context, payload) {
@@ -3416,8 +3436,8 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
     }
     function currentSession() {
         if (!chaseCapturedSession) throw new Error('Wait for Chase Offers to finish loading, then try again. Open Chase Offers or reload the page if needed.');
-        const { accountId, enterprisePartyIdentifier, capturedAt } = chaseCapturedSession;
-        return { accountId, enterprisePartyIdentifier, capturedAt };
+        const { accountId, enterprisePartyIdentifier, offersPath, capturedAt } = chaseCapturedSession;
+        return { accountId, enterprisePartyIdentifier, offersPath, capturedAt };
     }
     function sessionHeaders() {
         currentSession();
@@ -3900,7 +3920,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
 // --- End issuer body: chase-offer-lite ---
 });
 
-dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://online.citi.com/US/nga/products-offers/merchantoffers","version":"1.6.6","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*citi\\.com/.*$"],"patterns":["^https://online\\.citi\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://online.citi.com/US/nga/products-offers/merchantoffers","version":"1.7.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*citi\\.com/.*$"],"patterns":["^https://online\\.citi\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: citi-offer-lite ---
 (function () {
     'use strict';
@@ -3908,7 +3928,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"card"}, workflow: "per-card",
-        id: "citi-offer-lite", name: "Citi Offer Lite", version: "1.6.6",
+        id: "citi-offer-lite", name: "Citi Offer Lite", version: "1.7.0",
         apiBase: '/gcgapi/prod/public/v1',
         retrievePath: '/digital/customers/creditCards/merchantOffers/retrieve',
         enrollmentPath: '/digital/customers/creditCards/accounts/rewards/specialOffers/enrollMerchantOffer',
@@ -4458,7 +4478,472 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
 // --- End issuer body: citi-offer-lite ---
 });
 
-dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://onlinebanking.usbank.com/digital/servicing/dominjection/cashback-deals","version":"1.6.6","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*usbank\\.com/.*$"],"patterns":["^https://onlinebanking\\.usbank\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"kroger-coupon-lite","label":"Kroger","offersUrl":"https://www.kroger.com/savings/cl/coupons/","version":"1.7.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*kroger\\.com/.*$"],"patterns":["^https://www\\.kroger\\.com/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
+// --- Issuer body: kroger-coupon-lite ---
+(function () {
+    'use strict';
+
+    // Source: core/state.js
+    const SETTINGS = {
+        capabilities: {"activation":true,"scope":"account"}, workflow: "account",
+        id: "kroger-coupon-lite", name: "Kroger Coupon Lite", version: "1.7.0",
+        origin: 'https://www.kroger.com',
+        gapMilliseconds: 500, timeoutMilliseconds: 30000,
+        defaultCooldownMilliseconds: 300000,
+        // Kroger's own Coupons page reads 72 per page. The page cap only guards
+        // against a list that never reports its end.
+        couponPageSize: 72, maximumCouponPages: 40,
+        // Pause instead of burning through the whole list when Kroger stops confirming.
+        maximumConsecutiveUnconfirmedClips: 3
+    };
+    const state = {
+        lastScanAt: 0, workspaceScope: '', restoredWorkspace: false,
+        offers: [], selected: new Set(), activeAction: null, busy: false, stopRequested: false,
+        needsScan: true, nextRequestAt: 0, cooldownUntil: 0, storageError: '',
+        status: 'Open Kroger Coupons, then click Clip all coupons. Nothing runs automatically.',
+        processed: 0, confirmed: 0, total: 0, panel: null, collapsed: false, search: ''
+    };
+    function updateStatus(message) {
+        state.status = message;
+        renderPanel();
+    }
+    function ensureRunning() {
+        if (state.stopRequested) throw new Error('Stopped. Click Clip all coupons again to continue with the coupons that are left.');
+        if (location.origin !== SETTINGS.origin) throw new Error('Open Kroger Coupons on www.kroger.com and try again.');
+    }
+    function stopRun() {
+        state.stopRequested = true;
+        updateStatus('Stopping after the current request settles.');
+    }
+
+    // Source: core/workflow.js
+    const offerWorkflow = createHubWorkflow({
+        type: SETTINGS.workflow, capabilities: SETTINGS.capabilities,
+        // Digital coupons belong to the signed-in Kroger account's loyalty card.
+        // The manual Clip all click is the account confirmation.
+        readContext: () => ({ accountId: state.workspaceScope, consent: true }),
+        readRecords: () => state.offers.map(offer => ({
+            accountId: state.workspaceScope, offerId: offer.offerId, source: offer,
+            status: offer.status === 'AVAILABLE' ? 'available' : offer.status === 'ACTIVATED' ? 'added'
+                : offer.status === 'UNCONFIRMED' ? 'unconfirmed' : 'unavailable'
+        }))
+    });
+
+    // Source: core/storage.js
+    // Existing keys and schema remain readable after the runtime refactor.
+    const issuerStorage = { get: (key, fallback) => GM_getValue(key, fallback), set: (key, value) => GM_setValue(key, value) };
+    const { restorePacing, savePacing, pacing } = createHubPacingStorage({
+        state, version: SETTINGS.version, policy: { minimumGapMs: SETTINGS.gapMilliseconds, defaultCooldownMs: SETTINGS.defaultCooldownMilliseconds,
+            maximumSampleDurationMs: SETTINGS.timeoutMilliseconds }, storage: issuerStorage, storageKey: `${SETTINGS.id}:pacing`, onError: () => renderPanel()
+    });
+
+    // Source: core/workspace-fields.js
+    // Display fields only. krogerCouponNumber is the clip confirmation key and
+    // stays in memory; a clip always starts from a fresh list read.
+    const WORKSPACE_FIELDS = {
+        "accounts": null,
+        "offers": {
+            "offerId": "id",
+            "merchant": "text",
+            "title": "text",
+            "category": "text",
+            "expires": "text",
+            "status": "text"
+        }
+    };
+
+    // Source: core/workspace.js
+    const { saveWorkspace, requireWorkspaceSaved, restoreWorkspace, recordWorkspaceScan,
+        markWorkspaceOfferPending, finishWorkspaceOffer, bindWorkspaceScope } = createHubWorkspaceStore({
+        state, workflowType: SETTINGS.workflow, fields: WORKSPACE_FIELDS, storage: issuerStorage, storageKey: `${SETTINGS.id}:workspace`,
+        onError: () => renderPanel()
+    });
+    function workspaceCacheNotice() { return hubWorkspaceCacheNotice(state); }
+    function restoreWorkspacePanel(panel, bankName) { hubRestoreWorkspacePanel(panel, bankName, state); }
+
+    // Source: api/contracts.js
+    // Contracts observed on www.kroger.com Coupons (2026-11-07). The list and clip
+    // endpoints are same-origin; the page sends its context headers with both.
+    const KROGER_COUPONS_PATH = '/atlas/v1/savings-coupons/v2/coupons';
+    const KROGER_CLIP_PATH = '/atlas/v1/savings-coupons/v1/clip-unclip';
+    // Kroger's list filter for coupons that can still be clipped.
+    function krogerCouponPageUrl(offset) {
+        const parameters = new URLSearchParams([
+            ['filter.sort', 'relevance'], ['filter.onlyNewCoupons', 'false'],
+            ['page.size', String(SETTINGS.couponPageSize)],
+            ['filter.status', 'unclipped'], ['filter.status', 'active'],
+            ['page.offset', String(offset)]
+        ]);
+        return `${KROGER_COUPONS_PATH}?${parameters}`;
+    }
+    function krogerText(value) {
+        return typeof value === 'string' ? value.trim() : '';
+    }
+    function krogerCouponIdentifier(value) {
+        if (typeof value === 'number' && Number.isSafeInteger(value) && value > 0) return String(value);
+        if (typeof value === 'string' && /^\d+$/.test(value) && /[1-9]/.test(value)) return value;
+        return '';
+    }
+    function normalizeKrogerCoupon(raw) {
+        const offerId = krogerCouponIdentifier(raw?.id);
+        if (!offerId) throw new Error('Kroger returned an incomplete coupon record. Reload Coupons and try again.');
+        const couponNumber = krogerCouponIdentifier(raw.krogerCouponNumber);
+        // Only explicit flags count. A coupon without its confirmation key cannot be
+        // verified after clipping, so it is never offered for clipping.
+        const status = raw.addedToCard === true ? 'ACTIVATED'
+            : raw.canBeAddedToCard === true && raw.addedToCard === false && couponNumber ? 'AVAILABLE' : 'UNAVAILABLE';
+        return {
+            offerId, couponNumber, status,
+            merchant: krogerText(raw.brand) || 'Kroger',
+            title: krogerText(raw.displayDescription) || krogerText(raw.shortDescription) || krogerText(raw.title),
+            category: Array.isArray(raw.categories) ? raw.categories.map(krogerText).filter(Boolean).join(', ') : '',
+            expires: krogerText(raw.expirationDate)
+        };
+    }
+    function normalizeKrogerCouponPage(payload) {
+        const coupons = payload?.data?.coupons;
+        const page = payload?.meta?.coupons?.page;
+        if (!Array.isArray(coupons) || typeof page?.hasMore !== 'boolean') {
+            throw new Error('Kroger coupon list was not recognized. Reload Coupons and try again.');
+        }
+        return { coupons: coupons.map(normalizeKrogerCoupon), hasMore: page.hasMore };
+    }
+    // The same coupon can appear twice while Kroger re-sorts pages. Matching copies
+    // merge; disagreeing copies become CONFLICT and are never clipped.
+    function mergeKrogerCoupons(couponsById, coupons) {
+        for (const coupon of coupons) {
+            const existing = couponsById.get(coupon.offerId);
+            if (!existing) { couponsById.set(coupon.offerId, coupon); continue; }
+            if (existing.status !== coupon.status || existing.couponNumber !== coupon.couponNumber) existing.status = 'CONFLICT';
+        }
+        return couponsById;
+    }
+    function krogerClipBody(coupon) {
+        return JSON.stringify({ action: 'CLIP', couponId: coupon.offerId });
+    }
+    // HTTP 200 alone is not success: the response must name this coupon's number.
+    function krogerClipConfirmed(payload, coupon) {
+        const modified = payload?.data?.modifiedCoupons;
+        return Boolean(coupon.couponNumber) && Array.isArray(modified)
+            && modified.some(item => krogerCouponIdentifier(item?.krogerCouponNumber) === coupon.couponNumber);
+    }
+
+    // Source: api/session.js
+    // Kroger's page sends store and modality context with every savings request.
+    // Those values are not readable from page storage, so the observer copies this
+    // allowlist from the page's own requests. They live in memory only.
+    const KROGER_CONTEXT_HEADER_NAMES = ['x-kroger-channel', 'x-modality', 'x-modality-type', 'x-facility-id', 'x-laf-object', 'x-ab-test'];
+    const KROGER_REQUIRED_HEADER_NAMES = ['x-kroger-channel', 'x-modality', 'x-laf-object'];
+    let krogerCapturedContext = null;
+    function krogerReadHeaders(input) {
+        const headers = {};
+        if (input && typeof input.forEach === 'function' && !Array.isArray(input)) {
+            input.forEach((value, name) => { headers[String(name).toLowerCase()] = String(value); });
+        } else if (Array.isArray(input)) {
+            for (const [name, value] of input) headers[String(name).toLowerCase()] = String(value);
+        } else if (input && typeof input === 'object') {
+            for (const [name, value] of Object.entries(input)) headers[name.toLowerCase()] = String(value);
+        }
+        return headers;
+    }
+    function captureKrogerContext(requestUrl, requestHeaders) {
+        try {
+            const url = new URL(requestUrl, SETTINGS.origin);
+            if (url.origin !== SETTINGS.origin || !url.pathname.startsWith('/atlas/v1/')) return false;
+            const headers = krogerReadHeaders(requestHeaders);
+            if (headers['x-kroger-channel'] !== 'WEB') return false;
+            const captured = {};
+            for (const name of KROGER_CONTEXT_HEADER_NAMES) {
+                const value = headers[name];
+                if (typeof value === 'string' && value && value.length <= 8192 && !/[\r\n]/.test(value)) captured[name] = value;
+            }
+            if (!KROGER_REQUIRED_HEADER_NAMES.every(name => captured[name])) return false;
+            krogerCapturedContext = { headers: captured, capturedAt: Date.now() };
+            return true;
+        } catch { return false; }
+    }
+    function krogerContextHeaders() {
+        if (!krogerCapturedContext) {
+            throw new Error('Wait for Kroger Coupons to finish loading, then try again. Reload the Coupons page if needed.');
+        }
+        return {
+            Accept: 'application/json, text/plain, */*', ...krogerCapturedContext.headers,
+            'x-call-origin': '{"page":"coupon","component":"coupons"}'
+        };
+    }
+    // The signed-in Kroger account key. Read on a user action, compared in memory,
+    // and persisted only as a SHA-256 fingerprint.
+    function readKrogerAccountKey() {
+        try {
+            const keys = JSON.parse(localStorage.getItem('msal.2.account.keys'));
+            if (Array.isArray(keys) && keys.length === 1 && typeof keys[0] === 'string' && keys[0].trim()) return keys[0];
+        } catch { /* Fall through to the sign-in message. */ }
+        throw new Error('Sign in to Kroger, open Coupons, then try again.');
+    }
+    function ensureSameKrogerAccount(expectedAccountKey) {
+        if (readKrogerAccountKey() !== expectedAccountKey) {
+            throw new Error('Kroger account changed. Reload Coupons and click Clip all coupons again.');
+        }
+    }
+
+    // Source: api/observer.js
+    // Passive: copies allowlisted context headers from the page's own savings
+    // requests. It never changes, delays or sends a request.
+    let krogerContextObserverInstalled = false;
+    function installKrogerContextObserver() {
+        if (krogerContextObserverInstalled) return;
+        krogerContextObserverInstalled = true;
+        const page = typeof unsafeWindow === 'object' ? unsafeWindow : window;
+        if (typeof page.fetch === 'function') {
+            const originalFetch = page.fetch;
+            page.fetch = function observedKrogerFetch(input, options) {
+                try {
+                    const requestUrl = typeof input === 'string' || input instanceof URL ? String(input) : input?.url;
+                    captureKrogerContext(requestUrl, options?.headers !== undefined ? options.headers : input?.headers);
+                } catch { /* Observation must not interrupt the page's own request. */ }
+                return originalFetch.apply(this, arguments);
+            };
+        }
+        const prototype = page.XMLHttpRequest?.prototype;
+        if (!prototype) return;
+        const requestMetadata = new WeakMap();
+        const originalOpen = prototype.open;
+        const originalSetRequestHeader = prototype.setRequestHeader;
+        const originalSend = prototype.send;
+        prototype.open = function observedKrogerOpen(method, requestUrl) {
+            const result = originalOpen.apply(this, arguments);
+            requestMetadata.set(this, { requestUrl: String(requestUrl), headers: {} });
+            return result;
+        };
+        prototype.setRequestHeader = function observedKrogerHeader(name, value) {
+            const result = originalSetRequestHeader.apply(this, arguments);
+            const metadata = requestMetadata.get(this);
+            const key = String(name).toLowerCase();
+            if (metadata && KROGER_CONTEXT_HEADER_NAMES.includes(key)) metadata.headers[key] = String(value);
+            return result;
+        };
+        prototype.send = function observedKrogerSend() {
+            const metadata = requestMetadata.get(this);
+            try { if (metadata) captureKrogerContext(metadata.requestUrl, metadata.headers); }
+            catch { /* Observation must not interrupt the page's own request. */ }
+            return originalSend.apply(this, arguments);
+        };
+    }
+
+    // Source: api/request-runtime.js
+    const { sendRequest, retryAfterMilliseconds, waitForRequestSlot } = createHubJsonTransport({
+        state, settings: SETTINGS, ensureRunning, savePacing, pacing
+    });
+
+    // Source: api/transport.js
+    function requestKrogerCouponPage(offset, accountKey) {
+        return sendRequest(() => {
+            ensureSameKrogerAccount(accountKey);
+            return { url: krogerCouponPageUrl(offset), options: {
+                method: 'GET', credentials: 'same-origin', redirect: 'error', cache: 'no-store',
+                headers: { ...krogerContextHeaders(), 'user-time-zone': Intl.DateTimeFormat().resolvedOptions().timeZone }
+            }, validateResponse(payload) {
+                ensureSameKrogerAccount(accountKey);
+                normalizeKrogerCouponPage(payload);
+                return true;
+            } };
+        });
+    }
+    function requestKrogerClip(coupon, accountKey) {
+        return sendRequest(() => {
+            ensureSameKrogerAccount(accountKey);
+            return { url: KROGER_CLIP_PATH, options: {
+                method: 'POST', credentials: 'same-origin', redirect: 'error', cache: 'no-store',
+                headers: { ...krogerContextHeaders(), 'Content-Type': 'application/json' },
+                body: krogerClipBody(coupon)
+            }, validateResponse: payload => krogerClipConfirmed(payload, coupon) };
+        });
+    }
+
+    // Source: workflows/runner.js
+    const runExclusive = createHubActionRunner({
+        state, settings: SETTINGS, ensureRunning, restorePacing, saveWorkspace,
+        render: () => renderPanel(), updateStatus, supportsActivation: SETTINGS.capabilities.activation
+    });
+
+    // Source: workflows/coupons.js
+    async function bindKrogerAccount() {
+        const accountKey = readKrogerAccountKey();
+        bindWorkspaceScope(await workspaceScopeFingerprint(accountKey));
+        return accountKey;
+    }
+    function krogerCouponCount(status) {
+        return state.offers.filter(offer => offer.status === status).length;
+    }
+    // Reads every unclipped coupon page in order. Offsets advance by the number of
+    // records Kroger returned, and the read ends only when Kroger reports no more.
+    async function readAllKrogerCoupons(accountKey) {
+        const couponsById = new Map();
+        let offset = 0;
+        for (let page = 0; page < SETTINGS.maximumCouponPages; page++) {
+            updateStatus(page ? `Loading Kroger coupons… ${couponsById.size} so far` : 'Loading Kroger coupons…');
+            const listing = normalizeKrogerCouponPage(await requestKrogerCouponPage(offset, accountKey));
+            ensureRunning();
+            mergeKrogerCoupons(couponsById, listing.coupons);
+            offset += listing.coupons.length;
+            if (!listing.hasMore) return [...couponsById.values()];
+            if (!listing.coupons.length) throw new Error('Kroger coupon list ended early. Reload Coupons and try again.');
+        }
+        throw new Error('Kroger returned more coupon pages than expected. Reload Coupons and try again.');
+    }
+    async function refreshKrogerCoupons(accountKey) {
+        state.needsScan = true;
+        state.offers = await readAllKrogerCoupons(accountKey);
+        state.needsScan = false;
+        recordWorkspaceScan();
+    }
+    function loadKrogerCoupons() {
+        return runExclusive(async () => {
+            state.processed = 0;
+            state.confirmed = 0;
+            state.total = 0;
+            await refreshKrogerCoupons(await bindKrogerAccount());
+            updateStatus(`Loaded ${state.offers.length} coupons: ${krogerCouponCount('AVAILABLE')} ready to clip. Click Clip all coupons to clip them.`);
+        });
+    }
+
+    // Source: workflows/clip-all.js
+    // One click: reload every coupon, then clip each available one in order.
+    // Every coupon is sent at most once per click. A clip without an explicit
+    // confirmation is recorded as UNCONFIRMED and is never retried in this run.
+    function clipAllKrogerCoupons() {
+        return runExclusive(async () => {
+            state.processed = 0;
+            state.confirmed = 0;
+            state.total = 0;
+            const accountKey = await bindKrogerAccount();
+            await refreshKrogerCoupons(accountKey);
+            const queue = offerWorkflow.plan().map(record => record.source);
+            state.total = queue.length;
+            let unconfirmed = 0;
+            let consecutiveUnconfirmed = 0;
+            for (const coupon of queue) {
+                ensureRunning();
+                offerWorkflow.assertAction(coupon);
+                updateStatus(`Clipping ${state.processed + 1} of ${queue.length}: ${coupon.merchant}…`);
+                markWorkspaceOfferPending(coupon);
+                let payload;
+                try {
+                    payload = await requestKrogerClip(coupon, accountKey);
+                } catch (error) {
+                    coupon.status = 'UNCONFIRMED';
+                    throw error;
+                }
+                state.processed++;
+                if (krogerClipConfirmed(payload, coupon)) {
+                    coupon.status = 'ACTIVATED';
+                    state.confirmed++;
+                    consecutiveUnconfirmed = 0;
+                } else {
+                    coupon.status = 'UNCONFIRMED';
+                    unconfirmed++;
+                    consecutiveUnconfirmed++;
+                }
+                finishWorkspaceOffer(coupon);
+                renderPanel();
+                if (consecutiveUnconfirmed >= SETTINGS.maximumConsecutiveUnconfirmedClips && state.processed < queue.length) {
+                    throw new Error(`Paused: Kroger did not confirm ${consecutiveUnconfirmed} clips in a row. ${state.confirmed} clipped, ${queue.length - state.processed} not sent. Check Kroger Coupons, then click Clip all coupons again.`);
+                }
+            }
+            ensureRunning();
+            updateStatus(!queue.length ? 'No coupons left to clip. Everything available is already on your card.'
+                : unconfirmed ? `Finished: ${state.confirmed} of ${queue.length} clipped. ${unconfirmed} not confirmed; Clip all coupons checks them again next time.`
+                : `Finished: all ${state.confirmed} coupons clipped.`);
+        }, 'add');
+    }
+
+    // Source: ui/styles.js
+    const PANEL_STYLES = HUB_DESIGN_STYLES;
+
+    // Source: ui/actions.js
+    // Clip all needs no prior load: it always reloads the full list itself.
+    function renderKrogerActions(panel) {
+        const coolingDown = Date.now() < state.cooldownUntil;
+        const blocked = state.busy || Boolean(state.storageError) || coolingDown;
+        const ready = state.needsScan ? null : offerWorkflow.preview().length;
+        const clip = panel.getElementById('add');
+        hubSetActionLabel(clip, 'Clip all coupons', state.busy ? null : ready);
+        clip.title = 'Reload every Kroger coupon, then clip each one Kroger allows, one request at a time.';
+        clip.disabled = blocked;
+        clip.classList.toggle('primary', !clip.disabled);
+        const load = panel.getElementById('scan');
+        load.disabled = blocked;
+        load.classList.toggle('primary', clip.disabled && !state.busy);
+        const stop = panel.getElementById('stop');
+        stop.hidden = !state.busy;
+        stop.disabled = !state.busy || state.stopRequested;
+        const reason = panel.getElementById('hub-action-reason');
+        reason.textContent = state.storageError ? 'Resolve the storage error before continuing.'
+            : state.busy ? '' : coolingDown ? 'Kroger asked us to wait. Try again after the cooldown.'
+            : ready === 0 ? 'No loaded coupons are left to clip. Clip all coupons checks Kroger again.' : '';
+        reason.hidden = !reason.textContent;
+        hubRenderTaskProgress(panel, { busy: Boolean(state.busy), completed: state.processed, total: state.activeAction === 'add' ? state.total : 0 });
+        hubRenderSearchControls(panel);
+    }
+
+    // Source: ui/panel.js
+    function mountPanel() {
+        if (document.getElementById(SETTINGS.id)) return;
+        const { host, panel } = createHubWorkflowPanel({
+            state, settings: SETTINGS, template: offerWorkflow, bank: 'Kroger', styles: PANEL_STYLES,
+            scopeMarkup: '<p class="muted">Clip all coupons reloads every coupon first, then clips each one Kroger allows. Nothing runs until you click.</p>',
+            workflow: { bank: 'Kroger', scanLabel: 'Load coupons',
+                scanDescription: 'Load your Kroger coupons without clipping. Nothing runs until you click.' },
+            onScan: loadKrogerCoupons, onAdd: clipAllKrogerCoupons, onStop: stopRun,
+            saveWorkspace, renderOffers, supportsActivation: SETTINGS.capabilities.activation
+        });
+        panel.querySelector('.hub-search-rule').textContent = 'Clip all coupons includes every coupon, including ones hidden by search.';
+        document.body.appendChild(host);
+        state.panel = panel;
+        renderPanel();
+    }
+
+    // Source: ui/render.js
+    function renderOffers() {
+        if (!state.panel) return;
+        const container = state.panel.getElementById('offers');
+        container.replaceChildren();
+        const search = state.search;
+        const visible = state.offers.filter(offer => hubMatchesSearch(offer, search));
+        if (!visible.length) hubShowEmptyOffers(container, search);
+        for (const offer of visible) {
+            container.appendChild(hubOfferRow({ merchant: offer.merchant, title: offer.title,
+                status: hubOfferStatusLabel(offer.status), meta: [hubOfferExpiry(offer.expires.slice(0, 10)), offer.category] }));
+        }
+    }
+    function renderPanel() {
+        if (!state.panel) return;
+        const panel = state.panel;
+        renderHubPacingDetails(panel, state);
+        panel.getElementById('workspace-cache').textContent = workspaceCacheNotice();
+        panel.getElementById('status').textContent = state.status;
+        panel.getElementById('storage-error').textContent = state.storageError;
+        const runSummary = state.total ? ` · ${state.confirmed}/${state.total} clipped this run` : '';
+        panel.getElementById('counts').textContent = `${state.offers.length} coupons · ${krogerCouponCount('AVAILABLE')} ready · ${krogerCouponCount('ACTIVATED')} clipped${runSummary}`;
+        renderKrogerActions(panel);
+        renderOffers();
+    }
+
+    // Source: initialize.js
+    // --- Init ---
+    installKrogerContextObserver();
+    restorePacing();
+    restoreWorkspace();
+    if (state.restoredWorkspace && !state.storageError) {
+        state.status = 'Saved coupons restored. Clip all coupons reloads the list before clipping.';
+    }
+    if (document.body) mountPanel();
+    else document.addEventListener('DOMContentLoaded', mountPanel, { once: true });
+})();
+// --- End issuer body: kroger-coupon-lite ---
+});
+
+dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://onlinebanking.usbank.com/digital/servicing/dominjection/cashback-deals","version":"1.7.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*usbank\\.com/.*$"],"patterns":["^https://onlinebanking\\.usbank\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: usbank-offer-lite ---
 (function () {
     'use strict';
@@ -4466,7 +4951,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "usbank-offer-lite", name: "US Bank Offer Lite", version: "1.6.6",
+        id: "usbank-offer-lite", name: "US Bank Offer Lite", version: "1.7.0",
         endpoint: '/digital/api/customer-management/graphql/v2',
         gapMilliseconds: 500, timeoutMilliseconds: 45000,
         defaultCooldownMilliseconds: 300000
@@ -4865,7 +5350,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
 // --- End issuer body: usbank-offer-lite ---
 });
 
-dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"https://web.secure.wellsfargo.com/auth/deals-portal","version":"1.6.6","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*wellsfargo\\.com/.*$"],"patterns":["^https://web\\.secure\\.wellsfargo\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"https://web.secure.wellsfargo.com/auth/deals-portal","version":"1.7.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*wellsfargo\\.com/.*$"],"patterns":["^https://web\\.secure\\.wellsfargo\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: wellsfargo-offer-lite ---
 (function () {
     'use strict';
@@ -4873,7 +5358,7 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "wellsfargo-offer-lite", name: "Wells Fargo Offer Lite", version: "1.6.6",
+        id: "wellsfargo-offer-lite", name: "Wells Fargo Offer Lite", version: "1.7.0",
         retrievePath: '/deals-portal/as/getDeals', enrollmentPath: '/deals-portal/as/activateCLDeal',
         gapMilliseconds: 500, timeoutMilliseconds: 45000, defaultCooldownMilliseconds: 300000
     };

@@ -1,4 +1,11 @@
-const CHASE_OFFERS_PATH = '/svc/wr/profile/secure/gateway/ccb/marketing/offer-management/digital-customer-targeted-offers/v3/customer-offers';
+const CHASE_OFFERS_RESOURCE_PATH = '/ccb/marketing/offer-management/digital-customer-targeted-offers/v3/customer-offers';
+// The same Offers list contract is served behind two gateway prefixes. The page
+// moved from /svc/wr/profile to /svc/gw/mkt (observed live 2026-11-07); script
+// reads follow whichever known prefix the page itself last used.
+const CHASE_OFFERS_PATHS = [
+    `/svc/gw/mkt/secure/gateway${CHASE_OFFERS_RESOURCE_PATH}`,
+    `/svc/wr/profile/secure/gateway${CHASE_OFFERS_RESOURCE_PATH}`
+];
 function chaseIdentifier(value) {
     if (typeof value === 'number' && Number.isSafeInteger(value) && value > 0) return String(value);
     if (typeof value === 'string' && /^\d+$/.test(value) && /[1-9]/.test(value)) return value;
@@ -70,7 +77,7 @@ function buildOffersRequest(accountId) {
         'source-application-system-name': 'CHASE_WEB', 'source-request-component-name': 'OFFERS_HUB_ALL'
     });
     return {
-        path: `${CHASE_OFFERS_PATH}?${parameters}`, method: 'GET',
+        path: `${session.offersPath}?${parameters}`, method: 'GET',
         headers: { 'path-params': JSON.stringify({ enterprisePartyIdentifier: session.enterprisePartyIdentifier,
             primaryDigitalAccountIdentifierList: [chaseIdentifier(accountId)] }) }
     };

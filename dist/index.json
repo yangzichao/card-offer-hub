@@ -6,14 +6,15 @@
         {
             "id": "card-offer-hub-all",
             "name": "Card Offer Hub — All Banks",
-            "version": "1.6.6",
-            "description": "All six Card Offer Hub tools in one install; manual scanning and activation on the matching bank website",
+            "version": "1.7.0",
+            "description": "All seven Card Offer Hub tools in one install; manual scanning and activation on the matching bank or store website",
             "matches": [
                 "https://*.americanexpress.com/*",
                 "https://*.bankofamerica.com/*",
                 "https://deals.merchant-rewards.com/*",
                 "https://*.chase.com/*",
                 "https://*.citi.com/*",
+                "https://*.kroger.com/*",
                 "https://*.usbank.com/*",
                 "https://*.wellsfargo.com/*"
             ],
@@ -73,6 +74,19 @@
                     ],
                     "offersUrl": "https://online.citi.com/US/nga/products-offers/merchantoffers",
                     "sourceDirectory": "issuers/citi/citi-offer-lite"
+                },
+                {
+                    "id": "kroger-coupon-lite",
+                    "name": "Kroger Coupon Lite",
+                    "issuer": "kroger",
+                    "matches": [
+                        "https://*.kroger.com/*"
+                    ],
+                    "adapterMatches": [
+                        "https://www.kroger.com/*"
+                    ],
+                    "offersUrl": "https://www.kroger.com/savings/cl/coupons/",
+                    "sourceDirectory": "issuers/kroger/kroger-coupon-lite"
                 },
                 {
                     "id": "usbank-offer-lite",

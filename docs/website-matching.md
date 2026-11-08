@@ -12,6 +12,7 @@
 | Bank of America | `https://*.bankofamerica.com/*` 和 `https://deals.merchant-rewards.com/*` | `deals.merchant-rewards.com` |
 | US Bank | `https://*.usbank.com/*` | `onlinebanking.usbank.com` |
 | Wells Fargo | `https://*.wellsfargo.com/*` | `web.secure.wellsfargo.com` |
+| Kroger | `https://*.kroger.com/*` | `www.kroger.com` |
 
 `*.` 同时覆盖主域名和任意层级子域名。路径不限，查询参数不会影响匹配，hash 不参与安装包匹配。只在 HTTPS 顶层页面显示，避免 iframe 重复操作面板。
 

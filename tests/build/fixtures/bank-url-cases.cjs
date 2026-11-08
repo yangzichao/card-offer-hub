@@ -23,6 +23,10 @@ const bankUrlCases = [
     { id: 'wellsfargo-offer-lite', urls: {
         entry: ['https://wellsfargo.com/', 'https://www.wellsfargo.com/', 'https://connect.secure.wellsfargo.com/'],
         adapter: ['https://web.secure.wellsfargo.com/', 'https://web.secure.wellsfargo.com/auth/login', 'https://web.secure.wellsfargo.com/auth/deals-portal?source=menu', 'https://web.secure.wellsfargo.com/deals-portal/']
+    } },
+    { id: 'kroger-coupon-lite', urls: {
+        entry: ['https://kroger.com/', 'https://login.kroger.com/', 'https://api.kroger.com/'],
+        adapter: ['https://www.kroger.com/', 'https://www.kroger.com/savings/cl/coupons/', 'https://www.kroger.com/savings/cl/mycoupons/?source=menu#clipped']
     } }
 ];
 

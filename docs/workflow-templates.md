@@ -7,7 +7,7 @@
 | 模板 | 银行 | 计划中的身份 | 页面重点 |
 | --- | --- | --- | --- |
 | `per-card` | Citi、Chase | `cardId + offerId` | 选卡、按卡查看优惠；同一优惠在两张卡上可分别添加 |
-| `account` | BankAmeriDeals、US Bank、Wells Fargo | `accountId + offerId` | 当前账户的优惠与账户确认；不分配卡片 |
+| `account` | BankAmeriDeals、US Bank、Wells Fargo、Kroger | `accountId + offerId` | 当前账户的优惠与账户确认；不分配卡片 |
 | `amex-combination` | Amex | 每卡记录保留 `cardId + offerId + groupId`；按 `groupId` 分配目标 | 选卡、卡片优先级、聚合优惠及目标卡 |
 
 Chase 使用每卡模板并声明 `activation: true`。仅将未添加且点击参数一致的记录列入计划；串行发送 CLICK 后逐条回读 `ACTIVATED`，未知结果停止且不自动重试。见 [Chase 接口说明](chase-api-contract.md)。
@@ -47,7 +47,7 @@ Citi 与 Chase 提供使用缓存添加和刷新后直接添加两个入口，�
 
 上下文为 `accountId` 与 `consent`。所有优惠必须属于这个账户；`accountId` 使用当前适配器已保存的会话/客户指纹，不把原始认证信息加入记录。勾选多张卡或传入卡片优先级都不能增加操作数。
 
-BoA 与 Wells Fargo 保留账户确认复选框。US Bank 的明确手动添加操作承担账户确认，优惠勾选仅缩小优惠集合。各家仍保留自己的重新读取、会话变化处理和添加确认协议。
+BoA 与 Wells Fargo 保留账户确认复选框。US Bank 的明确手动添加操作承担账户确认，优惠勾选仅缩小优惠集合。Kroger 的 **Clip all coupons** 点击同样承担账户确认，没有逐券勾选；`accountId` 是 MSAL 账户键的指纹。各家仍保留自己的重新读取、会话变化处理和添加确认协议。
 
 ### Amex 组合型
 

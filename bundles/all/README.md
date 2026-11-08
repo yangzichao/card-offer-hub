@@ -4,9 +4,9 @@
 
 先安装 Tampermonkey，再点上面的链接，在安装页确认一次。这是唯一发布的安装包，包含全部银行工具。之后由 Tampermonkey 检查并更新整个插件。
 
-打开 Amex、Citi、Chase、BankAmeriDeals、US Bank 或 Wells Fargo 对应页面，只加载该网站的工具。扫描、添加仍需手动点击；Chase 目前仍只支持扫描。
+打开 Amex、Citi、Chase、BankAmeriDeals、US Bank、Wells Fargo 或 Kroger 对应页面，只加载该网站的工具。扫描、添加仍需手动点击；Chase 目前仍只支持扫描。
 
-覆盖六家银行的主域名和所有子域名，不限制优惠路径。主站或登录域名显示 Offers 入口和缓存搜索；已支持的网银域名显示完整操作面板，并提供直接进入 Offers 的链接。网站切换页面或替换页面内容后恢复面板。详见[地址匹配说明](../../docs/website-matching.md)。
+覆盖六家银行和 Kroger 的主域名和所有子域名，不限制优惠路径。主站或登录域名显示 Offers 入口和缓存搜索；已支持的网银域名显示完整操作面板，并提供直接进入 Offers 的链接。网站切换页面或替换页面内容后恢复面板。详见[地址匹配说明](../../docs/website-matching.md)。
 
 ## 跨银行搜索
 

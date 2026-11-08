@@ -16,7 +16,7 @@ function chaseReadHeaders(input) {
 function captureSessionRequest(requestUrl, method, requestHeaders) {
     try {
         const url = new URL(requestUrl, 'https://secure.chase.com');
-        if (url.origin !== 'https://secure.chase.com' || url.pathname !== CHASE_OFFERS_PATH
+        if (url.origin !== 'https://secure.chase.com' || !CHASE_OFFERS_PATHS.includes(url.pathname)
             || String(method || 'GET').toUpperCase() !== 'GET') return null;
         const headers = chaseReadHeaders(requestHeaders);
         const pathParameters = JSON.parse(headers['path-params']);
@@ -38,7 +38,7 @@ function captureSessionRequest(requestUrl, method, requestHeaders) {
             chaseCapturedSession = null;
             chaseCapturedAccounts = null;
         }
-        return { accountId, dashboardDiscovery, enterprisePartyIdentifier, headers: safeHeaders, sequence };
+        return { accountId, dashboardDiscovery, enterprisePartyIdentifier, offersPath: url.pathname, headers: safeHeaders, sequence };
     } catch { return null; }
 }
 function captureSessionResponse(context, payload) {
@@ -70,8 +70,8 @@ function captureSessionResponse(context, payload) {
 }
 function currentSession() {
     if (!chaseCapturedSession) throw new Error('Wait for Chase Offers to finish loading, then try again. Open Chase Offers or reload the page if needed.');
-    const { accountId, enterprisePartyIdentifier, capturedAt } = chaseCapturedSession;
-    return { accountId, enterprisePartyIdentifier, capturedAt };
+    const { accountId, enterprisePartyIdentifier, offersPath, capturedAt } = chaseCapturedSession;
+    return { accountId, enterprisePartyIdentifier, offersPath, capturedAt };
 }
 function sessionHeaders() {
     currentSession();

@@ -16,7 +16,11 @@ function listing(accountIdentifier = '101', offers = [offer()], cards = [account
         totalAvailableOfferCount: offers.length, offers
     }] };
 }
-const endpoint = 'https://secure.chase.com/svc/wr/profile/secure/gateway/ccb/marketing/offer-management/digital-customer-targeted-offers/v3/customer-offers';
+// Chase's page now uses the /svc/gw/mkt gateway; the legacy /svc/wr/profile
+// gateway serves the same contract and stays supported.
+const resourcePath = '/ccb/marketing/offer-management/digital-customer-targeted-offers/v3/customer-offers';
+const endpoint = `https://secure.chase.com/svc/gw/mkt/secure/gateway${resourcePath}`;
+const legacyEndpoint = `https://secure.chase.com/svc/wr/profile/secure/gateway${resourcePath}`;
 function sessionHeaders(accountIdentifier = '101', enterprisePartyIdentifier = '909') {
     return { 'channel-identifier': 'C30', 'channel-type': 'WEB', 'x-jpmc-channel': 'id=C30',
         'x-jpmc-csrf-token': 'synthetic-token', 'path-params': JSON.stringify({
@@ -32,4 +36,4 @@ function dashboardHeaders(enterprisePartyIdentifier = '909') {
         enterprisePartyIdentifier, primaryDigitalAccountIdentifierList: []
     }) };
 }
-module.exports = { account, offer, listing, endpoint, sessionHeaders, dashboardEndpoint, dashboardHeaders };
+module.exports = { account, offer, listing, endpoint, legacyEndpoint, sessionHeaders, dashboardEndpoint, dashboardHeaders };

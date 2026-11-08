@@ -59,7 +59,7 @@ async function run() {
             assert.deepEqual(errors, []);
             await page.close();
         }
-        console.log('PASS: all six banks, 18 apex/public/alternate entry URLs, cached search, Offers links, navigation to adapters, narrow viewport, SPA repair and no automatic requests.');
+        console.log('PASS: all seven banks and stores, 21 apex/public/alternate entry URLs, cached search, Offers links, navigation to adapters, narrow viewport, SPA repair and no automatic requests.');
     } finally {
         await browser.close();
     }

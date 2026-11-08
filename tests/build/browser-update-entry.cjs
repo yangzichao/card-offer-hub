@@ -78,7 +78,7 @@ async function run() {
             await verifySurface(browser, script, false);
             await verifySurface(browser, script, true);
         }
-        console.log('PASS: six bank panels and six entry pages update only on click, open the metadata installer in an isolated tab, preserve the bank page and storage, and fit a 320px viewport.');
+        console.log('PASS: seven panels and seven entry pages update only on click, open the metadata installer in an isolated tab, preserve the bank page and storage, and fit a 320px viewport.');
     } finally { await browser.close(); }
 }
 run().catch(error => { console.error(error); process.exitCode = 1; });
