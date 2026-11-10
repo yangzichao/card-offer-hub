@@ -11,7 +11,9 @@ function setOfferSelected(offerId, selected) {
 }
 function selectAllOffers() {
     if (state.busy || Boolean(state.storageError)) return;
-    state.selected = new Set(state.offers.filter(offer => offer.status === 'AVAILABLE').map(offer => offer.offerId));
+    // Offers hidden by the small-offer filter are not selected; search does not narrow it.
+    state.selected = new Set(state.offers.filter(offer => offer.status === 'AVAILABLE'
+        && hubRewardPassesFilter(offer.reward, state.rewardFilter)).map(offer => offer.offerId));
     saveWorkspace();
     renderPanel();
 }

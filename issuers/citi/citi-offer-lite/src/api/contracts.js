@@ -29,7 +29,8 @@ function normalizeOffers(payload, accountId) {
                 accountId, offerId: raw.offerId, status,
                 merchant: typeof raw.merchantName === 'string' ? raw.merchantName : 'Merchant',
                 title: typeof raw.offerTitle === 'string' ? raw.offerTitle : '',
-                category: group.displayOffersCategory || '', expires: raw.offerEndDate || ''
+                category: group.displayOffersCategory || '', expires: raw.offerEndDate || '',
+                reward: citiOfferReward(raw)
             });
         }
     }

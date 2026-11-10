@@ -62,7 +62,7 @@ function createUserscriptHarness(fetchResponse = () => { throw new Error('Unexpe
         offersInSection, normalizeHubOffer, requestJson, retryAfterMilliseconds, cancelRun,
         enrollOffer, cardEnrollmentBody, cardEnrollmentStatus, enrollmentUserOffset, startEnrollment, enrollmentCandidates, groupedOffers,
         enrollmentPlan, prioritizedAccounts, cardPriorityRanks, normalizeCardPriority, moveCardPriority, dropCardPriority, persistCardSettings,
-        accountOfferCounts, offerGroupCounts, filteredOfferSummary
+        accountOfferCounts, offerGroupCounts, filteredOfferSummary, amexOfferReward
     };
 })();`;
     runInNewContext(source.slice(0, source.indexOf(marker)) + probe, context);

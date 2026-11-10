@@ -5,7 +5,7 @@ function mountPanel() {
         scopeMarkup: "<p class=\"muted\">Offers needing an individual card choice are skipped.</p><label class=\"card\"><input id=\"consent\" type=\"checkbox\" aria-label=\"Allow account-wide Wells Fargo activation\">Allow adding offers to this account</label>",
         workflow: { bank: "Wells Fargo", extraReviewMarkup: "", readOnly: !SETTINGS.capabilities.activation },
         onScan: scanOffers, onAdd: addAllOffers, onStop: stopRun,
-        saveWorkspace, renderOffers, supportsActivation: SETTINGS.capabilities.activation
+        saveWorkspace, renderOffers, renderPanel, supportsActivation: SETTINGS.capabilities.activation, rewardFilterStorage: issuerStorage
     });
     panel.getElementById('consent').addEventListener('change', event => {
         if (state.busy) return;

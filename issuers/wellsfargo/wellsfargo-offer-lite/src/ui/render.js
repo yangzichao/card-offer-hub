@@ -3,10 +3,10 @@ function renderOffers() {
     const container = state.panel.getElementById('offers');
     container.replaceChildren();
     const search = state.search;
-    const visible = state.offers.filter(offer => hubMatchesSearch(offer, search));
+    const visible = hubApplyRewardFilter(state.panel, state.offers.filter(offer => hubMatchesSearch(offer, search)), state);
     if (!visible.length) hubShowEmptyOffers(container, search);
     for (const offer of visible.slice(0, 200)) {
-        container.appendChild(hubOfferRow({ merchant: offer.merchant, title: offer.title, status: hubOfferStatusLabel(offer.status),
+        container.appendChild(hubOfferRow({ merchant: offer.merchant, title: offer.title, status: hubOfferStatusLabel(offer.status), reward: offer.reward,
             meta: [hubOfferExpiry(offer.expires)] }));
     }
     if (visible.length > 200) {

@@ -2,7 +2,7 @@ function hubOfferStatusTone(label) {
     return { Available: 'available', Added: 'added', 'Needs review': 'review' }[label] || 'skipped';
 }
 // One scannable row: merchant and status on top, the offer itself, then card and dates.
-function hubOfferRow({ merchant = '', title = '', status = '', meta = [], tag = 'div', leading = null }) {
+function hubOfferRow({ merchant = '', title = '', status = '', meta = [], tag = 'div', leading = null, reward = null }) {
     const row = document.createElement(tag);
     row.className = 'offer offer-row';
     if (leading) row.append(leading);
@@ -25,6 +25,12 @@ function hubOfferRow({ merchant = '', title = '', status = '', meta = [], tag = 
         const value = document.createElement('div');
         value.className = 'offer-value';
         value.textContent = title;
+        body.append(value);
+    }
+    if (reward) {
+        const value = document.createElement('div');
+        value.className = 'offer-reward';
+        value.textContent = hubFormatReward(reward);
         body.append(value);
     }
     const details = meta.filter(Boolean);

@@ -5,6 +5,7 @@ const WORKSPACE_FIELDS = {
         "status": "text",
         "merchant": "text",
         "title": "text",
-        "expires": "text"
+        "expires": "text",
+        "reward": "reward"
     }
 };

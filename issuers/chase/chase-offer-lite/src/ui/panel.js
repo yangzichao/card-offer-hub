@@ -6,7 +6,7 @@ function mountPanel() {
         workflow: { bank: 'Chase', scanLabel: 'Load cards & offers' },
         onScan: () => state.accounts.length ? refreshAndAddOffers() : refreshAllCardsAndOffers(),
         onAdd: addSavedOffers, onStop: stopRun,
-        saveWorkspace, renderOffers, supportsActivation: SETTINGS.capabilities.activation
+        saveWorkspace, renderOffers, renderPanel, supportsActivation: SETTINGS.capabilities.activation, rewardFilterStorage: issuerStorage
     });
     document.body.appendChild(host);
     state.panel = panel;

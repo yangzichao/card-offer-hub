@@ -28,7 +28,7 @@ function createUI() {
     const scope = `<div class="actions hub-scope-actions"><button id="btn-detect" aria-label="Detect cards">Detect cards</button><button id="btn-refresh-cards" aria-label="Refresh cards">Refresh cards</button></div>
         <p id="whitelist-summary" class="muted"></p><div id="card-list" class="cards"></div>
         <p class="muted hub-fine-print">Drag cards or use the arrows to change priority.</p><p id="saved-cards-status" class="muted hub-fine-print" role="status"></p>`;
-    let markup = hubWorkflowMarkup(scope, { bank: 'Amex', template: offerWorkflow });
+    let markup = hubWorkflowMarkup(scope, { bank: 'Amex', template: offerWorkflow, rewardFilter: true });
     for (const [from, to] of Object.entries({ body: 'content', scan: 'btn-scan', stop: 'btn-stop', search: 'input-search', add: 'btn-enroll-all', offers: 'offer-list', counts: 'offer-summary', 'workspace-cache': 'saved-offers-status' })) {
         markup = markup.replace(`id="${from}"`, `id="${to}"`);
     }
@@ -48,6 +48,9 @@ function createUI() {
     };
     filter.oninput = updateFilter;
     at('hub-clear-search').onclick = () => { filter.value = ''; updateFilter(); filter.focus(); };
+    hubBindRewardFilter(shadow, { state, render: () => { renderOffers(); renderControls(); }, store: createHubRewardFilterStore({
+        storage: { get: (key, fallback) => GM_getValue(key, fallback), set: (key, value) => GM_setValue(key, value) },
+        storageKey: `${__USERSCRIPT_ID__}:reward-filter` }) });
     const toggle = at('collapse');
     toggle.id = 'btn-toggle';
     toggle.onclick = () => { state.minimized = !state.minimized; persistViewSettings(); renderControls(); };

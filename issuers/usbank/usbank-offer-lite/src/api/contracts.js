@@ -32,6 +32,7 @@ function normalizeListing(payload) {
             // Full text for saved results and export only; never used to decide a write.
             details: typeof ad.assets?.copy?.value?.marketingCopy === 'string' ? ad.assets.copy.value.marketingCopy : '',
             terms: typeof ad.assets?.copy?.value?.termsAndConditions === 'string' ? ad.assets.copy.value.termsAndConditions : '',
+            reward: usbankOfferReward(ad.reward),
             starts: ad.startDate, expires: ad.endDate, activationState: ad.activationState,
             status: ad.activationState === 'ACTIVATED' ? 'ACTIVATED' : 'SKIPPED',
             adType: ad.adType, visibilityState: ad.visibilityState,

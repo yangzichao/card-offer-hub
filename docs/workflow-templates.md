@@ -31,7 +31,7 @@ issuers/<issuer>/<tool>/src/
 
 每个模板工厂返回 `scope`、`validateRecord(record)`、`plan(records, context)` 和不可变的 `view` 定义。模板不读银行全局状态、不访问存储、不发请求。`view` 提供范围标题、优惠标题、范围说明、缺失选择提示和搜索范围说明；公共面板负责渲染。银行专属控件（如 Amex 排序、US Bank 优惠勾选）由显式的面板扩展传入。
 
-`createHubWorkflow` 接受明确的 `type`、`capabilities`、`readRecords` 和 `readContext`。预览和写入使用同一个 planner，搜索条件不进入操作计划。`.plan()` 检查添加能力；`.assertAction(source)` 在提交前重新读取当前状态，拒绝失效的选择或目标。正常、忙碌、停止、失败和冷却的生命周期继续由已有运行器和银行会话检查负责；模板不另造一套请求运行器。
+`createHubWorkflow` 接受明确的 `type`、`capabilities`、`readRecords` 和 `readContext`。预览和写入使用同一个 planner，搜索条件不进入操作计划。小额优惠筛选通过可选的 `keepInPlan` 进入：它只从模板计划中去掉被藏的优惠，`.assertAction()` 仍对照过滤前的计划，见[优惠金额与小额筛选](offer-reward-filter.md)。`.plan()` 检查添加能力；`.assertAction(source)` 在提交前重新读取当前状态，拒绝失效的选择或目标。正常、忙碌、停止、失败和冷却的生命周期继续由已有运行器和银行会话检查负责；模板不另造一套请求运行器。
 
 规范化记录至少包含 `offerId`、`status` 和 `source`。`source` 仅在内存中引用银行记录，供既有接口构造器使用，不会存到 GM storage。状态限定为 `available`、`added`、`unconfirmed`、`unavailable`。银行适配器决定接口中的哪些明确字段可转换为这些状态，模板不能把 HTTP 成功推断为添加成功。
 

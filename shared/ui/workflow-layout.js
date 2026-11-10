@@ -1,4 +1,4 @@
-function hubWorkflowMarkup(scopeMarkup, { bank, template, extraReviewMarkup = '', readOnly = false,
+function hubWorkflowMarkup(scopeMarkup, { bank, template, extraReviewMarkup = '', readOnly = false, rewardFilter = false,
     scanLabel = 'Scan offers', scanDescription = 'Scan to refresh saved offers. Nothing runs until you click.' } = {}) {
     const view = template.view;
     return `<div class="panel" data-workflow="${template.type}">
@@ -18,6 +18,7 @@ function hubWorkflowMarkup(scopeMarkup, { bank, template, extraReviewMarkup = ''
           ${readOnly ? `<p id="enrollment-notice" class="notice">Add offers on the ${bank} website.</p>` : ''}
           <div class="hub-search-field"><input id="search" type="search" aria-label="Search saved offers" placeholder="Search saved offers">
             <button id="hub-clear-search" class="hub-clear-search" aria-label="Clear search" hidden>Clear search</button></div>
+          ${rewardFilter ? hubRewardFilterMarkup() : ''}
           <p class="muted hub-search-rule" hidden>${view.searchRule}</p>
           <p id="counts" class="muted hub-counts"></p>${extraReviewMarkup ? `<div class="actions hub-selection-bar">${extraReviewMarkup}</div>` : ''}
           <div id="offers" class="offers"></div>

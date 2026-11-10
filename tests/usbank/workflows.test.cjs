@@ -39,6 +39,39 @@ test('only selected offers activate; refresh uses changed serving tokens', async
     assert.equal(harness.state.confirmed, 1);
 });
 
+// a is 10% back, b is 1% back, c states no reward and stays unknown.
+function rewardResponder() {
+    const base = { activationModel: 'ACTIVATABLE', purchaseRequirement: { merchantUrlLinkClickRequired: false, minSpendAmount: 0.2 }, rewardType: 'PERCENT_AMOUNT_PURCHASE' };
+    const rewards = { a: { ...base, rewardAmount: 10 }, b: { ...base, rewardAmount: 1 } };
+    const activated = new Set();
+    return request => {
+        if (isActivation(request)) {
+            activated.add(request.body.variables.request.clientEvents[0].clientOfferId);
+            return jsonResponse(acknowledgement());
+        }
+        return jsonResponse(listing(['a', 'b', 'c'].map(id => offer(id, activated.has(id) ? 'ACTIVATED' : 'NEW', rewards[id] ? { reward: rewards[id] } : {}))));
+    };
+}
+const activatedIds = harness => harness.requests.filter(isActivation).map(request => request.body.variables.request.clientEvents[0].clientOfferId);
+
+test('Select all and both Add actions skip offers the small-offer filter hides; clearing it adds them next', async () => {
+    const harness = createHarness(rewardResponder());
+    await harness.scanOffers();
+    harness.selectAllOffers();
+    assert.deepEqual([...harness.state.selected].sort(), ['a', 'b', 'c']);
+    harness.state.rewardFilter = { minRate: 5, minTotal: 0 };
+    await harness.activateSelectedOffers();
+    assert.deepEqual(activatedIds(harness), ['a', 'c'], 'a selected offer hidden later is skipped; unknown c is kept');
+    harness.state.selected.clear();
+    harness.selectAllOffers();
+    assert.deepEqual([...harness.state.selected], [], 'Select all leaves the hidden offer out');
+    await harness.addAllOffers();
+    assert.deepEqual(activatedIds(harness), ['a', 'c'], 'nothing visible is left to add');
+    harness.state.rewardFilter = { minRate: 0, minTotal: 0 };
+    await harness.addAllOffers();
+    assert.deepEqual(activatedIds(harness), ['a', 'c', 'b']);
+});
+
 test('an unchanged read-back re-sends once, then the run moves on to the next offer', async () => {
     const harness = createHarness(request => jsonResponse(isActivation(request) ? acknowledgement() : listing([offer('a'), offer('b')])));
     await harness.scanOffers(); harness.selectAllOffers(); await harness.activateSelectedOffers();

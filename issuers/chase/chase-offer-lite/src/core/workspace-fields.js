@@ -12,6 +12,7 @@ const WORKSPACE_FIELDS = {
         "merchant": "text",
         "title": "text",
         "category": "text",
-        "expires": "text"
+        "expires": "text",
+        "reward": "reward"
     }
 };

@@ -1,5 +1,7 @@
 const offerWorkflow = createHubWorkflow({
     type: SETTINGS.workflow, capabilities: SETTINGS.capabilities,
+    // Add skips offers the small-offer filter hides.
+    keepInPlan: record => hubRewardPassesFilter(record.source.reward, state.rewardFilter),
     // The manually clicked Add action is this issuer's account confirmation.
     // Individual offer selection narrows that plan; it is never card selection.
     readContext: () => ({ accountId: state.workspaceScope, consent: true }),

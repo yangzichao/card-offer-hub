@@ -7,6 +7,7 @@ const WORKSPACE_FIELDS = {
         "eligible": "boolean",
         "activated": "boolean",
         "reason": "text",
-        "result": "text"
+        "result": "text",
+        "reward": "reward"
     }
 };

@@ -22,7 +22,8 @@ function normalizeOffer(raw) {
         // Full text for saved results and export only; never used to decide a write.
         details: typeof raw.description === 'string' ? raw.description : '',
         terms: typeof raw.terms_and_conditions === 'string' ? raw.terms_and_conditions : '',
-        eligible: !reason, activated: raw.is_activated, reason, result: ''
+        eligible: !reason, activated: raw.is_activated, reason, result: '',
+        reward: bofaOfferReward(raw)
     };
 }
 function normalizePage(payload) {

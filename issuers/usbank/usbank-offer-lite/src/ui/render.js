@@ -3,7 +3,7 @@ function renderOffers() {
     const container = state.panel.getElementById('offers');
     container.replaceChildren();
     const search = state.search;
-    const visible = state.offers.filter(offer => hubMatchesSearch(offer, search));
+    const visible = hubApplyRewardFilter(state.panel, state.offers.filter(offer => hubMatchesSearch(offer, search)), state);
     if (!visible.length) hubShowEmptyOffers(container, search);
     for (const offer of visible) {
         const checkbox = document.createElement('input');
@@ -14,7 +14,7 @@ function renderOffers() {
         checkbox.addEventListener('change', () => setOfferSelected(offer.offerId, checkbox.checked));
         const date = typeof offer.expires === 'string' ? hubOfferExpiry(offer.expires.slice(0, 10)) : 'Unknown expiry';
         container.appendChild(hubOfferRow({ tag: 'label', leading: checkbox, merchant: offer.merchant, title: offer.title,
-            status: hubOfferStatusLabel(offer.status), meta: [date] }));
+            status: hubOfferStatusLabel(offer.status), reward: offer.reward, meta: [date] }));
     }
 }
 function renderPanel() {
@@ -27,7 +27,8 @@ function renderPanel() {
     panel.getElementById('scan').disabled = blocked;
     panel.getElementById('select-all').disabled = blocked || !available;
     panel.getElementById('clear').disabled = blocked || !state.selected.size;
-    panel.getElementById('activate').disabled = blocked || !state.selected.size || state.needsScan;
+    const selectedToAdd = selectedOfferPlan().length;
+    panel.getElementById('activate').disabled = blocked || !selectedToAdd || state.needsScan;
     panel.getElementById('stop').disabled = !state.busy || state.stopRequested;
     panel.getElementById('status').textContent = state.status;
     panel.getElementById('storage-error').textContent = state.storageError;
@@ -35,6 +36,6 @@ function renderPanel() {
     renderHubWorkflow(panel, { template: offerWorkflow, readOnly: !SETTINGS.capabilities.activation, count: offerWorkflow.preview().length, needsScan: state.needsScan, busy: state.busy,
         storageError: state.storageError, coolingDown: Date.now() < state.cooldownUntil,
         progress: state.activeAction === 'add' && state.total ? { completed: state.completed, total: state.total } : null });
-    hubSetActionLabel(panel.getElementById('activate'), 'Add selected offers', state.selected.size);
+    hubSetActionLabel(panel.getElementById('activate'), 'Add selected offers', selectedToAdd);
     renderOffers();
 }

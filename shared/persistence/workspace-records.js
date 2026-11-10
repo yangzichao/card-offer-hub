@@ -1,7 +1,8 @@
 function serializeWorkspaceRecord(record, fields) {
     const normalized = {};
     for (const [field, type] of Object.entries(fields)) {
-        normalized[field] = type === 'text' && typeof record[field] !== 'string' ? '' : record[field];
+        normalized[field] = type === 'text' && typeof record[field] !== 'string' ? ''
+            : type === 'reward' ? hubRewardValue(record[field]?.kind, record[field]?.amount, record[field] || {}) : record[field];
     }
     return workspaceRecord(normalized, fields);
 }
@@ -15,6 +16,9 @@ function workspaceRecord(record, fields) {
         if (type === 'boolean') {
             if (typeof value !== 'boolean') throw new Error('Invalid saved flag');
             result[field] = value;
+        } else if (type === 'reward') {
+            // Optional: saves from before 1.9.0 have no reward and read as unknown.
+            result[field] = hubSavedRewardValue(value);
         } else {
             if (typeof value !== 'string' || (type === 'id' && !value.trim())) throw new Error('Invalid saved text');
             result[field] = value;

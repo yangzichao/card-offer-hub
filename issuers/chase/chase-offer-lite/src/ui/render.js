@@ -7,7 +7,8 @@ function renderOffers() {
     const container = state.panel.getElementById('offers');
     container.replaceChildren();
     const search = state.search;
-    const visible = state.offers.filter(offer => state.selected.has(offer.accountId)).filter(offer => hubMatchesSearch(offer, search));
+    const visible = hubApplyRewardFilter(state.panel, state.offers.filter(offer => state.selected.has(offer.accountId))
+        .filter(offer => hubMatchesSearch(offer, search)), state);
     if (!visible.length) {
         const note = document.createElement('p');
         note.className = 'muted hub-empty-note';
@@ -19,7 +20,7 @@ function renderOffers() {
         const card = state.accounts.find(account => account.accountId === offer.accountId);
         const addOnChase = !state.needsScan && ['NEW', 'SERVED'].includes(offer.status) && !offer.activationParameters;
         const statusLabel = addOnChase ? 'Add on Chase' : offer.status === 'SERVED' ? 'Available' : hubOfferStatusLabel(offer.status);
-        container.appendChild(hubOfferRow({ merchant: offer.merchant, title: offer.title, status: statusLabel,
+        container.appendChild(hubOfferRow({ merchant: offer.merchant, title: offer.title, status: statusLabel, reward: offer.reward,
             meta: [card ? chaseCardDisplayName(card) : 'Card', addOnChase ? 'Click details unavailable' : '', hubOfferExpiry(offer.expires)] }));
     }
     if (visible.length > 200) {

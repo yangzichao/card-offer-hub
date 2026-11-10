@@ -68,7 +68,8 @@ function normalizeOffers(payload, requestedAccountId, expectedEnterprisePartyIde
             expires: typeof raw.offerDetails?.offerEndTimestamp === 'string' ? raw.offerDetails.offerEndTimestamp : '',
             // Full text for saved results and export only; never used to decide a write.
             details: typeof raw.offerDisplayDetails?.rewardDescriptionText === 'string' ? raw.offerDisplayDetails.rewardDescriptionText : '',
-            terms: typeof raw.offerDisplayDetails?.termsAndConditionsText === 'string' ? raw.offerDisplayDetails.termsAndConditionsText : ''
+            terms: typeof raw.offerDisplayDetails?.termsAndConditionsText === 'string' ? raw.offerDisplayDetails.termsAndConditionsText : '',
+            reward: chaseOfferReward(raw)
         });
     }
     return [...offers.values()];

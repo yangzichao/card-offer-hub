@@ -3,12 +3,12 @@ const assert = require('node:assert/strict');
 const { runInNewContext } = require('node:vm');
 const { readPublishedSharedRuntime } = require('../helpers/published-issuer-source.cjs');
 
-function harness(type, records, context, activation = true) {
+function harness(type, records, context, activation = true, keepInPlan = undefined) {
     const sandbox = {};
     runInNewContext(readPublishedSharedRuntime() + '\nglobalThis.probe = { createHubWorkflow, hubMigrateWorkflowSnapshot };', sandbox);
     const workflow = sandbox.probe.createHubWorkflow({ type,
         capabilities: { activation, scope: type === 'account' ? 'account' : 'card' },
-        readRecords: () => records, readContext: () => context });
+        readRecords: () => records, readContext: () => context, keepInPlan });
     return { workflow, ...sandbox.probe };
 }
 const offer = (ownership, status = 'available') => ({ offerId: 'shared', source: {}, ...ownership, status });
@@ -108,6 +108,24 @@ test('execution rechecks current target and selection rather than trusting a sta
     workflow.assertAction(records[1].source);
     context.selectedCardIds = [];
     assert.throws(() => workflow.assertAction(records[1].source), /target changed/);
+});
+
+test('keepInPlan narrows the count and the Add queue, but a started task keeps its scope', () => {
+    const records = [offer({ cardId: 'a', offerId: 'big' }), offer({ cardId: 'a', offerId: 'small' }), offer({ cardId: 'b', offerId: 'small' }, 'added')];
+    const hidden = new Set(['small']);
+    const { workflow } = harness('per-card', records, cardContext, true, record => !hidden.has(record.offerId));
+    assert.deepEqual(Array.from(workflow.preview(), record => record.offerId), ['big']);
+    assert.deepEqual(Array.from(workflow.plan(), record => record.offerId), ['big']);
+    workflow.assertAction(records[1].source);
+    hidden.clear();
+    assert.deepEqual(Array.from(workflow.plan(), record => record.offerId), ['big', 'small'], 'it never adds an offer the template would not plan');
+});
+
+test('a hidden combined offer is skipped, never moved to a lower-priority card', () => {
+    const records = [offer({ cardId: 'a', groupId: 'g' }), offer({ cardId: 'b', groupId: 'g' })];
+    records[0].source = { hidden: true };
+    const { workflow } = harness('amex-combination', records, { ...cardContext }, true, record => !record.source.hidden);
+    assert.equal(workflow.plan().length, 0);
 });
 
 test('workflow declaration has no fallback and rejects mismatched capability scope', () => {

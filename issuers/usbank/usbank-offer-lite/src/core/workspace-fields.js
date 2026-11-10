@@ -7,6 +7,7 @@ const WORKSPACE_FIELDS = {
         "category": "text",
         "starts": "text",
         "expires": "text",
-        "status": "text"
+        "status": "text",
+        "reward": "reward"
     }
 };

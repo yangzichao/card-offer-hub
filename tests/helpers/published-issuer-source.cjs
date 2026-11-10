@@ -28,7 +28,8 @@ function readPublishedSharedRuntime() {
 function readPublishedIssuerSource(identifier) {
     // Include the exact shipped dependency definitions in the existing probe scope.
     // No source compilation, alternative implementation, or standalone artifact.
-    return readPublishedIssuerBody(identifier).replace("    'use strict';", "    'use strict';\n" + readPublishedSharedRuntime());
+    // A function replacement keeps "$$" and "$&" in the shipped code literal.
+    return readPublishedIssuerBody(identifier).replace("    'use strict';", () => "    'use strict';\n" + readPublishedSharedRuntime());
 }
 
 module.exports = { readPublishedIssuerSource, readPublishedIssuerBody, readPublishedSharedRuntime };

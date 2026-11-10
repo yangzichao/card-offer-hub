@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Card Offer Hub — All Banks
 // @namespace    https://github.com/yangzichao/card-offer-hub
-// @version      1.8.2
+// @version      1.9.0
 // @description  All seven Card Offer Hub tools in one install; manual scanning and activation on the matching bank or store website
 // @author       Zichao Yang
 // @match        https://*.americanexpress.com/*
@@ -69,10 +69,10 @@
     .hub-search-field{position:relative;margin:12px 0 0}.hub-search-field::before{content:'';position:absolute;left:11px;top:11px;width:14px;height:14px;background:var(--hub-muted);-webkit-mask:var(--hub-search-icon) center/contain no-repeat;mask:var(--hub-search-icon) center/contain no-repeat;pointer-events:none}
     input[type=search]{width:100%;height:36px;padding:0 12px 0 32px;border:1px solid var(--hub-line-strong);border-radius:var(--hub-radius-sm);background:var(--hub-canvas);color:var(--hub-ink);-webkit-appearance:none;appearance:none}input[type=search]:hover{border-color:var(--hub-muted)}input[type=search]:focus{background:var(--hub-surface)}input[type=search]::-webkit-search-cancel-button{-webkit-appearance:none;display:none}.hub-search-field:has(.hub-clear-search:not([hidden]))>input{padding-right:92px}
     .hub-clear-search{position:absolute;right:4px;top:4px;height:28px;min-height:28px;padding:0 8px;border-color:transparent;background:transparent;color:var(--hub-muted);font-size:11.5px}.hub-clear-search:not(:disabled):hover{border-color:transparent;color:var(--hub-ink)}
-    .hub-search-rule{font-size:11.5px;margin:6px 0 0}.hub-counts{margin:10px 0 0;font-size:12px;font-variant-numeric:tabular-nums}
+    .hub-search-rule{font-size:11.5px;margin:6px 0 0}.hub-reward-filter{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin:8px 0 0;font-size:12px;color:var(--hub-ink-soft)}.hub-reward-input{display:inline-flex;align-items:center;gap:4px}.hub-reward-input input{width:58px;height:28px;padding:0 6px;border:1px solid var(--hub-line-strong);border-radius:var(--hub-radius-sm);background:var(--hub-canvas);color:var(--hub-ink);font:inherit;font-variant-numeric:tabular-nums}.hub-reward-note{margin:6px 0 0;font-size:11.5px}.hub-counts{margin:10px 0 0;font-size:12px;font-variant-numeric:tabular-nums}
     .hub-selection-bar{align-items:center;gap:4px;margin:10px 0 0;padding:4px;border:1px solid var(--hub-line);border-radius:10px;background:var(--hub-canvas)}.hub-selection-bar>button{min-height:30px;padding:4px 10px;font-size:12px;border-color:transparent;background:transparent}.hub-selection-bar>button:first-child{margin-right:auto;background:var(--hub-surface);border-color:var(--hub-line-strong)}.hub-selection-bar>button:disabled{background:transparent;border-color:transparent}.hub-selection-bar>button:first-child:disabled{border-color:var(--hub-line)}
     .offers{margin:6px 0 0}.offer{display:block;padding:11px 0;border-bottom:1px solid var(--hub-line);overflow-wrap:anywhere}.offer:last-child{border-bottom:0}.offer-row{display:flex;align-items:flex-start;gap:10px}label.offer{cursor:pointer}.offer-body{min-width:0;flex:1}
-    .offer-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.offer-merchant{font-weight:600}.offer-value{margin-top:1px;color:var(--hub-ink-soft)}.offer small{display:block;margin-top:3px;color:var(--hub-muted);font-size:11.5px}
+    .offer-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.offer-merchant{font-weight:600}.offer-value{margin-top:1px;color:var(--hub-ink-soft)}.offer-reward{margin-top:2px;color:var(--hub-accent-strong);font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}.offer small{display:block;margin-top:3px;color:var(--hub-muted);font-size:11.5px}
     .offer-status,.badge{display:inline-flex;align-items:center;gap:5px;flex:none;padding:1px 8px;border:1px solid var(--hub-line);border-radius:99px;background:var(--hub-surface);color:var(--hub-ink-soft);font-size:11px;font-weight:550;line-height:1.6;white-space:nowrap}
     .offer-status.available::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--hub-accent)}.offer-status.added,.badge.enrolled{background:var(--hub-tint);border-color:var(--hub-accent-line);color:var(--hub-accent-strong)}.offer-status.review,.badge.unconfirmed,.badge.failed{background:var(--hub-warn-bg);border-color:var(--hub-warn-line);color:var(--hub-warn-ink)}.offer-status.skipped{border-color:transparent;background:var(--hub-canvas);color:var(--hub-muted)}
     .offer-title{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;font-weight:600}.offer-title button{flex:none;min-height:28px;padding:3px 10px;font-size:12px}.offer>p{margin:3px 0 0;font-size:12px}.badges{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px}.badge{white-space:normal}
@@ -139,7 +139,7 @@
     }
 
     // Source: shared/ui/workflow-layout.js
-    function hubWorkflowMarkup(scopeMarkup, { bank, template, extraReviewMarkup = '', readOnly = false,
+    function hubWorkflowMarkup(scopeMarkup, { bank, template, extraReviewMarkup = '', readOnly = false, rewardFilter = false,
         scanLabel = 'Scan offers', scanDescription = 'Scan to refresh saved offers. Nothing runs until you click.' } = {}) {
         const view = template.view;
         return `<div class="panel" data-workflow="${template.type}">
@@ -159,6 +159,7 @@
               ${readOnly ? `<p id="enrollment-notice" class="notice">Add offers on the ${bank} website.</p>` : ''}
               <div class="hub-search-field"><input id="search" type="search" aria-label="Search saved offers" placeholder="Search saved offers">
                 <button id="hub-clear-search" class="hub-clear-search" aria-label="Clear search" hidden>Clear search</button></div>
+              ${rewardFilter ? hubRewardFilterMarkup() : ''}
               <p class="muted hub-search-rule" hidden>${view.searchRule}</p>
               <p id="counts" class="muted hub-counts"></p>${extraReviewMarkup ? `<div class="actions hub-selection-bar">${extraReviewMarkup}</div>` : ''}
               <div id="offers" class="offers"></div>
@@ -216,6 +217,43 @@
         const hasQuery = Boolean(search.value.trim());
         root.getElementById('hub-clear-search').hidden = !hasQuery;
         root.querySelector('.hub-search-rule').hidden = !hasQuery || readOnly;
+    }
+
+    // Source: shared/ui/reward-filter-controls.js
+    // "Hide under N% back / $N total" controls beside the offer search.
+    function hubRewardFilterMarkup() {
+        return `<div class="hub-reward-filter" role="group" aria-label="Hide small offers"><span>Hide under</span>
+            <label class="hub-reward-input"><input id="hub-min-rate" type="number" min="0" max="100" step="any" inputmode="decimal" placeholder="0" aria-label="Hide offers under this percent back"><span>% back</span></label>
+            <label class="hub-reward-input"><span>$</span><input id="hub-min-total" type="number" min="0" step="any" inputmode="decimal" placeholder="0" aria-label="Hide offers under this total cash back in dollars"><span>total</span></label></div>
+          <p id="hub-reward-note" class="muted hub-reward-note" aria-live="polite" hidden></p>`;
+    }
+    function hubBindRewardFilter(root, { state, store, render }) {
+        const loaded = store.load();
+        state.rewardFilter = loaded.filter;
+        state.rewardFilterError = loaded.error;
+        const rate = root.getElementById('hub-min-rate');
+        const total = root.getElementById('hub-min-total');
+        rate.value = state.rewardFilter.minRate || '';
+        total.value = state.rewardFilter.minTotal || '';
+        const update = () => {
+            state.rewardFilter = hubNormalizeRewardFilter({ minRate: Number(rate.value), minTotal: Number(total.value) });
+            state.rewardFilterError = store.save(state.rewardFilter);
+            render();
+        };
+        rate.addEventListener('input', update);
+        total.addEventListener('input', update);
+    }
+    // Returns the offers to show and reports how many the filter hid.
+    function hubApplyRewardFilter(root, offers, state, readReward = offer => offer.reward) {
+        const shown = offers.filter(offer => hubRewardPassesFilter(readReward(offer), state.rewardFilter));
+        const note = root?.getElementById('hub-reward-note');
+        if (note) {
+            const hidden = offers.length - shown.length;
+            note.textContent = [hidden ? `${hidden} small ${hidden === 1 ? 'offer' : 'offers'} hidden and skipped by Add. Clear the filter to add them.` : '',
+                state.rewardFilterError || ''].filter(Boolean).join(' ');
+            note.hidden = !note.textContent;
+        }
+        return shown;
     }
 
     // Source: shared/runtime/request-scheduler.js
@@ -277,6 +315,114 @@
             }
         }
         return { waitForRequestSlot, withRequestSlot };
+    }
+
+    // Source: shared/offers/reward-value.js
+    // The cash value of one offer, normalized from each bank's own fields.
+    // kind 'percent': amount is the percent back. kind 'fixed': amount is dollars back.
+    // maxReward is the most the offer pays in total; minSpend is the purchase it
+    // needs. Anything the bank does not state stays null; nothing is guessed.
+    // A reward value can only make Add skip an offer (the small-offer filter); it never adds one.
+    function hubRewardNumber(value) {
+        return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
+    }
+    function hubRewardValue(kind, amount, { maxReward = null, minSpend = null } = {}) {
+        amount = hubRewardNumber(amount);
+        if (!['percent', 'fixed'].includes(kind) || amount === null || (kind === 'percent' && amount > 100)) return null;
+        maxReward = hubRewardNumber(maxReward);
+        minSpend = hubRewardNumber(minSpend);
+        // A total below one fixed reward contradicts itself; keep the reward, drop the total.
+        if (kind === 'fixed' && maxReward !== null && maxReward < amount) maxReward = null;
+        return { kind, amount, maxReward, minSpend };
+    }
+    // Saved records were written by this code, but storage can be edited or damaged.
+    function hubSavedRewardValue(value) {
+        if (value === undefined || value === null) return null;
+        if (typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid saved reward');
+        const reward = hubRewardValue(value.kind, value.amount, value);
+        if (!reward) throw new Error('Invalid saved reward');
+        return reward;
+    }
+    // Percent back: stated for percent offers, reward ÷ minimum spend for fixed ones.
+    function hubRewardRate(reward) {
+        if (!reward) return null;
+        if (reward.kind === 'percent') return reward.amount;
+        return reward.minSpend ? reward.amount / reward.minSpend * 100 : null;
+    }
+    // Most cash back in total: a fixed reward (or its stated total), or a percent offer's cap.
+    function hubRewardTotal(reward) {
+        if (!reward) return null;
+        return reward.kind === 'fixed' ? reward.maxReward ?? reward.amount : reward.maxReward;
+    }
+    function hubFormatRewardDollars(value) {
+        return '$' + (Number.isInteger(value) ? value.toLocaleString('en-US') : value.toFixed(2));
+    }
+    function hubFormatRewardPercent(value) {
+        return `${Math.round(value * 100) / 100}%`;
+    }
+    function hubFormatReward(reward) {
+        if (!reward) return '';
+        const parts = [];
+        if (reward.kind === 'percent') {
+            parts.push(`${hubFormatRewardPercent(reward.amount)} back`,
+                reward.maxReward ? `up to ${hubFormatRewardDollars(reward.maxReward)}` : 'no cap listed');
+            if (reward.minSpend) parts.push(`min spend ${hubFormatRewardDollars(reward.minSpend)}`);
+        } else {
+            const each = reward.maxReward !== null && reward.maxReward > reward.amount;
+            parts.push(`${hubFormatRewardDollars(reward.amount)} back${each ? ' each' : ''}`
+                + (reward.minSpend ? ` on ${hubFormatRewardDollars(reward.minSpend)} (${hubFormatRewardPercent(hubRewardRate(reward))})` : ''));
+            if (each) parts.push(`up to ${hubFormatRewardDollars(reward.maxReward)} total`);
+        }
+        return parts.join(' · ');
+    }
+
+    // Source: shared/offers/reward-filter.js
+    // The small-offer filter. It hides rows from the list, and the Add actions skip
+    // what it hides (banks pass it to createHubWorkflow as keepInPlan). An offer whose
+    // rate or total is unknown is never hidden by that threshold, so nothing
+    // disappears because a bank left it out.
+    const HUB_REWARD_FILTER_READ_ERROR = 'Saved filter could not be read and was kept. Changes apply to this visit only.';
+    function hubNormalizeRewardFilter(value) {
+        const read = number => typeof number === 'number' && Number.isFinite(number) && number > 0 ? number : 0;
+        return { minRate: Math.min(read(value?.minRate), 100), minTotal: read(value?.minTotal) };
+    }
+    // A missing filter (panel not mounted yet) hides nothing.
+    function hubRewardPassesFilter(reward, filter) {
+        filter = hubNormalizeRewardFilter(filter);
+        const rate = hubRewardRate(reward);
+        const total = hubRewardTotal(reward);
+        if (filter.minRate > 0 && rate !== null && rate < filter.minRate) return false;
+        if (filter.minTotal > 0 && total !== null && total < filter.minTotal) return false;
+        return true;
+    }
+    // One small key per bank: { schemaVersion: 1, minRate, minTotal }. An unreadable
+    // value is preserved and the filter works for this visit only.
+    function createHubRewardFilterStore({ storage, storageKey }) {
+        let readFailed = false;
+        return {
+            load() {
+                try {
+                    const saved = storage.get(storageKey, null);
+                    if (saved === null) return { filter: hubNormalizeRewardFilter(null), error: '' };
+                    if (saved?.schemaVersion !== 1 || typeof saved.minRate !== 'number' || typeof saved.minTotal !== 'number') {
+                        throw new Error('Unsupported saved filter');
+                    }
+                    return { filter: hubNormalizeRewardFilter(saved), error: '' };
+                } catch {
+                    readFailed = true;
+                    return { filter: hubNormalizeRewardFilter(null), error: HUB_REWARD_FILTER_READ_ERROR };
+                }
+            },
+            save(filter) {
+                if (readFailed) return HUB_REWARD_FILTER_READ_ERROR;
+                try {
+                    storage.set(storageKey, { schemaVersion: 1, ...hubNormalizeRewardFilter(filter) });
+                    return '';
+                } catch {
+                    return 'Filter could not be saved. It applies to this visit only.';
+                }
+            }
+        };
     }
 
     // Source: shared/offers/display-records.js
@@ -703,25 +849,35 @@
     }
 
     // Source: shared/workflows/controller.js
-    function createHubWorkflow({ type, capabilities, readRecords, readContext }) {
+    // keepInPlan narrows what the Add actions take (the small-offer filter); it never
+    // widens the template's plan. A started task is checked against the unnarrowed
+    // plan, so changing the filter mid-run does not stop it, like search.
+    function createHubWorkflow({ type, capabilities, readRecords, readContext, keepInPlan = () => true }) {
         const template = HUB_WORKFLOW_TEMPLATES[type];
         if (!template || capabilities?.scope !== template.scope || typeof capabilities.activation !== 'boolean') {
             throw new Error('Workflow and bank capabilities do not match.');
         }
-        function preview() {
+        function planEveryOffer() {
             const records = readRecords();
             if (!Array.isArray(records)) throw new Error('Workflow requires an offer list.');
             records.forEach(template.validateRecord);
             return template.plan(records, readContext());
         }
-        function plan() {
+        function requireActivation() {
             if (!capabilities.activation) throw new Error('Adding is unavailable for this bank.');
+        }
+        function preview() {
+            return planEveryOffer().filter(record => keepInPlan(record));
+        }
+        function plan() {
+            requireActivation();
             return preview();
         }
         return Object.freeze({
             type, view: template.view, preview, plan,
             assertAction(source) {
-                if (!plan().some(record => record.source === source)) {
+                requireActivation();
+                if (!planEveryOffer().some(record => record.source === source)) {
                     throw new Error('The offer or its target changed. Refresh offers before adding.');
                 }
             }
@@ -786,7 +942,7 @@
         return { Available: 'available', Added: 'added', 'Needs review': 'review' }[label] || 'skipped';
     }
     // One scannable row: merchant and status on top, the offer itself, then card and dates.
-    function hubOfferRow({ merchant = '', title = '', status = '', meta = [], tag = 'div', leading = null }) {
+    function hubOfferRow({ merchant = '', title = '', status = '', meta = [], tag = 'div', leading = null, reward = null }) {
         const row = document.createElement(tag);
         row.className = 'offer offer-row';
         if (leading) row.append(leading);
@@ -811,6 +967,12 @@
             value.textContent = title;
             body.append(value);
         }
+        if (reward) {
+            const value = document.createElement('div');
+            value.className = 'offer-reward';
+            value.textContent = hubFormatReward(reward);
+            body.append(value);
+        }
         const details = meta.filter(Boolean);
         if (details.length) {
             const small = document.createElement('small');
@@ -824,11 +986,26 @@
         return expires ? `Expires ${expires}` : '';
     }
 
+    // Source: shared/offers/reward-text.js
+    // Cap and minimum spend written only in an offer's text, in the Cardlytics
+    // phrasing Wells Fargo and Deals use: "with a $7.00 cash back maximum",
+    // "until a $10.00 cash back maximum is reached", "when you spend $75".
+    // Only these explicit phrases count; anything else stays unknown.
+    function hubRewardLimitsFromText(...texts) {
+        const text = texts.filter(value => typeof value === 'string').join(' ').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
+        const dollars = match => match ? Number(match[1].replace(/,/g, '')) : null;
+        return {
+            maxReward: dollars(/\$(\d[\d,]*(?:\.\d{1,2})?) cash back maximum/i.exec(text)),
+            minSpend: dollars(/\bspend (?:a minimum of )?\$(\d[\d,]*(?:\.\d{1,2})?)/i.exec(text))
+        };
+    }
+
     // Source: shared/persistence/workspace-records.js
     function serializeWorkspaceRecord(record, fields) {
         const normalized = {};
         for (const [field, type] of Object.entries(fields)) {
-            normalized[field] = type === 'text' && typeof record[field] !== 'string' ? '' : record[field];
+            normalized[field] = type === 'text' && typeof record[field] !== 'string' ? ''
+                : type === 'reward' ? hubRewardValue(record[field]?.kind, record[field]?.amount, record[field] || {}) : record[field];
         }
         return workspaceRecord(normalized, fields);
     }
@@ -842,6 +1019,9 @@
             if (type === 'boolean') {
                 if (typeof value !== 'boolean') throw new Error('Invalid saved flag');
                 result[field] = value;
+            } else if (type === 'reward') {
+                // Optional: saves from before 1.9.0 have no reward and read as unknown.
+                result[field] = hubSavedRewardValue(value);
             } else {
                 if (typeof value !== 'string' || (type === 'id' && !value.trim())) throw new Error('Invalid saved text');
                 result[field] = value;
@@ -1220,13 +1400,18 @@
 
     // Source: shared/ui/workflow-panel.js
     function createHubWorkflowPanel({ state, settings, bank, styles, scopeMarkup, template, workflow = {},
-        onScan, onAdd, onStop, saveWorkspace, renderOffers, supportsActivation = false }) {
+        onScan, onAdd, onStop, saveWorkspace, renderOffers, renderPanel = renderOffers, supportsActivation = false, rewardFilterStorage = null }) {
         const host = document.createElement('div');
         host.id = settings.id;
         const panel = host.attachShadow({ mode: 'open' });
         panel.innerHTML = `<style>${styles}</style>` + hubWorkflowMarkup(scopeMarkup,
-            { ...workflow, template, bank, readOnly: !supportsActivation });
+            { ...workflow, template, bank, readOnly: !supportsActivation, rewardFilter: Boolean(rewardFilterStorage) });
         panel.querySelector('h2').textContent = settings.name;
+        if (rewardFilterStorage) {
+            // The filter changes the Add counts too, so the whole panel redraws.
+            hubBindRewardFilter(panel, { state, render: renderPanel,
+                store: createHubRewardFilterStore({ storage: rewardFilterStorage, storageKey: `${settings.id}:reward-filter` }) });
+        }
         panel.getElementById('scan').addEventListener('click', onScan);
         if (supportsActivation) panel.getElementById('add').addEventListener('click', onAdd);
         panel.getElementById('stop').addEventListener('click', onStop);
@@ -1420,7 +1605,7 @@ return readIssuerSavedResults;
     }
 return readIssuerSavedResults;
 })() }];
-const HUB_RELEASE_VERSION = "1.8.2";
+const HUB_RELEASE_VERSION = "1.9.0";
 // Read the existing snapshots directly; search never copies them into another store.
 function hubReadSavedResults() {
     const records = [], coverage = [];
@@ -1763,14 +1948,14 @@ function dispatchIssuer(configuration, startIssuer) {
 }
 
 // --- Issuer dispatches ---
-dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://global.americanexpress.com/offers","version":"1.8.2","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*americanexpress\\.com/.*$"],"patterns":["^https://global\\.americanexpress\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://global.americanexpress.com/offers","version":"1.9.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*americanexpress\\.com/.*$"],"patterns":["^https://global\\.americanexpress\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: amex-offer-lite ---
 (function () {
     'use strict';
 
     // Source: core/state.js
     const SETTINGS = Object.freeze({
-        version: "1.8.2", capabilities: {"activation":true,"scope":"card"}, workflow: "amex-combination",
+        version: "1.9.0", capabilities: {"activation":true,"scope":"card"}, workflow: "amex-combination",
         requestGapMs: 500,
         rateLimitCooldownMs: 120000,
         requestTimeoutMs: 30000,
@@ -1835,6 +2020,8 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
     // Source: core/workflow.js
     const offerWorkflow = createHubWorkflow({
         type: SETTINGS.workflow, capabilities: SETTINGS.capabilities,
+        // Add skips offers the small-offer filter hides; Amex states the reward only in its description.
+        keepInPlan: record => hubRewardPassesFilter(amexOfferReward(record.source.description), state.rewardFilter),
         readContext: () => ({ selectedCardIds: selectedAccounts().map(account => account.token),
             priorityCardIds: prioritizedAccounts().map(account => account.token) }),
         readRecords: () => selectedAccounts().flatMap(account => (state.offersByAccount.get(account.token) || []).map(offer => ({
@@ -2171,6 +2358,33 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
         const eligibleGroups = groups.filter((group) => group.accounts.some(({ offer }) => offer.status === 'ELIGIBLE')).length;
         return `${groups.length} distinct offers · ${eligibleGroups} eligible · ${plannedCount} planned on one card each · ${eligibleCards} eligible cards. `
             + `Coverage: ${completeCards}/${selectedAccounts().length} cards fully scanned${completeCards < selectedAccounts().length ? ' — counts so far' : ''}.`;
+    }
+
+    // Source: core/offer-reward.js
+    // Amex sends no numeric reward, only shortDescription text. Three phrasings are
+    // read; anything else (points offers, bundles, wording changes) stays unknown:
+    //   "Spend $100 or more, earn $20 back[, up to 3 times (total of $60)]"
+    //   "Earn 10% back on ..., up to [a total of] $250 ..."
+    //   "Earn 10% back on ..."
+    // Add skips an offer the small-offer filter hides; a parsed reward never adds one.
+    function amexRewardDollars(text) {
+        return Number(text.replace(/,/g, ''));
+    }
+    function amexOfferReward(description) {
+        const text = typeof description === 'string' ? description.replace(/\s+/g, ' ').trim() : '';
+        const money = '\\$(\\d[\\d,]*(?:\\.\\d{1,2})?)';
+        const spend = new RegExp(`^Spend ${money} or more[^,]*, earn ${money} back(?:, up to (\\d+) times(?: \\(total of ${money}\\))?)?`, 'i').exec(text);
+        if (spend) {
+            const amount = amexRewardDollars(spend[2]);
+            return hubRewardValue('fixed', amount, {
+                minSpend: amexRewardDollars(spend[1]),
+                maxReward: spend[4] ? amexRewardDollars(spend[4]) : spend[3] ? amount * Number(spend[3]) : null
+            });
+        }
+        const capped = new RegExp(`^Earn (\\d+(?:\\.\\d+)?)% back\\b[^.]*?\\bup to (?:a total of )?${money}`, 'i').exec(text);
+        if (capped) return hubRewardValue('percent', Number(capped[1]), { maxReward: amexRewardDollars(capped[2]) });
+        const percent = /^Earn (\d+(?:\.\d+)?)% back\b/i.exec(text);
+        return percent ? hubRewardValue('percent', Number(percent[1])) : null;
     }
 
     // Source: api/requests.js
@@ -2784,7 +2998,7 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
         const scope = `<div class="actions hub-scope-actions"><button id="btn-detect" aria-label="Detect cards">Detect cards</button><button id="btn-refresh-cards" aria-label="Refresh cards">Refresh cards</button></div>
             <p id="whitelist-summary" class="muted"></p><div id="card-list" class="cards"></div>
             <p class="muted hub-fine-print">Drag cards or use the arrows to change priority.</p><p id="saved-cards-status" class="muted hub-fine-print" role="status"></p>`;
-        let markup = hubWorkflowMarkup(scope, { bank: 'Amex', template: offerWorkflow });
+        let markup = hubWorkflowMarkup(scope, { bank: 'Amex', template: offerWorkflow, rewardFilter: true });
         for (const [from, to] of Object.entries({ body: 'content', scan: 'btn-scan', stop: 'btn-stop', search: 'input-search', add: 'btn-enroll-all', offers: 'offer-list', counts: 'offer-summary', 'workspace-cache': 'saved-offers-status' })) {
             markup = markup.replace(`id="${from}"`, `id="${to}"`);
         }
@@ -2804,6 +3018,9 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
         };
         filter.oninput = updateFilter;
         at('hub-clear-search').onclick = () => { filter.value = ''; updateFilter(); filter.focus(); };
+        hubBindRewardFilter(shadow, { state, render: () => { renderOffers(); renderControls(); }, store: createHubRewardFilterStore({
+            storage: { get: (key, fallback) => GM_getValue(key, fallback), set: (key, value) => GM_setValue(key, value) },
+            storageKey: `${"amex-offer-lite"}:reward-filter` }) });
         const toggle = at('collapse');
         toggle.id = 'btn-toggle';
         toggle.onclick = () => { state.minimized = !state.minimized; persistViewSettings(); renderControls(); };
@@ -2979,11 +3196,13 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
         savedStatus.textContent = state.savedOffersError || (scanTimes.length
             ? `Last scan: ${new Date(Math.max(...scanTimes)).toLocaleString()}. Results stay saved until you refresh manually.` : '');
         savedStatus.className = state.savedOffersError ? 'storage-error' : 'muted';
-        if (!groups.length) {
+        // Hidden small offers are also left out of the plan, so the summary and Add all skip them.
+        const shownGroups = hubApplyRewardFilter(panelRoot?.shadowRoot, groups, state, group => amexOfferReward(group.offer.description));
+        if (!shownGroups.length) {
             list.append(element('p', state.offersByAccount.size ? 'No offers match this filter.' : 'Scanned offers will appear here.', 'muted'));
             return;
         }
-        for (const group of groups) {
+        for (const group of shownGroups) {
             const { offer, accounts } = group;
             const plannedOffer = plannedByOffer.get(offer.groupKey);
             const item = element('article', '', 'offer');
@@ -2991,6 +3210,8 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
             title.append(element('strong', offer.name));
             title.append(offerEnrollButton(group, plannedOffer));
             item.append(title, element('p', offer.description, 'muted'));
+            const reward = amexOfferReward(offer.description);
+            if (reward) item.append(element('p', hubFormatReward(reward), 'offer-reward'));
             const counts = offerGroupCounts(accounts);
             item.append(element('p', `Eligible on ${counts.eligibleCards} cards · Added on ${counts.enrolledCards} · Seen on ${counts.seenCards}`, 'offer-counts'));
             const target = offerTargetLine(group, plannedOffer);
@@ -3078,7 +3299,7 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
 // --- End issuer body: amex-offer-lite ---
 });
 
-dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"https://deals.merchant-rewards.com/","version":"1.8.2","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*bankofamerica\\.com/.*$","^https://deals\\.merchant-rewards\\.com/.*$"],"patterns":["^https://deals\\.merchant-rewards\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"https://deals.merchant-rewards.com/","version":"1.9.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*bankofamerica\\.com/.*$","^https://deals\\.merchant-rewards\\.com/.*$"],"patterns":["^https://deals\\.merchant-rewards\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: bofa-offer-lite ---
 (function () {
     'use strict';
@@ -3086,7 +3307,7 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "bofa-offer-lite", name: "BankAmeriDeals Lite", version: "1.8.2",
+        id: "bofa-offer-lite", name: "BankAmeriDeals Lite", version: "1.9.0",
         gapMilliseconds: 500, timeoutMilliseconds: 45000, pageSize: 24,
         defaultCooldownMilliseconds: 300000
     };
@@ -3117,6 +3338,8 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
     // Source: core/workflow.js
     const offerWorkflow = createHubWorkflow({
         type: SETTINGS.workflow, capabilities: SETTINGS.capabilities,
+        // Add skips offers the small-offer filter hides.
+        keepInPlan: record => hubRewardPassesFilter(record.source.reward, state.rewardFilter),
         readContext: () => ({ accountId: state.workspaceScope, consent: state.consent }),
         readRecords: () => state.offers.map(offer => ({
             accountId: state.workspaceScope, offerId: offer.id, source: offer,
@@ -3143,7 +3366,8 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
             "eligible": "boolean",
             "activated": "boolean",
             "reason": "text",
-            "result": "text"
+            "result": "text",
+            "reward": "reward"
         }
     };
 
@@ -3218,6 +3442,21 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
         });
     }
 
+    // Source: api/offer-reward.js
+    // Deals lists reward_type (FIXED or PERCENTAGE) with reward_value in dollars or
+    // reward_rate in percent. The headline is not reliable ("Shop and Earn Today").
+    // A cap counts only when the offer can be used once; minimum spend comes from
+    // minimum_spend or the "when you spend $75" phrase.
+    function bofaOfferReward(raw) {
+        const kind = { FIXED: 'fixed', PERCENTAGE: 'percent' }[raw?.reward_type];
+        const amount = kind === 'fixed' ? raw.reward_value : raw?.reward_rate;
+        const written = hubRewardLimitsFromText(raw?.headline, raw?.description);
+        return hubRewardValue(kind, amount, {
+            maxReward: raw?.maximum_redemptions === 1 ? raw.maximum_reward_per_transaction : written.maxReward,
+            minSpend: hubRewardNumber(raw?.minimum_spend) ?? written.minSpend
+        });
+    }
+
     // Source: api/contracts.js
     function normalizeLocation(payload) {
         if (!Number.isFinite(payload?.latitude) || Math.abs(payload.latitude) > 90
@@ -3243,7 +3482,8 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
             // Full text for saved results and export only; never used to decide a write.
             details: typeof raw.description === 'string' ? raw.description : '',
             terms: typeof raw.terms_and_conditions === 'string' ? raw.terms_and_conditions : '',
-            eligible: !reason, activated: raw.is_activated, reason, result: ''
+            eligible: !reason, activated: raw.is_activated, reason, result: '',
+            reward: bofaOfferReward(raw)
         };
     }
     function normalizePage(payload) {
@@ -3372,7 +3612,7 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
             scopeMarkup: "<p class=\"muted\">Activation can start an expiry window; review terms first.</p><label class=\"card\"><input id=\"consent\" type=\"checkbox\" aria-label=\"Confirm activation for current Deals profile\">Allow adding offers to this profile</label>",
             workflow: { bank: "Deals", extraReviewMarkup: "", readOnly: !SETTINGS.capabilities.activation },
             onScan: scanOffers, onAdd: activateOffers, onStop: stopRun,
-            saveWorkspace, renderOffers, supportsActivation: SETTINGS.capabilities.activation
+            saveWorkspace, renderOffers, renderPanel, supportsActivation: SETTINGS.capabilities.activation, rewardFilterStorage: issuerStorage
         });
         panel.getElementById('consent').addEventListener('change', event => {
             if (state.busy) return;
@@ -3388,14 +3628,14 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
         if (!state.panel) return;
         const list = state.panel.getElementById('offers');
         list.replaceChildren();
-        const visible = state.offers.filter(offer => hubMatchesSearch(offer, state.search));
+        const visible = hubApplyRewardFilter(state.panel, state.offers.filter(offer => hubMatchesSearch(offer, state.search)), state);
         if (!visible.length) hubShowEmptyOffers(list, state.search);
         for (const offer of visible) {
             const status = offer.result === 'Unconfirmed' ? 'Needs review' : offer.activated ? 'Added'
                 : offer.result === 'Not added' ? 'Not added' : offer.eligible ? 'Available' : 'Skipped';
             const note = status === 'Skipped' ? offer.reason || 'Not eligible'
                 : status === 'Not added' ? 'Deals did not activate it after a retry. Add tries it again.' : '';
-            list.append(hubOfferRow({ merchant: offer.name, title: offer.headline, status, meta: [note] }));
+            list.append(hubOfferRow({ merchant: offer.name, title: offer.headline, status, reward: offer.reward, meta: [note] }));
         }
     }
     function renderPanel() {
@@ -3427,7 +3667,7 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
 // --- End issuer body: bofa-offer-lite ---
 });
 
-dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://secure.chase.com/web/auth/dashboard","version":"1.8.2","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*chase\\.com/.*$"],"patterns":["^https://secure\\.chase\\.com/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://secure.chase.com/web/auth/dashboard","version":"1.9.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*chase\\.com/.*$"],"patterns":["^https://secure\\.chase\\.com/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: chase-offer-lite ---
 (function () {
     'use strict';
@@ -3435,7 +3675,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"card"}, workflow: "per-card",
-        id: "chase-offer-lite", name: "Chase Offer Lite", version: "1.8.2",
+        id: "chase-offer-lite", name: "Chase Offer Lite", version: "1.9.0",
         gapMilliseconds: 500, timeoutMilliseconds: 45000,
         defaultCooldownMilliseconds: 300000
     };
@@ -3465,6 +3705,8 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
     // Source: core/workflow.js
     const offerWorkflow = createHubWorkflow({
         type: SETTINGS.workflow, capabilities: SETTINGS.capabilities,
+        // Add skips offers the small-offer filter hides.
+        keepInPlan: record => hubRewardPassesFilter(record.source.reward, state.rewardFilter),
         readContext: () => ({ selectedCardIds: [...state.selected] }),
         readRecords: () => state.offers.map(offer => ({
             cardId: offer.accountId, offerId: offer.offerId, source: offer,
@@ -3505,7 +3747,8 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
             "merchant": "text",
             "title": "text",
             "category": "text",
-            "expires": "text"
+            "expires": "text",
+            "reward": "reward"
         }
     };
 
@@ -3518,6 +3761,19 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
     });
     function workspaceCacheNotice() { return hubWorkspaceCacheNotice(state); }
     function restoreWorkspacePanel(panel, bankName) { hubRestoreWorkspacePanel(panel, bankName, state); }
+
+    // Source: api/offer-reward.js
+    // Chase lists the reward in offerDetails.offerOptions: one option with a type
+    // (PERCENTAGE or DOLLAR), the amount, a cap and a minimum spend; 0 means none.
+    // Observed: every one of 170 offers had exactly one option.
+    function chaseOfferReward(raw) {
+        const options = raw?.offerDetails?.offerOptions;
+        if (!Array.isArray(options) || options.length !== 1) return null;
+        const [option] = options;
+        const kind = { PERCENTAGE: 'percent', DOLLAR: 'fixed' }[option?.offerRewardTypeCode];
+        return hubRewardValue(kind, option?.offerAmount,
+            { maxReward: option?.maximumRewardOfferAmount, minSpend: option?.minimumSpendingAmount });
+    }
 
     // Source: api/contracts.js
     const CHASE_OFFERS_RESOURCE_PATH = '/ccb/marketing/offer-management/digital-customer-targeted-offers/v3/customer-offers';
@@ -3590,7 +3846,8 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
                 expires: typeof raw.offerDetails?.offerEndTimestamp === 'string' ? raw.offerDetails.offerEndTimestamp : '',
                 // Full text for saved results and export only; never used to decide a write.
                 details: typeof raw.offerDisplayDetails?.rewardDescriptionText === 'string' ? raw.offerDisplayDetails.rewardDescriptionText : '',
-                terms: typeof raw.offerDisplayDetails?.termsAndConditionsText === 'string' ? raw.offerDisplayDetails.termsAndConditionsText : ''
+                terms: typeof raw.offerDisplayDetails?.termsAndConditionsText === 'string' ? raw.offerDisplayDetails.termsAndConditionsText : '',
+                reward: chaseOfferReward(raw)
             });
         }
         return [...offers.values()];
@@ -4086,7 +4343,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
             workflow: { bank: 'Chase', scanLabel: 'Load cards & offers' },
             onScan: () => state.accounts.length ? refreshAndAddOffers() : refreshAllCardsAndOffers(),
             onAdd: addSavedOffers, onStop: stopRun,
-            saveWorkspace, renderOffers, supportsActivation: SETTINGS.capabilities.activation
+            saveWorkspace, renderOffers, renderPanel, supportsActivation: SETTINGS.capabilities.activation, rewardFilterStorage: issuerStorage
         });
         document.body.appendChild(host);
         state.panel = panel;
@@ -4140,7 +4397,8 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
         const container = state.panel.getElementById('offers');
         container.replaceChildren();
         const search = state.search;
-        const visible = state.offers.filter(offer => state.selected.has(offer.accountId)).filter(offer => hubMatchesSearch(offer, search));
+        const visible = hubApplyRewardFilter(state.panel, state.offers.filter(offer => state.selected.has(offer.accountId))
+            .filter(offer => hubMatchesSearch(offer, search)), state);
         if (!visible.length) {
             const note = document.createElement('p');
             note.className = 'muted hub-empty-note';
@@ -4152,7 +4410,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
             const card = state.accounts.find(account => account.accountId === offer.accountId);
             const addOnChase = !state.needsScan && ['NEW', 'SERVED'].includes(offer.status) && !offer.activationParameters;
             const statusLabel = addOnChase ? 'Add on Chase' : offer.status === 'SERVED' ? 'Available' : hubOfferStatusLabel(offer.status);
-            container.appendChild(hubOfferRow({ merchant: offer.merchant, title: offer.title, status: statusLabel,
+            container.appendChild(hubOfferRow({ merchant: offer.merchant, title: offer.title, status: statusLabel, reward: offer.reward,
                 meta: [card ? chaseCardDisplayName(card) : 'Card', addOnChase ? 'Click details unavailable' : '', hubOfferExpiry(offer.expires)] }));
         }
         if (visible.length > 200) {
@@ -4215,7 +4473,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
 // --- End issuer body: chase-offer-lite ---
 });
 
-dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://online.citi.com/US/nga/products-offers/merchantoffers","version":"1.8.2","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*citi\\.com/.*$"],"patterns":["^https://online\\.citi\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://online.citi.com/US/nga/products-offers/merchantoffers","version":"1.9.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*citi\\.com/.*$"],"patterns":["^https://online\\.citi\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: citi-offer-lite ---
 (function () {
     'use strict';
@@ -4223,7 +4481,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"card"}, workflow: "per-card",
-        id: "citi-offer-lite", name: "Citi Offer Lite", version: "1.8.2",
+        id: "citi-offer-lite", name: "Citi Offer Lite", version: "1.9.0",
         apiBase: '/gcgapi/prod/public/v1',
         retrievePath: '/digital/customers/creditCards/merchantOffers/retrieve',
         enrollmentPath: '/digital/customers/creditCards/accounts/rewards/specialOffers/enrollMerchantOffer',
@@ -4259,6 +4517,8 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
     // Source: core/workflow.js
     const offerWorkflow = createHubWorkflow({
         type: SETTINGS.workflow, capabilities: SETTINGS.capabilities,
+        // Add skips offers the small-offer filter hides.
+        keepInPlan: record => hubRewardPassesFilter(record.source.reward, state.rewardFilter),
         readContext: () => ({ selectedCardIds: [...state.selected] }),
         readRecords: () => state.offers.map(offer => ({
             cardId: offer.accountId, offerId: offer.offerId, source: offer,
@@ -4288,7 +4548,8 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
             "merchant": "text",
             "title": "text",
             "category": "text",
-            "expires": "text"
+            "expires": "text",
+            "reward": "reward"
         }
     };
 
@@ -4345,6 +4606,20 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
         } }));
     }
 
+    // Source: api/offer-reward.js
+    // Citi's list has no numeric reward field. offerTitle is always "$30 Back" or
+    // "5% Back" (37 distinct titles in 695 offers), and offerDiscountType says which
+    // (ABSOLUTE or PERCENTAGE). A title that disagrees with its type is unknown.
+    // The list carries no cap or minimum spend.
+    function citiOfferReward(raw) {
+        const match = /^\s*(\$)?(\d+(?:\.\d+)?)(%)?\s+back\s*$/i.exec(typeof raw?.offerTitle === 'string' ? raw.offerTitle : '');
+        if (!match || Boolean(match[1]) === Boolean(match[3])) return null;
+        const kind = match[1] ? 'fixed' : 'percent';
+        const declared = { ABSOLUTE: 'fixed', PERCENTAGE: 'percent' }[raw.offerDiscountType];
+        if (raw.offerDiscountType != null && declared !== kind) return null;
+        return hubRewardValue(kind, Number(match[2]));
+    }
+
     // Source: api/contracts.js
     function normalizeAccounts(payload) {
         if (!Array.isArray(payload?.cardArtDetails)) throw new Error('Citi card-list response was not recognized.');
@@ -4377,7 +4652,8 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
                     accountId, offerId: raw.offerId, status,
                     merchant: typeof raw.merchantName === 'string' ? raw.merchantName : 'Merchant',
                     title: typeof raw.offerTitle === 'string' ? raw.offerTitle : '',
-                    category: group.displayOffersCategory || '', expires: raw.offerEndDate || ''
+                    category: group.displayOffersCategory || '', expires: raw.offerEndDate || '',
+                    reward: citiOfferReward(raw)
                 });
             }
         }
@@ -4658,7 +4934,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
             workflow: { bank: 'Citi', scanLabel: 'Load cards & offers' },
             onScan: () => state.accounts.length ? refreshAndAddOffers() : refreshAllCardsAndOffers(),
             onAdd: addSavedOffers, onStop: stopRun,
-            saveWorkspace, renderOffers, supportsActivation: SETTINGS.capabilities.activation
+            saveWorkspace, renderOffers, renderPanel, supportsActivation: SETTINGS.capabilities.activation, rewardFilterStorage: issuerStorage
         });
         document.body.appendChild(host);
         state.panel = panel;
@@ -4707,7 +4983,8 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
         const container = state.panel.getElementById('offers');
         container.replaceChildren();
         const search = state.search;
-        const visible = state.offers.filter(offer => state.selected.has(offer.accountId)).filter(offer => hubMatchesSearch(offer, search));
+        const visible = hubApplyRewardFilter(state.panel, state.offers.filter(offer => state.selected.has(offer.accountId))
+            .filter(offer => hubMatchesSearch(offer, search)), state);
         if (!visible.length) {
             const note = document.createElement('p');
             note.className = 'muted hub-empty-note';
@@ -4717,7 +4994,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
         }
         for (const offer of visible.slice(0, 200)) {
             const card = state.accounts.find(account => account.accountId === offer.accountId);
-            container.appendChild(hubOfferRow({ merchant: offer.merchant, title: offer.title, status: hubOfferStatusLabel(offer.status),
+            container.appendChild(hubOfferRow({ merchant: offer.merchant, title: offer.title, status: hubOfferStatusLabel(offer.status), reward: offer.reward,
                 meta: [card?.name || 'Card', hubOfferExpiry(offer.expires)] }));
         }
         if (visible.length > 200) {
@@ -4773,7 +5050,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
 // --- End issuer body: citi-offer-lite ---
 });
 
-dispatchIssuer({"id":"kroger-coupon-lite","label":"Kroger","offersUrl":"https://www.kroger.com/savings/cl/coupons/","version":"1.8.2","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*kroger\\.com/.*$"],"patterns":["^https://www\\.kroger\\.com/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"kroger-coupon-lite","label":"Kroger","offersUrl":"https://www.kroger.com/savings/cl/coupons/","version":"1.9.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*kroger\\.com/.*$"],"patterns":["^https://www\\.kroger\\.com/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: kroger-coupon-lite ---
 (function () {
     'use strict';
@@ -4781,7 +5058,7 @@ dispatchIssuer({"id":"kroger-coupon-lite","label":"Kroger","offersUrl":"https://
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "kroger-coupon-lite", name: "Kroger Coupon Lite", version: "1.8.2",
+        id: "kroger-coupon-lite", name: "Kroger Coupon Lite", version: "1.9.0",
         origin: 'https://www.kroger.com',
         gapMilliseconds: 500, timeoutMilliseconds: 30000,
         defaultCooldownMilliseconds: 300000,
@@ -5243,7 +5520,7 @@ dispatchIssuer({"id":"kroger-coupon-lite","label":"Kroger","offersUrl":"https://
 // --- End issuer body: kroger-coupon-lite ---
 });
 
-dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://onlinebanking.usbank.com/digital/servicing/dominjection/cashback-deals","version":"1.8.2","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*usbank\\.com/.*$"],"patterns":["^https://onlinebanking\\.usbank\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://onlinebanking.usbank.com/digital/servicing/dominjection/cashback-deals","version":"1.9.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*usbank\\.com/.*$"],"patterns":["^https://onlinebanking\\.usbank\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: usbank-offer-lite ---
 (function () {
     'use strict';
@@ -5251,7 +5528,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "usbank-offer-lite", name: "US Bank Offer Lite", version: "1.8.2",
+        id: "usbank-offer-lite", name: "US Bank Offer Lite", version: "1.9.0",
         endpoint: '/digital/api/customer-management/graphql/v2',
         gapMilliseconds: 500, timeoutMilliseconds: 45000,
         defaultCooldownMilliseconds: 300000
@@ -5282,6 +5559,8 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
     // Source: core/workflow.js
     const offerWorkflow = createHubWorkflow({
         type: SETTINGS.workflow, capabilities: SETTINGS.capabilities,
+        // Add skips offers the small-offer filter hides.
+        keepInPlan: record => hubRewardPassesFilter(record.source.reward, state.rewardFilter),
         // The manually clicked Add action is this issuer's account confirmation.
         // Individual offer selection narrows that plan; it is never card selection.
         readContext: () => ({ accountId: state.workspaceScope, consent: true }),
@@ -5310,7 +5589,8 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
             "category": "text",
             "starts": "text",
             "expires": "text",
-            "status": "text"
+            "status": "text",
+            "reward": "reward"
         }
     };
 
@@ -5389,6 +5669,17 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
         getActivateOffer(request: $request) { requestId }
     }`;
 
+    // Source: api/offer-reward.js
+    // US Bank lists the reward in ad.reward: rewardType, rewardAmount, maxRewardAmount
+    // and purchaseRequirement.minSpendAmount. Most offers send a minimum of 0.2 for
+    // "any purchase", so a minimum under $1 is treated as no minimum.
+    function usbankOfferReward(reward) {
+        const kind = { PERCENT_AMOUNT_PURCHASE: 'percent', FIXED_AMOUNT_PURCHASE: 'fixed' }[reward?.rewardType];
+        const minSpend = reward?.purchaseRequirement?.minSpendAmount;
+        return hubRewardValue(kind, reward?.rewardAmount,
+            { maxReward: reward?.maxRewardAmount, minSpend: typeof minSpend === 'number' && minSpend >= 1 ? minSpend : null });
+    }
+
     // Source: api/contracts.js
     function graphqlData(payload, field) {
         // GraphQL may report failures alongside data with HTTP 200. Never expose
@@ -5424,6 +5715,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
                 // Full text for saved results and export only; never used to decide a write.
                 details: typeof ad.assets?.copy?.value?.marketingCopy === 'string' ? ad.assets.copy.value.marketingCopy : '',
                 terms: typeof ad.assets?.copy?.value?.termsAndConditions === 'string' ? ad.assets.copy.value.termsAndConditions : '',
+                reward: usbankOfferReward(ad.reward),
                 starts: ad.startDate, expires: ad.endDate, activationState: ad.activationState,
                 status: ad.activationState === 'ACTIVATED' ? 'ACTIVATED' : 'SKIPPED',
                 adType: ad.adType, visibilityState: ad.visibilityState,
@@ -5501,7 +5793,9 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
     }
     function selectAllOffers() {
         if (state.busy || Boolean(state.storageError)) return;
-        state.selected = new Set(state.offers.filter(offer => offer.status === 'AVAILABLE').map(offer => offer.offerId));
+        // Offers hidden by the small-offer filter are not selected; search does not narrow it.
+        state.selected = new Set(state.offers.filter(offer => offer.status === 'AVAILABLE'
+            && hubRewardPassesFilter(offer.reward, state.rewardFilter)).map(offer => offer.offerId));
         saveWorkspace();
         renderPanel();
     }
@@ -5528,6 +5822,10 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
             recordWorkspaceScan();
             updateStatus(`Scan complete: ${state.offers.filter(offer => offer.status === 'AVAILABLE').length} available. Select offers to activate.`);
         });
+    }
+    // Selected offers that Add selected will take: still available and not hidden by the small-offer filter.
+    function selectedOfferPlan() {
+        return offerWorkflow.preview().filter(record => state.selected.has(record.offerId));
     }
     function activateSelectedOffers() {
         if (state.needsScan || !state.selected.size) return;
@@ -5626,7 +5924,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
             scopeMarkup: "<p class=\"muted\">Add all available offers, or select individual offers below.</p>",
             workflow: { bank: "US Bank", extraReviewMarkup: "<button id=\"activate\" aria-label=\"Add selected offers\">Add selected offers</button><button id=\"select-all\" aria-label=\"Select all available offers\">Select all</button><button id=\"clear\" aria-label=\"Clear offer selection\">Clear selection</button>", readOnly: !SETTINGS.capabilities.activation },
             onScan: scanOffers, onAdd: addAllOffers, onStop: stopRun,
-            saveWorkspace, renderOffers, supportsActivation: SETTINGS.capabilities.activation
+            saveWorkspace, renderOffers, renderPanel, supportsActivation: SETTINGS.capabilities.activation, rewardFilterStorage: issuerStorage
         });
         panel.getElementById('activate').addEventListener('click', activateSelectedOffers);
         panel.getElementById('select-all').addEventListener('click', selectAllOffers);
@@ -5644,7 +5942,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
         const container = state.panel.getElementById('offers');
         container.replaceChildren();
         const search = state.search;
-        const visible = state.offers.filter(offer => hubMatchesSearch(offer, search));
+        const visible = hubApplyRewardFilter(state.panel, state.offers.filter(offer => hubMatchesSearch(offer, search)), state);
         if (!visible.length) hubShowEmptyOffers(container, search);
         for (const offer of visible) {
             const checkbox = document.createElement('input');
@@ -5655,7 +5953,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
             checkbox.addEventListener('change', () => setOfferSelected(offer.offerId, checkbox.checked));
             const date = typeof offer.expires === 'string' ? hubOfferExpiry(offer.expires.slice(0, 10)) : 'Unknown expiry';
             container.appendChild(hubOfferRow({ tag: 'label', leading: checkbox, merchant: offer.merchant, title: offer.title,
-                status: hubOfferStatusLabel(offer.status), meta: [date] }));
+                status: hubOfferStatusLabel(offer.status), reward: offer.reward, meta: [date] }));
         }
     }
     function renderPanel() {
@@ -5668,7 +5966,8 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
         panel.getElementById('scan').disabled = blocked;
         panel.getElementById('select-all').disabled = blocked || !available;
         panel.getElementById('clear').disabled = blocked || !state.selected.size;
-        panel.getElementById('activate').disabled = blocked || !state.selected.size || state.needsScan;
+        const selectedToAdd = selectedOfferPlan().length;
+        panel.getElementById('activate').disabled = blocked || !selectedToAdd || state.needsScan;
         panel.getElementById('stop').disabled = !state.busy || state.stopRequested;
         panel.getElementById('status').textContent = state.status;
         panel.getElementById('storage-error').textContent = state.storageError;
@@ -5676,7 +5975,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
         renderHubWorkflow(panel, { template: offerWorkflow, readOnly: !SETTINGS.capabilities.activation, count: offerWorkflow.preview().length, needsScan: state.needsScan, busy: state.busy,
             storageError: state.storageError, coolingDown: Date.now() < state.cooldownUntil,
             progress: state.activeAction === 'add' && state.total ? { completed: state.completed, total: state.total } : null });
-        hubSetActionLabel(panel.getElementById('activate'), 'Add selected offers', state.selected.size);
+        hubSetActionLabel(panel.getElementById('activate'), 'Add selected offers', selectedToAdd);
         renderOffers();
     }
 
@@ -5689,7 +5988,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
 // --- End issuer body: usbank-offer-lite ---
 });
 
-dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"https://web.secure.wellsfargo.com/auth/deals-portal","version":"1.8.2","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*wellsfargo\\.com/.*$"],"patterns":["^https://web\\.secure\\.wellsfargo\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"https://web.secure.wellsfargo.com/auth/deals-portal","version":"1.9.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*wellsfargo\\.com/.*$"],"patterns":["^https://web\\.secure\\.wellsfargo\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: wellsfargo-offer-lite ---
 (function () {
     'use strict';
@@ -5697,7 +5996,7 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "wellsfargo-offer-lite", name: "Wells Fargo Offer Lite", version: "1.8.2",
+        id: "wellsfargo-offer-lite", name: "Wells Fargo Offer Lite", version: "1.9.0",
         retrievePath: '/deals-portal/as/getDeals', enrollmentPath: '/deals-portal/as/activateCLDeal',
         gapMilliseconds: 500, timeoutMilliseconds: 45000, defaultCooldownMilliseconds: 300000
     };
@@ -5727,6 +6026,8 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"
     // Source: core/workflow.js
     const offerWorkflow = createHubWorkflow({
         type: SETTINGS.workflow, capabilities: SETTINGS.capabilities,
+        // Add skips offers the small-offer filter hides.
+        keepInPlan: record => hubRewardPassesFilter(record.source.reward, state.rewardFilter),
         readContext: () => ({ accountId: state.workspaceScope, consent: state.accountConsent }),
         readRecords: () => state.offers.map(offer => ({
             accountId: state.workspaceScope, offerId: offer.offerId, source: offer,
@@ -5751,7 +6052,8 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"
             "status": "text",
             "merchant": "text",
             "title": "text",
-            "expires": "text"
+            "expires": "text",
+            "reward": "reward"
         }
     };
 
@@ -5821,6 +6123,16 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"
         });
     }
 
+    // Source: api/offer-reward.js
+    // Wells Fargo lists amountType ("%" or "$") and dealAmount as a numeric string.
+    // The cap and minimum spend appear only in longDescription.
+    function wellsFargoOfferReward(details) {
+        const kind = { '%': 'percent', $: 'fixed' }[details?.amountType];
+        const text = typeof details?.dealAmount === 'string' ? details.dealAmount.trim() : '';
+        const amount = /^\d+(?:\.\d+)?$/.test(text) ? Number(text) : null;
+        return hubRewardValue(kind, amount, hubRewardLimitsFromText(details?.longDescription));
+    }
+
     // Source: api/contracts.js
     function normalizeOffers(payload) {
         if (payload?.status?.statusCode !== 200
@@ -5851,7 +6163,8 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"
                     title: typeof details.shortDescription === 'string' ? details.shortDescription : '',
                     expires: typeof details.expirationDate === 'string' ? details.expirationDate : '',
                     // Full text for saved results and export only; Wells Fargo lists no separate terms.
-                    details: typeof details.longDescription === 'string' ? details.longDescription : ''
+                    details: typeof details.longDescription === 'string' ? details.longDescription : '',
+                    reward: wellsFargoOfferReward(details)
                 };
                 const existing = offers.get(offer.offerId);
                 if (existing) {
@@ -5963,7 +6276,7 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"
             scopeMarkup: "<p class=\"muted\">Offers needing an individual card choice are skipped.</p><label class=\"card\"><input id=\"consent\" type=\"checkbox\" aria-label=\"Allow account-wide Wells Fargo activation\">Allow adding offers to this account</label>",
             workflow: { bank: "Wells Fargo", extraReviewMarkup: "", readOnly: !SETTINGS.capabilities.activation },
             onScan: scanOffers, onAdd: addAllOffers, onStop: stopRun,
-            saveWorkspace, renderOffers, supportsActivation: SETTINGS.capabilities.activation
+            saveWorkspace, renderOffers, renderPanel, supportsActivation: SETTINGS.capabilities.activation, rewardFilterStorage: issuerStorage
         });
         panel.getElementById('consent').addEventListener('change', event => {
             if (state.busy) return;
@@ -5980,10 +6293,10 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"
         const container = state.panel.getElementById('offers');
         container.replaceChildren();
         const search = state.search;
-        const visible = state.offers.filter(offer => hubMatchesSearch(offer, search));
+        const visible = hubApplyRewardFilter(state.panel, state.offers.filter(offer => hubMatchesSearch(offer, search)), state);
         if (!visible.length) hubShowEmptyOffers(container, search);
         for (const offer of visible.slice(0, 200)) {
-            container.appendChild(hubOfferRow({ merchant: offer.merchant, title: offer.title, status: hubOfferStatusLabel(offer.status),
+            container.appendChild(hubOfferRow({ merchant: offer.merchant, title: offer.title, status: hubOfferStatusLabel(offer.status), reward: offer.reward,
                 meta: [hubOfferExpiry(offer.expires)] }));
         }
         if (visible.length > 200) {

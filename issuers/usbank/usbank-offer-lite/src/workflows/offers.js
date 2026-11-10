@@ -20,6 +20,10 @@ function scanOffers() {
         updateStatus(`Scan complete: ${state.offers.filter(offer => offer.status === 'AVAILABLE').length} available. Select offers to activate.`);
     });
 }
+// Selected offers that Add selected will take: still available and not hidden by the small-offer filter.
+function selectedOfferPlan() {
+    return offerWorkflow.preview().filter(record => state.selected.has(record.offerId));
+}
 function activateSelectedOffers() {
     if (state.needsScan || !state.selected.size) return;
     return activateOfferIds(offerWorkflow.plan().filter(record => state.selected.has(record.offerId)).map(record => record.offerId));

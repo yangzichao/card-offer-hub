@@ -6,7 +6,7 @@
 
 <!-- published-scripts:start -->
 
-**[安装 / 更新 Card Offer Hub 1.8.2](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/card-offer-hub-all.user.js)** — 唯一安装包，包含下列 7 家银行。
+**[安装 / 更新 Card Offer Hub 1.9.0](https://raw.githubusercontent.com/yangzichao/card-offer-hub/main/dist/card-offer-hub-all.user.js)** — 唯一安装包，包含下列 7 家银行。
 
 安装一次，覆盖银行主域名和所有子域名；网银显示操作面板，其他页面提供 Offers 入口和缓存搜索。所有银行共用一个发布版本。[地址匹配说明](docs/website-matching.md)
 
@@ -27,6 +27,8 @@
 ## 跨银行搜索
 
 面板中的 **Search all banks** 可同时搜索六家银行已保存的 Offer，按银行或状态筛选，查看卡片、扫描时间和有效期，再打开对应银行页面。搜索条件会保留；**Reload saved results** 只读取本地缓存。各家银行需要先手动扫描一次。详见[使用说明](bundles/all/README.md#跨银行搜索)。
+
+每家银行的面板会显示每个优惠的比例和总额，可以用 **Hide under % back / $ total** 藏掉小额优惠，被藏的优惠 Add all 也会跳过。详见[优惠金额与小额筛选](docs/offer-reward-filter.md)。
 
 **Export all** 把全部已保存优惠（含详情和条款）下载成 JSON，本机 AI agent 用 `npm run -s offers -- --query "<商户>"` 或仓库内的 `card-offers` skill 读取。详见[优惠导出与本地 AI 读取](docs/offer-export.md)。
 

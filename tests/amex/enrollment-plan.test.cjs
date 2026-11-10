@@ -101,3 +101,19 @@ test('duplicate tiles for one card produce one planned request, not two', () => 
         harness.normalizeHubOffer(rawOffer('duplicate-id', 'NOT_ENROLLED', { title: 'Shared' })));
     assert.deepEqual(planOf(harness), ['Shared@card-a']);
 });
+
+test('Add skips offers the small-offer filter hides, and a hidden shared offer never moves to another card', () => {
+    const harness = createUserscriptHarness();
+    configureAccounts(harness, ['card-a', 'card-b']);
+    const descriptions = { Big: 'Spend $50 or more, earn $25 back.', Small: 'Earn 2% back on purchases.', Points: 'Earn 3X points on purchases.' };
+    for (const [accountToken, titles] of Object.entries({ 'card-a': ['Big', 'Small'], 'card-b': ['Small', 'Points'] })) {
+        harness.state.offersByAccount.set(accountToken, titles.map(title => harness.normalizeHubOffer(
+            rawOffer(`${title}-${accountToken}`, 'NOT_ENROLLED', { title, shortDescription: descriptions[title] }))));
+        harness.state.scanReports.set(accountToken, 'Complete');
+    }
+    assert.deepEqual(planOf(harness), ['Big@card-a', 'Small@card-a', 'Points@card-b']);
+    harness.state.rewardFilter = { minRate: 5, minTotal: 0 };
+    assert.deepEqual(planOf(harness), ['Big@card-a', 'Points@card-b'], 'an unknown points reward is kept');
+    harness.state.rewardFilter = { minRate: 0, minTotal: 30 };
+    assert.deepEqual(planOf(harness), ['Small@card-a', 'Points@card-b'], 'no cap listed means no known total');
+});

@@ -3,7 +3,8 @@ function renderOffers() {
     const container = state.panel.getElementById('offers');
     container.replaceChildren();
     const search = state.search;
-    const visible = state.offers.filter(offer => state.selected.has(offer.accountId)).filter(offer => hubMatchesSearch(offer, search));
+    const visible = hubApplyRewardFilter(state.panel, state.offers.filter(offer => state.selected.has(offer.accountId))
+        .filter(offer => hubMatchesSearch(offer, search)), state);
     if (!visible.length) {
         const note = document.createElement('p');
         note.className = 'muted hub-empty-note';
@@ -13,7 +14,7 @@ function renderOffers() {
     }
     for (const offer of visible.slice(0, 200)) {
         const card = state.accounts.find(account => account.accountId === offer.accountId);
-        container.appendChild(hubOfferRow({ merchant: offer.merchant, title: offer.title, status: hubOfferStatusLabel(offer.status),
+        container.appendChild(hubOfferRow({ merchant: offer.merchant, title: offer.title, status: hubOfferStatusLabel(offer.status), reward: offer.reward,
             meta: [card?.name || 'Card', hubOfferExpiry(offer.expires)] }));
     }
     if (visible.length > 200) {
