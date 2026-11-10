@@ -7,20 +7,20 @@ function renderOffers() {
     const container = state.panel.getElementById('offers');
     container.replaceChildren();
     const search = state.search;
-    const visible = hubApplyRewardFilter(state.panel, state.offers.filter(offer => state.selected.has(offer.accountId))
-        .filter(offer => hubMatchesSearch(offer, search)), state);
+    const view = hubOfferListView(state.panel, state.offers.filter(offer => state.selected.has(offer.accountId))
+        .filter(offer => hubMatchesSearch(offer, search)).map(offer => {
+            const addOnChase = !state.needsScan && ['NEW', 'SERVED'].includes(offer.status) && !offer.activationParameters;
+            const status = addOnChase ? 'Add on Chase' : offer.status === 'SERVED' ? 'Available' : hubOfferStatusLabel(offer.status);
+            return { offer, status, addOnChase, reward: offer.reward ?? null, group: hubOfferListGroup(status) };
+        }), state);
+    const visible = view.items;
     if (!visible.length) {
-        const note = document.createElement('p');
-        note.className = 'muted hub-empty-note';
-        note.textContent = search.trim() ? 'No offers match your search.'
-            : state.selected.size ? 'No saved offers on these cards. Use Refresh & add offers.' : 'Your selected cards’ offers will appear here.';
-        container.appendChild(note);
+        hubShowEmptyNote(container, view.emptyMessage || (search.trim() ? 'No offers match your search.'
+            : state.selected.size ? 'No saved offers on these cards. Use Refresh & add offers.' : 'Your selected cards’ offers will appear here.'));
     }
-    for (const offer of visible.slice(0, 200)) {
+    for (const { offer, status, addOnChase, reward } of visible.slice(0, 200)) {
         const card = state.accounts.find(account => account.accountId === offer.accountId);
-        const addOnChase = !state.needsScan && ['NEW', 'SERVED'].includes(offer.status) && !offer.activationParameters;
-        const statusLabel = addOnChase ? 'Add on Chase' : offer.status === 'SERVED' ? 'Available' : hubOfferStatusLabel(offer.status);
-        container.appendChild(hubOfferRow({ merchant: offer.merchant, title: offer.title, status: statusLabel, reward: offer.reward,
+        container.appendChild(hubOfferRow({ merchant: offer.merchant, title: offer.title, status, reward,
             meta: [card ? chaseCardDisplayName(card) : 'Card', addOnChase ? 'Click details unavailable' : '', hubOfferExpiry(offer.expires)] }));
     }
     if (visible.length > 200) {

@@ -10,20 +10,27 @@ const OFFERS = [
     offer('101', { merchant_name: 'Example Percent', reward_type: 'PERCENTAGE', reward_value: 0, reward_rate: 9 }),
     offer('102', { merchant_name: 'Example Fixed', reward_type: 'FIXED', reward_value: 15, reward_rate: 0, headline: 'Earn $15 cash back when you spend $75 at Example!' }),
     offer('103', { merchant_name: 'Example Small', reward_type: 'PERCENTAGE', reward_value: 0, reward_rate: 2 }),
-    offer('104', { merchant_name: 'Example Unknown' })
+    offer('104', { merchant_name: 'Example Unknown' }),
+    offer('105', { merchant_name: 'Example Added', reward_type: 'PERCENTAGE', reward_value: 0, reward_rate: 10, is_activated: true })
 ];
+const SCREENSHOTS = resolve(__dirname, '../../work/browser');
 
-async function openDeals(page, requests, errors) {
+async function openDeals(page, errors) {
     await page.goto('https://deals.merchant-rewards.com/');
     await page.addScriptTag({ content: source() });
-    await page.getByRole('group', { name: 'Hide small offers' }).waitFor();
+    await page.getByRole('radiogroup', { name: 'Show offers' }).waitFor();
     assert.deepEqual(errors, []);
-    return { rate: page.getByRole('spinbutton', { name: 'Hide offers under this percent back' }),
-        total: page.getByRole('spinbutton', { name: 'Hide offers under this total cash back in dollars' }) };
+    return {
+        total: page.getByRole('combobox', { name: 'Minimum total cash back' }),
+        rate: page.getByRole('combobox', { name: 'Minimum percent back' }),
+        sort: page.getByRole('combobox', { name: 'Sort offers' }),
+        keep: page.getByRole('checkbox', { name: 'Keep offers with no listed value' }),
+        tab: name => page.getByRole('radio', { name })
+    };
 }
-async function shownMerchants(page) {
-    return page.locator('#offers .offer-merchant').allInnerTexts();
-}
+const shownMerchants = page => page.locator('#offers .offer-merchant').allInnerTexts();
+const summary = page => page.locator('#hub-view-summary').innerText();
+const tabCounts = page => page.locator('.hub-view-count').allInnerTexts();
 
 async function main() {
     const browser = await chromium.launch({ headless: true });
@@ -60,60 +67,83 @@ async function main() {
             await route.fulfill({ status: response.status, contentType: 'application/json', body: await response.text() });
         });
 
-        let controls = await openDeals(page, requests, errors);
+        let controls = await openDeals(page, errors);
         await page.clock.runFor(60000);
-        assert.equal(requests.length, 0, 'the filter sends nothing on its own');
+        assert.equal(requests.length, 0, 'the list options send nothing on their own');
         await page.getByRole('button', { name: 'Scan offers', exact: true }).click();
         for (let turn = 0; turn < 60 && !/Scan complete/.test(await page.getByRole('status').innerText()); turn++) await page.clock.runFor(1000);
-        const list = await page.locator('#offers').innerText();
-        for (const text of ['9% back · no cap listed', '$15 back on $75 (20%)', '2% back · no cap listed']) assert.ok(list.includes(text), text);
-        assert.deepEqual(await shownMerchants(page), ['Example Percent', 'Example Fixed', 'Example Small', 'Example Unknown']);
+
+        // To add is the default tab, best value first, every row shows its value.
+        assert.equal(await controls.tab('Show offers to add').isChecked(), true);
+        assert.deepEqual(await tabCounts(page), ['4', '1', '5']);
+        assert.deepEqual(await shownMerchants(page), ['Example Fixed', 'Example Percent', 'Example Small', 'Example Unknown']);
+        assert.deepEqual(await page.locator('#offers .offer-worth').allInnerTexts(),
+            ['$15 back on $75 (20%)', '9% back · no cap listed', '2% back · no cap listed', 'No listed value']);
+        assert.equal(await controls.keep.isVisible(), false, 'the unlisted option appears only with a minimum');
 
         const scanned = requests.length;
         await page.getByRole('checkbox', { name: 'Confirm activation for current Deals profile' }).check();
-        await controls.rate.fill('5');
-        assert.deepEqual(await shownMerchants(page), ['Example Percent', 'Example Fixed', 'Example Unknown']);
-        assert.equal(await page.locator('#hub-reward-note').innerText(), '1 small offer hidden and skipped by Add. Clear the filter to add them.');
-        await controls.total.fill('20');
-        assert.deepEqual(await shownMerchants(page), ['Example Percent', 'Example Unknown'], 'no cap and unknown values stay visible');
-        assert.equal(await page.locator('#hub-reward-note').innerText(), '2 small offers hidden and skipped by Add. Clear the filter to add them.');
-        assert.match(await page.locator('#add').innerText(), /\(2\)/, 'Add all counts only the offers still shown');
-        assert.equal(requests.length, scanned, 'filtering is local');
+        await controls.rate.selectOption({ label: 'Rate 5%+' });
+        assert.deepEqual(await shownMerchants(page), ['Example Fixed', 'Example Percent', 'Example Unknown']);
+        assert.equal(await summary(page), '1 offer below your minimum is hidden; Add skips it. 1 offer with no listed value is kept.');
+        assert.match(await page.locator('#add').innerText(), /\(3\)/);
+        await controls.total.selectOption({ label: 'Total $20+' });
+        assert.deepEqual(await shownMerchants(page), ['Example Percent', 'Example Unknown'], 'no cap listed counts as no listed total');
+        assert.equal(await summary(page), '2 offers below your minimum are hidden; Add skips them. 2 offers with no listed value are kept.');
+        assert.deepEqual(await tabCounts(page), ['2', '1', '3']);
+        assert.match(await page.locator('#add').innerText(), /\(2\)/, 'Add counts only the offers still shown');
+        mkdirSync(SCREENSHOTS, { recursive: true });
+        await page.screenshot({ path: resolve(SCREENSHOTS, 'offer-view.png') });
+
+        await controls.keep.uncheck();
+        assert.deepEqual(await shownMerchants(page), []);
+        assert.equal(await page.locator('#offers .hub-empty-note').innerText(), 'All 4 offers here are hidden by your minimum value. Lower it to see them.');
+        assert.equal(await page.locator('#hub-action-reason').innerText(), 'Your minimum value hides all 4 offers you could add. Lower it below to add them.');
+        assert.equal(await page.locator('#add').isDisabled(), true);
+        await controls.keep.check();
+        assert.equal(requests.length, scanned, 'list options are local');
+
         await page.getByRole('button', { name: 'Add all offers', exact: true }).click();
         for (let turn = 0; turn < 120 && !/Finished/.test(await page.getByRole('status').innerText()); turn++) await page.clock.runFor(1000);
         assert.match(await page.getByRole('status').innerText(), /Finished: 2 of 2 added\./);
         assert.deepEqual(requests.filter(request => request.method === 'PUT').map(request => request.path),
             ['/api/activate-offer/101', '/api/activate-offer/104'], 'Add all skips the hidden small offers');
+        assert.equal(await page.locator('#offers .hub-empty-note').innerText(), 'All 2 offers here are hidden by your minimum value. Lower it to see them.');
+        assert.deepEqual(await tabCounts(page), ['0', '3', '3']);
+        await controls.tab('Show all offers').check();
+        assert.deepEqual(await shownMerchants(page), ['Example Added', 'Example Percent', 'Example Unknown']);
         const added = requests.length;
-        mkdirSync(resolve(__dirname, '../../work/browser'), { recursive: true });
-        await controls.total.fill('');
-        await page.screenshot({ path: resolve(__dirname, '../../work/browser/reward-filter.png') });
-        await controls.total.fill('20');
 
         await page.reload();
-        controls = await openDeals(page, requests, errors);
+        controls = await openDeals(page, errors);
         await page.clock.runFor(60000);
         assert.equal(requests.length, added, 'reload restores without requests');
-        assert.equal(await controls.rate.inputValue(), '5');
         assert.equal(await controls.total.inputValue(), '20');
-        assert.deepEqual(await shownMerchants(page), ['Example Percent', 'Example Unknown'], 'saved rewards filter restored offers');
-        assert.ok((await page.locator('#offers').innerText()).includes('9% back · no cap listed'));
+        assert.equal(await controls.rate.inputValue(), '5');
+        assert.equal(await controls.tab('Show all offers').isChecked(), true);
+        assert.deepEqual(await shownMerchants(page), ['Example Added', 'Example Percent', 'Example Unknown'], 'saved options and rewards restored');
 
-        await controls.rate.fill('');
-        await controls.total.fill('');
-        assert.equal(await page.locator('.offer').count(), 4);
-        assert.equal(await page.locator('#hub-reward-note').isHidden(), true);
-        assert.match(await page.locator('#add').innerText(), /\(2\)/, 'clearing the filter offers the skipped ones next');
+        await controls.total.selectOption({ label: 'Any total' });
+        await controls.rate.selectOption({ label: 'Any rate' });
+        assert.equal(await controls.keep.isVisible(), false);
+        assert.equal(await page.locator('#hub-view-summary').isHidden(), true);
+        await controls.tab('Show offers to add').check();
+        assert.deepEqual(await shownMerchants(page), ['Example Fixed', 'Example Small'], 'clearing the minimum brings the skipped offers back');
+        assert.match(await page.locator('#add').innerText(), /\(2\)/);
+        await controls.sort.selectOption({ label: 'Bank order' });
+        await controls.tab('Show all offers').check();
+        assert.deepEqual(await shownMerchants(page), ['Example Percent', 'Example Fixed', 'Example Small', 'Example Unknown', 'Example Added']);
 
         await page.setViewportSize({ width: 320, height: 700 });
         const overflow = await page.evaluate(() => {
             const panel = document.getElementById('bofa-offer-lite').shadowRoot.querySelector('.panel');
             return panel.scrollWidth - panel.clientWidth;
         });
-        assert.ok(overflow <= 0, `filter fits a 320px viewport (overflow ${overflow}px)`);
+        assert.ok(overflow <= 0, `list options fit a 320px viewport (overflow ${overflow}px)`);
+        await page.screenshot({ path: resolve(SCREENSHOTS, 'offer-view-320.png') });
         assert.deepEqual(errors, []);
         await context.close();
-        console.log('PASS: reward values on rows, small-offer filter by percent and total, unknown values kept, Add all skips hidden offers, saved filter and rewards after reload, filtering sends no requests, 320px width.');
+        console.log('PASS: To add / Added / All tabs with counts, best-value sort, value on every row, minimums with summary, unlisted values kept or hidden, Add skips hidden offers and explains a 0 count, saved options after reload, local-only, 320px width.');
     } finally { await browser.close(); }
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

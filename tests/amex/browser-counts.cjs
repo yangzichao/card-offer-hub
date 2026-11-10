@@ -5,6 +5,7 @@ const { resolve } = require('node:path');
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE_PATH || 'playwright');
 const { rawOffer, hubResponse, confirmation } = require('./fixtures/synthetic-offers.cjs');
 const { createBrowserStorageFixture } = require('./helpers/browser-storage.cjs');
+const { showAllOffers } = require('../helpers/browser-offer-view.cjs');
 
 const SHARED_SETTLED_TITLE = 'Xero · shared synthetic offer';
 const SHARED_OPEN_TITLE = 'Acme · shared synthetic offer';
@@ -80,6 +81,7 @@ async function run() {
         assert.match(await page.locator('.card').filter({ hasText: 'Test card 0' }).textContent(), /3 eligible · 0 added · 3 total/);
         assert.match(await page.locator('.card').filter({ hasText: 'Test card 3' }).textContent(), /2 eligible · 0 added · 2 total/);
         assert.match(await page.locator('.card').filter({ hasText: 'Test card 6' }).textContent(), /0 eligible · 1 added · 1 total/);
+        await showAllOffers(page);
         assert.equal(await page.locator('.offer').count(), 3);
         assert.match(await page.locator('#offer-summary').textContent(), /3 distinct offers · 3 eligible · 2 planned on one card each · 5 eligible cards/);
 

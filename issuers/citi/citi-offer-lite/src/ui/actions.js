@@ -25,6 +25,7 @@ function renderCitiActions(panel) {
         : !hasCards ? ''
         : savedOffersBlockReason() ? savedOffersBlockReason()
         : savedOffersReviewNotice() ? savedOffersReviewNotice()
+        : !savedCount && offerWorkflow.skippedCount() ? hubSkippedOffersReason(offerWorkflow.skippedCount())
         : !savedCount ? 'No saved offers left to add. Refresh & add offers checks for new ones.'
         : '';
     reason.hidden = !reason.textContent;

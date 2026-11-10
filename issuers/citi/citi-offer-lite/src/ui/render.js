@@ -3,18 +3,19 @@ function renderOffers() {
     const container = state.panel.getElementById('offers');
     container.replaceChildren();
     const search = state.search;
-    const visible = hubApplyRewardFilter(state.panel, state.offers.filter(offer => state.selected.has(offer.accountId))
-        .filter(offer => hubMatchesSearch(offer, search)), state);
+    const view = hubOfferListView(state.panel, state.offers.filter(offer => state.selected.has(offer.accountId))
+        .filter(offer => hubMatchesSearch(offer, search)).map(offer => {
+            const status = hubOfferStatusLabel(offer.status);
+            return { offer, status, reward: offer.reward ?? null, group: hubOfferListGroup(status) };
+        }), state);
+    const visible = view.items;
     if (!visible.length) {
-        const note = document.createElement('p');
-        note.className = 'muted hub-empty-note';
-        note.textContent = search.trim() ? 'No offers match your search.'
-            : state.selected.size ? 'No saved offers on these cards. Use Refresh & add offers.' : 'Your selected cards’ offers will appear here.';
-        container.appendChild(note);
+        hubShowEmptyNote(container, view.emptyMessage || (search.trim() ? 'No offers match your search.'
+            : state.selected.size ? 'No saved offers on these cards. Use Refresh & add offers.' : 'Your selected cards’ offers will appear here.'));
     }
-    for (const offer of visible.slice(0, 200)) {
+    for (const { offer, status, reward } of visible.slice(0, 200)) {
         const card = state.accounts.find(account => account.accountId === offer.accountId);
-        container.appendChild(hubOfferRow({ merchant: offer.merchant, title: offer.title, status: hubOfferStatusLabel(offer.status), reward: offer.reward,
+        container.appendChild(hubOfferRow({ merchant: offer.merchant, title: offer.title, status, reward,
             meta: [card?.name || 'Card', hubOfferExpiry(offer.expires)] }));
     }
     if (visible.length > 200) {

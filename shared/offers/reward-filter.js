@@ -1,47 +1,34 @@
-// The small-offer filter. It hides rows from the list, and the Add actions skip
-// what it hides (banks pass it to createHubWorkflow as keepInPlan). An offer whose
-// rate or total is unknown is never hidden by that threshold, so nothing
-// disappears because a bank left it out.
-const HUB_REWARD_FILTER_READ_ERROR = 'Saved filter could not be read and was kept. Changes apply to this visit only.';
-function hubNormalizeRewardFilter(value) {
+// The small-offer filter and the other list options of one bank's panel.
+// minTotal / minRate: the list hides offers below them and every Add action skips
+// them (banks pass hubRewardPassesFilter to createHubWorkflow as keepInPlan).
+// An offer whose value the bank does not list is kept unless keepUnlisted is off,
+// so nothing disappears silently because a bank left a number out.
+// sort and show only change the list, never what Add takes.
+const HUB_OFFER_VIEW_SORTS = ['value', 'rate', 'bank'];
+const HUB_OFFER_VIEW_TABS = ['available', 'added', 'all'];
+function hubNormalizeOfferView(value) {
     const read = number => typeof number === 'number' && Number.isFinite(number) && number > 0 ? number : 0;
-    return { minRate: Math.min(read(value?.minRate), 100), minTotal: read(value?.minTotal) };
-}
-// A missing filter (panel not mounted yet) hides nothing.
-function hubRewardPassesFilter(reward, filter) {
-    filter = hubNormalizeRewardFilter(filter);
-    const rate = hubRewardRate(reward);
-    const total = hubRewardTotal(reward);
-    if (filter.minRate > 0 && rate !== null && rate < filter.minRate) return false;
-    if (filter.minTotal > 0 && total !== null && total < filter.minTotal) return false;
-    return true;
-}
-// One small key per bank: { schemaVersion: 1, minRate, minTotal }. An unreadable
-// value is preserved and the filter works for this visit only.
-function createHubRewardFilterStore({ storage, storageKey }) {
-    let readFailed = false;
     return {
-        load() {
-            try {
-                const saved = storage.get(storageKey, null);
-                if (saved === null) return { filter: hubNormalizeRewardFilter(null), error: '' };
-                if (saved?.schemaVersion !== 1 || typeof saved.minRate !== 'number' || typeof saved.minTotal !== 'number') {
-                    throw new Error('Unsupported saved filter');
-                }
-                return { filter: hubNormalizeRewardFilter(saved), error: '' };
-            } catch {
-                readFailed = true;
-                return { filter: hubNormalizeRewardFilter(null), error: HUB_REWARD_FILTER_READ_ERROR };
-            }
-        },
-        save(filter) {
-            if (readFailed) return HUB_REWARD_FILTER_READ_ERROR;
-            try {
-                storage.set(storageKey, { schemaVersion: 1, ...hubNormalizeRewardFilter(filter) });
-                return '';
-            } catch {
-                return 'Filter could not be saved. It applies to this visit only.';
-            }
-        }
+        minRate: Math.min(read(value?.minRate), 100), minTotal: read(value?.minTotal),
+        keepUnlisted: value?.keepUnlisted !== false,
+        sort: HUB_OFFER_VIEW_SORTS.includes(value?.sort) ? value.sort : 'value',
+        show: HUB_OFFER_VIEW_TABS.includes(value?.show) ? value.show : 'available'
     };
+}
+function hubOfferViewHasMinimum(view) {
+    return view.minRate > 0 || view.minTotal > 0;
+}
+// 'shown', 'kept-unlisted', 'hidden-small' or 'hidden-unlisted'.
+function hubRewardFilterVerdict(reward, view) {
+    view = hubNormalizeOfferView(view);
+    const checks = [];
+    if (view.minRate > 0) checks.push([hubRewardRate(reward), view.minRate]);
+    if (view.minTotal > 0) checks.push([hubRewardTotal(reward), view.minTotal]);
+    if (checks.some(([value, minimum]) => value !== null && value < minimum)) return 'hidden-small';
+    if (checks.some(([value]) => value === null)) return view.keepUnlisted ? 'kept-unlisted' : 'hidden-unlisted';
+    return 'shown';
+}
+// A missing view (panel not mounted yet) hides nothing.
+function hubRewardPassesFilter(reward, view) {
+    return !hubRewardFilterVerdict(reward, view).startsWith('hidden');
 }

@@ -112,8 +112,8 @@ test('Add skips offers the small-offer filter hides, and a hidden shared offer n
         harness.state.scanReports.set(accountToken, 'Complete');
     }
     assert.deepEqual(planOf(harness), ['Big@card-a', 'Small@card-a', 'Points@card-b']);
-    harness.state.rewardFilter = { minRate: 5, minTotal: 0 };
+    harness.state.offerView = { minRate: 5, minTotal: 0 };
     assert.deepEqual(planOf(harness), ['Big@card-a', 'Points@card-b'], 'an unknown points reward is kept');
-    harness.state.rewardFilter = { minRate: 0, minTotal: 30 };
+    harness.state.offerView = { minRate: 0, minTotal: 30 };
     assert.deepEqual(planOf(harness), ['Small@card-a', 'Points@card-b'], 'no cap listed means no known total');
 });

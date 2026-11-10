@@ -47,6 +47,17 @@ test('US Bank reads ad.reward and ignores its 0.2 "any purchase" minimum', () =>
     ]);
 });
 
+// GraphQL returns only the fields a query asks for. 1.9.0 read these but never
+// asked for them, so every live US Bank offer had no value.
+test('US Bank asks GraphQL for every reward field it reads', async () => {
+    const harness = usbank.createHarness(usbank.successfulResponder());
+    await harness.scanOffers();
+    const query = harness.requests[0].body.query;
+    for (const field of ['rewardType', 'rewardAmount', 'maxRewardAmount', 'minSpendAmount', 'activationModel', 'merchantUrlLinkClickRequired']) {
+        assert.match(query, new RegExp(`\\b${field}\\b`), field);
+    }
+});
+
 test('Wells Fargo reads amountType and dealAmount, and the cap from its long description', () => {
     const harness = wells.createHarness();
     const offers = harness.normalizeOffers(wells.listing([
@@ -90,7 +101,7 @@ test('Deals reads reward_type with reward_value or reward_rate, not the headline
     }
 });
 
-test('Amex reads three description phrasings and leaves points and other wording unknown', () => {
+test('Amex reads its description phrasings and leaves points and other wording unknown', () => {
     const { amexOfferReward } = createUserscriptHarness();
     const cases = [
         ['Spend $100 or more, earn $20 back', reward('fixed', 20, null, 100)],
@@ -100,6 +111,14 @@ test('Amex reads three description phrasings and leaves points and other wording
         ['Earn 10% back on qualifying concessions purchases, up to $250 per calendar year', reward('percent', 10, 250)],
         ['Earn 5% back on purchases, up to a total of $1,000', reward('percent', 5, 1000)],
         ['Earn 20% back on your purchase', reward('percent', 20)],
+        ['Spend $1,000 or more, earn $200', reward('fixed', 200, null, 1000)],
+        ['Spend $98 on Walmart+ Annual Membership, earn $49 back', reward('fixed', 49, null, 98)],
+        ['Spend $50 or more, earn $10 back on your next purchase', reward('fixed', 10, null, 50)],
+        ['Spend $325 or more, earn $35 back, up to 2 times (total of $70).', reward('fixed', 35, 70, 325)],
+        ['Spend $150 or more, earn 20% back', reward('percent', 20, null, 150)],
+        ['Spend $40 or more, earn 25% back, up to a total of $30', reward('percent', 25, 30, 40)],
+        ['Spend $50 or more, earn $5 per night', null],
+        ['Spend $2,500 or more, earn 50,000 Membership Rewards® points, up to 3 times', null],
         ['Spend $1,000 or more, earn 10,000 Membership Rewards® points', null],
         ['Earn +4 Membership Rewards® points per eligible dollar spent', null],
         ['', null]

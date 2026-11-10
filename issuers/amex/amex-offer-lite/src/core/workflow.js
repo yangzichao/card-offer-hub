@@ -1,7 +1,7 @@
 const offerWorkflow = createHubWorkflow({
     type: SETTINGS.workflow, capabilities: SETTINGS.capabilities,
     // Add skips offers the small-offer filter hides; Amex states the reward only in its description.
-    keepInPlan: record => hubRewardPassesFilter(amexOfferReward(record.source.description), state.rewardFilter),
+    keepInPlan: record => hubRewardPassesFilter(amexOfferReward(record.source.description), state.offerView),
     readContext: () => ({ selectedCardIds: selectedAccounts().map(account => account.token),
         priorityCardIds: prioritizedAccounts().map(account => account.token) }),
     readRecords: () => selectedAccounts().flatMap(account => (state.offersByAccount.get(account.token) || []).map(offer => ({

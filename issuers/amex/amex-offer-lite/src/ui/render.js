@@ -11,7 +11,7 @@ function renderControls() {
     const scan = uiElement('btn-scan');
     scan.disabled = Boolean(state.busy) || !state.detected || !selectedAccounts().length || coolingDown || Boolean(state.storageError);
     hubSetActionLabel(scan, 'Scan offers');
-    renderHubWorkflow(panelRoot.shadowRoot, { template: offerWorkflow, readOnly: !SETTINGS.capabilities.activation, count: enrollmentPlan().length,
+    renderHubWorkflow(panelRoot.shadowRoot, { template: offerWorkflow, readOnly: !SETTINGS.capabilities.activation, count: enrollmentPlan().length, skipped: offerWorkflow.skippedCount(),
         hasScope: selectedAccounts().length > 0, busy: Boolean(state.busy), coolingDown,
         storageError: state.storageError || state.savedCardsError || state.savedOffersError,
         needsScan: selectedAccounts().length > 0 && !selectedAccounts().some(account => state.scanReports.get(account.token)?.startsWith('Complete')),

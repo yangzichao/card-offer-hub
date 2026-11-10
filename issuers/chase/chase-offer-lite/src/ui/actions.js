@@ -27,6 +27,7 @@ function renderChaseActions(panel) {
         : coolingDown ? 'Chase is asking us to wait. Try again after the cooldown.'
         : !hasSelection ? 'Choose at least one card above. Your choices stay saved.'
         : unresolved ? `${unresolved} offer(s) need review and will be skipped. Other saved offers can continue. Use Refresh & add offers to check them.`
+        : !savedCount && offerWorkflow.skippedCount() ? hubSkippedOffersReason(offerWorkflow.skippedCount())
         : !savedCount ? 'No saved offers left to add. Refresh & add offers checks for new ones.' : '';
     reason.hidden = !reason.textContent;
     hubRenderTaskProgress(panel, { busy: Boolean(state.busy), completed: state.completed, total: state.total });

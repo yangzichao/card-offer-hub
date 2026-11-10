@@ -27,7 +27,7 @@
 
 五个 workspace 使用各自的 `${script-id}:workspace`。工作流模板引入后，结果从 schema 1 显式前向迁移至 `schemaVersion: 2`，增加 `workflowType`；读取时保留旧值，下一次明确保存才写入新格式。它们复用小型共享读写/验证模块，每个银行声明自己的字段白名单，不直接序列化整个 state。
 
-Amex 以外五家的 workspace 优惠记录有可选字段 `reward`（1.9.0 起），旧存档没有时读作未知，schema 版本不变；每家另有 `${script-id}:reward-filter` schema 1 保存小额筛选门槛。见[优惠金额与小额筛选](offer-reward-filter.md)。
+Amex 以外五家的 workspace 优惠记录有可选字段 `reward`（1.9.0 起），旧存档没有时读作未知，schema 版本不变；每家另有 `${script-id}:reward-filter` 保存列表选项（最低金额、无标价开关、排序、tab），1.10.0 起是 schema 2，1.9.0 的 schema 1 读取时前向迁移。见[优惠金额与小额筛选](offer-reward-filter.md)。
 
 Amex 以外的五个银行另有 `${script-id}:offer-details` schema 1，保存扫描带回的详情和条款，只在完整扫描结束时写一次；Citi 不保存全文。格式和读写规则见[优惠导出与本地 AI 读取](offer-export.md)。
 

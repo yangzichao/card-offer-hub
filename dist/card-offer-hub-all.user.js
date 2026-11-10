@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Card Offer Hub — All Banks
 // @namespace    https://github.com/yangzichao/card-offer-hub
-// @version      1.9.0
+// @version      1.10.0
 // @description  All seven Card Offer Hub tools in one install; manual scanning and activation on the matching bank or store website
 // @author       Zichao Yang
 // @match        https://*.americanexpress.com/*
@@ -69,10 +69,10 @@
     .hub-search-field{position:relative;margin:12px 0 0}.hub-search-field::before{content:'';position:absolute;left:11px;top:11px;width:14px;height:14px;background:var(--hub-muted);-webkit-mask:var(--hub-search-icon) center/contain no-repeat;mask:var(--hub-search-icon) center/contain no-repeat;pointer-events:none}
     input[type=search]{width:100%;height:36px;padding:0 12px 0 32px;border:1px solid var(--hub-line-strong);border-radius:var(--hub-radius-sm);background:var(--hub-canvas);color:var(--hub-ink);-webkit-appearance:none;appearance:none}input[type=search]:hover{border-color:var(--hub-muted)}input[type=search]:focus{background:var(--hub-surface)}input[type=search]::-webkit-search-cancel-button{-webkit-appearance:none;display:none}.hub-search-field:has(.hub-clear-search:not([hidden]))>input{padding-right:92px}
     .hub-clear-search{position:absolute;right:4px;top:4px;height:28px;min-height:28px;padding:0 8px;border-color:transparent;background:transparent;color:var(--hub-muted);font-size:11.5px}.hub-clear-search:not(:disabled):hover{border-color:transparent;color:var(--hub-ink)}
-    .hub-search-rule{font-size:11.5px;margin:6px 0 0}.hub-reward-filter{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin:8px 0 0;font-size:12px;color:var(--hub-ink-soft)}.hub-reward-input{display:inline-flex;align-items:center;gap:4px}.hub-reward-input input{width:58px;height:28px;padding:0 6px;border:1px solid var(--hub-line-strong);border-radius:var(--hub-radius-sm);background:var(--hub-canvas);color:var(--hub-ink);font:inherit;font-variant-numeric:tabular-nums}.hub-reward-note{margin:6px 0 0;font-size:11.5px}.hub-counts{margin:10px 0 0;font-size:12px;font-variant-numeric:tabular-nums}
+    .hub-search-rule{font-size:11.5px;margin:6px 0 0}.hub-view{margin:10px 0 0}.hub-view [hidden]{display:none}.hub-view-tabs{display:flex;gap:2px;padding:2px;border:1px solid var(--hub-line);border-radius:10px;background:var(--hub-canvas)}.hub-view-tab{position:relative;flex:1 1 0;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:0;min-height:30px;padding:3px 6px;border-radius:8px;color:var(--hub-ink-soft);font-size:12px;font-weight:550;white-space:nowrap;cursor:pointer}.hub-view-tab:hover{color:var(--hub-ink)}.hub-view-tab input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer}.hub-view-tab:has(input:checked){background:var(--hub-surface);color:var(--hub-ink);box-shadow:0 1px 2px #16181c1f,0 0 0 1px var(--hub-line)}.hub-view-tab:has(input:focus-visible){outline:2px solid var(--hub-accent);outline-offset:1px}.hub-view-count{min-width:18px;padding:0 5px;border-radius:99px;background:var(--hub-hover);color:var(--hub-muted);font-size:11px;line-height:1.5;font-variant-numeric:tabular-nums;text-align:center}.hub-view-tab:has(input:checked) .hub-view-count{background:var(--hub-tint);color:var(--hub-accent-strong)}.hub-view-options{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0}.hub-view-options select{flex:1 1 96px;min-width:0;min-height:30px;padding:3px 8px;font-size:12px;cursor:pointer}.hub-view-keep{display:flex;align-items:center;gap:7px;margin:8px 0 0;font-size:12px;color:var(--hub-ink-soft);cursor:pointer}.hub-view-keep input{margin:0}.hub-view-summary{margin:6px 0 0;font-size:11.5px}.hub-counts{margin:10px 0 0;font-size:12px;font-variant-numeric:tabular-nums}
     .hub-selection-bar{align-items:center;gap:4px;margin:10px 0 0;padding:4px;border:1px solid var(--hub-line);border-radius:10px;background:var(--hub-canvas)}.hub-selection-bar>button{min-height:30px;padding:4px 10px;font-size:12px;border-color:transparent;background:transparent}.hub-selection-bar>button:first-child{margin-right:auto;background:var(--hub-surface);border-color:var(--hub-line-strong)}.hub-selection-bar>button:disabled{background:transparent;border-color:transparent}.hub-selection-bar>button:first-child:disabled{border-color:var(--hub-line)}
     .offers{margin:6px 0 0}.offer{display:block;padding:11px 0;border-bottom:1px solid var(--hub-line);overflow-wrap:anywhere}.offer:last-child{border-bottom:0}.offer-row{display:flex;align-items:flex-start;gap:10px}label.offer{cursor:pointer}.offer-body{min-width:0;flex:1}
-    .offer-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.offer-merchant{font-weight:600}.offer-value{margin-top:1px;color:var(--hub-ink-soft)}.offer-reward{margin-top:2px;color:var(--hub-accent-strong);font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}.offer small{display:block;margin-top:3px;color:var(--hub-muted);font-size:11.5px}
+    .offer-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.offer-merchant{font-weight:600}.offer-value{margin-top:1px;color:var(--hub-ink-soft)}.offer-worth{display:inline-block;margin-top:4px;padding:1px 7px;border-radius:6px;background:var(--hub-tint);color:var(--hub-accent-strong);font-size:12px;font-weight:650;font-variant-numeric:tabular-nums}.offer-worth.unlisted{background:var(--hub-canvas);color:var(--hub-muted);font-weight:500}.offer small{display:block;margin-top:3px;color:var(--hub-muted);font-size:11.5px}
     .offer-status,.badge{display:inline-flex;align-items:center;gap:5px;flex:none;padding:1px 8px;border:1px solid var(--hub-line);border-radius:99px;background:var(--hub-surface);color:var(--hub-ink-soft);font-size:11px;font-weight:550;line-height:1.6;white-space:nowrap}
     .offer-status.available::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--hub-accent)}.offer-status.added,.badge.enrolled{background:var(--hub-tint);border-color:var(--hub-accent-line);color:var(--hub-accent-strong)}.offer-status.review,.badge.unconfirmed,.badge.failed{background:var(--hub-warn-bg);border-color:var(--hub-warn-line);color:var(--hub-warn-ink)}.offer-status.skipped{border-color:transparent;background:var(--hub-canvas);color:var(--hub-muted)}
     .offer-title{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;font-weight:600}.offer-title button{flex:none;min-height:28px;padding:3px 10px;font-size:12px}.offer>p{margin:3px 0 0;font-size:12px}.badges{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px}.badge{white-space:normal}
@@ -139,7 +139,7 @@
     }
 
     // Source: shared/ui/workflow-layout.js
-    function hubWorkflowMarkup(scopeMarkup, { bank, template, extraReviewMarkup = '', readOnly = false, rewardFilter = false,
+    function hubWorkflowMarkup(scopeMarkup, { bank, template, extraReviewMarkup = '', readOnly = false, offerView = false,
         scanLabel = 'Scan offers', scanDescription = 'Scan to refresh saved offers. Nothing runs until you click.' } = {}) {
         const view = template.view;
         return `<div class="panel" data-workflow="${template.type}">
@@ -159,7 +159,7 @@
               ${readOnly ? `<p id="enrollment-notice" class="notice">Add offers on the ${bank} website.</p>` : ''}
               <div class="hub-search-field"><input id="search" type="search" aria-label="Search saved offers" placeholder="Search saved offers">
                 <button id="hub-clear-search" class="hub-clear-search" aria-label="Clear search" hidden>Clear search</button></div>
-              ${rewardFilter ? hubRewardFilterMarkup() : ''}
+              ${offerView ? hubOfferViewMarkup() : ''}
               <p class="muted hub-search-rule" hidden>${view.searchRule}</p>
               <p id="counts" class="muted hub-counts"></p>${extraReviewMarkup ? `<div class="actions hub-selection-bar">${extraReviewMarkup}</div>` : ''}
               <div id="offers" class="offers"></div>
@@ -177,11 +177,14 @@
         if (['UNCONFIRMED', 'UNKNOWN', 'FAILED', 'CONFLICT'].includes(status)) return 'Needs review';
         return 'Skipped';
     }
-    function hubShowEmptyOffers(container, query) {
+    function hubShowEmptyNote(container, message) {
         const note = document.createElement('p');
         note.className = 'muted hub-empty-note';
-        note.textContent = query.trim() ? 'No offers match your search. Clear search to view all saved offers in this scope.' : 'No offers in this scope yet. Choose your scope and scan to refresh.';
+        note.textContent = message;
         container.append(note);
+    }
+    function hubShowEmptyOffers(container, query) {
+        hubShowEmptyNote(container, query.trim() ? 'No offers match your search. Clear search to view all saved offers in this scope.' : 'No offers in this scope yet. Choose your scope and scan to refresh.');
     }
     function hubSetActionLabel(control, label, count = null) {
         if (!control) return;
@@ -189,7 +192,7 @@
         control.setAttribute('aria-label', label);
     }
     function renderHubWorkflow(root, { template, count, hasScope = true, needsScan = false, busy = false,
-        storageError = '', readOnly = false, coolingDown = false, progress = null } = {}) {
+        storageError = '', readOnly = false, coolingDown = false, progress = null, skipped = 0 } = {}) {
         const add = root.getElementById('add') || root.getElementById('btn-enroll-all');
         hubSetActionLabel(add, 'Add all offers', busy ? null : count);
         add.disabled = Boolean(busy || storageError || readOnly || coolingDown || !hasScope || needsScan || !count);
@@ -205,6 +208,7 @@
             : coolingDown ? 'Waiting for the bank cooldown. Start again manually when it ends.'
             : !hasScope ? template.view.emptyScope
             : needsScan ? 'Refresh offers before adding.'
+            : !count && skipped ? hubSkippedOffersReason(skipped)
             : !count ? 'No available offers in this scope. Scan again to refresh.'
             : '';
         reason.hidden = !reason.textContent;
@@ -212,6 +216,11 @@
         hubRenderSearchControls(root, readOnly);
     }
 
+    // Add has nothing to do only because the small-offer minimum hides every offer.
+    function hubSkippedOffersReason(skipped) {
+        return skipped === 1 ? 'Your minimum value hides the 1 offer you could add. Lower it below to add it.'
+            : `Your minimum value hides all ${skipped} offers you could add. Lower it below to add them.`;
+    }
     function hubRenderSearchControls(root, readOnly = false) {
         const search = root.getElementById('search') || root.getElementById('input-search');
         const hasQuery = Boolean(search.value.trim());
@@ -219,41 +228,128 @@
         root.querySelector('.hub-search-rule').hidden = !hasQuery || readOnly;
     }
 
-    // Source: shared/ui/reward-filter-controls.js
-    // "Hide under N% back / $N total" controls beside the offer search.
-    function hubRewardFilterMarkup() {
-        return `<div class="hub-reward-filter" role="group" aria-label="Hide small offers"><span>Hide under</span>
-            <label class="hub-reward-input"><input id="hub-min-rate" type="number" min="0" max="100" step="any" inputmode="decimal" placeholder="0" aria-label="Hide offers under this percent back"><span>% back</span></label>
-            <label class="hub-reward-input"><span>$</span><input id="hub-min-total" type="number" min="0" step="any" inputmode="decimal" placeholder="0" aria-label="Hide offers under this total cash back in dollars"><span>total</span></label></div>
-          <p id="hub-reward-note" class="muted hub-reward-note" aria-live="polite" hidden></p>`;
+    // Source: shared/ui/offer-view-controls.js
+    // List options under the offer search: To add / Added / All, the small-offer
+    // minimums, sort, and whether offers with no listed value stay.
+    const HUB_MIN_TOTAL_CHOICES = [5, 10, 20, 50, 100];
+    const HUB_MIN_RATE_CHOICES = [3, 5, 10, 15, 20];
+    const HUB_OFFER_VIEW_TAB_NAMES = { available: 'Show offers to add', added: 'Show added offers', all: 'Show all offers' };
+    function hubOfferViewMarkup() {
+        const tab = (value, label) => `<label class="hub-view-tab"><input type="radio" name="hub-view-show" value="${value}" aria-label="${HUB_OFFER_VIEW_TAB_NAMES[value]}">`
+            + `<span>${label}</span><span class="hub-view-count" data-count="${value}">0</span></label>`;
+        return `<div class="hub-view">
+            <div class="hub-view-tabs" role="radiogroup" aria-label="Show offers">${tab('available', 'To add')}${tab('added', 'Added')}${tab('all', 'All')}</div>
+            <div class="hub-view-options">
+              <select id="hub-min-total" aria-label="Minimum total cash back"></select>
+              <select id="hub-min-rate" aria-label="Minimum percent back"></select>
+              <select id="hub-sort" aria-label="Sort offers"><option value="value">Best value first</option><option value="rate">Highest rate first</option><option value="bank">Bank order</option></select>
+            </div>
+            <label class="hub-view-keep" hidden><input id="hub-keep-unlisted" type="checkbox" aria-label="Keep offers with no listed value">Keep offers with no listed value</label>
+            <p id="hub-view-summary" class="muted hub-view-summary" aria-live="polite" hidden></p>
+          </div>`;
     }
-    function hubBindRewardFilter(root, { state, store, render }) {
+    function hubFillMinimumSelect(select, choices, current, format, anyLabel) {
+        const values = [...new Set([0, ...choices, current])].sort((left, right) => left - right);
+        select.replaceChildren(...values.map(value => {
+            const option = document.createElement('option');
+            option.value = String(value);
+            option.textContent = value ? format(value) : anyLabel;
+            return option;
+        }));
+        select.value = String(current);
+    }
+    function hubBindOfferView(root, { state, store, render }) {
         const loaded = store.load();
-        state.rewardFilter = loaded.filter;
-        state.rewardFilterError = loaded.error;
-        const rate = root.getElementById('hub-min-rate');
+        state.offerView = loaded.view;
+        state.offerViewError = loaded.error;
         const total = root.getElementById('hub-min-total');
-        rate.value = state.rewardFilter.minRate || '';
-        total.value = state.rewardFilter.minTotal || '';
+        const rate = root.getElementById('hub-min-rate');
+        const sort = root.getElementById('hub-sort');
+        const keep = root.getElementById('hub-keep-unlisted');
+        const tabs = [...root.querySelectorAll('input[name="hub-view-show"]')];
+        const showView = view => {
+            hubFillMinimumSelect(total, HUB_MIN_TOTAL_CHOICES, view.minTotal, value => `Total ${hubFormatRewardDollars(value)}+`, 'Any total');
+            hubFillMinimumSelect(rate, HUB_MIN_RATE_CHOICES, view.minRate, value => `Rate ${hubFormatRewardPercent(value)}+`, 'Any rate');
+            sort.value = view.sort;
+            keep.checked = view.keepUnlisted;
+            keep.closest('label').hidden = !hubOfferViewHasMinimum(view);
+            for (const tab of tabs) tab.checked = tab.value === view.show;
+        };
+        showView(state.offerView);
         const update = () => {
-            state.rewardFilter = hubNormalizeRewardFilter({ minRate: Number(rate.value), minTotal: Number(total.value) });
-            state.rewardFilterError = store.save(state.rewardFilter);
+            state.offerView = hubNormalizeOfferView({ minTotal: Number(total.value), minRate: Number(rate.value), sort: sort.value,
+                keepUnlisted: keep.checked, show: tabs.find(tab => tab.checked)?.value });
+            state.offerViewError = store.save(state.offerView);
+            showView(state.offerView);
             render();
         };
-        rate.addEventListener('input', update);
-        total.addEventListener('input', update);
+        for (const control of [total, rate, sort, keep, ...tabs]) control.addEventListener('change', update);
     }
-    // Returns the offers to show and reports how many the filter hid.
-    function hubApplyRewardFilter(root, offers, state, readReward = offer => offer.reward) {
-        const shown = offers.filter(offer => hubRewardPassesFilter(readReward(offer), state.rewardFilter));
-        const note = root?.getElementById('hub-reward-note');
-        if (note) {
-            const hidden = offers.length - shown.length;
-            note.textContent = [hidden ? `${hidden} small ${hidden === 1 ? 'offer' : 'offers'} hidden and skipped by Add. Clear the filter to add them.` : '',
-                state.rewardFilterError || ''].filter(Boolean).join(' ');
-            note.hidden = !note.textContent;
+
+    // Source: shared/ui/offer-list-view.js
+    // Turns one bank's offers into the list to show: the small-offer filter, the
+    // To add / Added / All tab and the sort. Search and card selection happen before.
+    // items: [{ offer, reward, group: 'available' | 'added' | 'other' }].
+    // Returns the items to render, and when the tab or the filter empties the list,
+    // a sentence saying why.
+    // To add keeps every offer that is not on the card yet and still matters to you:
+    // ones Add can take, ones that need review, and Chase offers you add on Chase.
+    // Only skipped (ineligible, expired, informational) offers wait under All.
+    function hubOfferListGroup(statusLabel) {
+        if (statusLabel === 'Added') return 'added';
+        return ['Available', 'Not added', 'Needs review', 'Add on Chase'].includes(statusLabel) ? 'available' : 'other';
+    }
+    function hubCountOffers(count, noun = 'offer') {
+        return `${count} ${noun}${count === 1 ? '' : 's'}`;
+    }
+    function hubOfferListView(root, items, state) {
+        const view = hubNormalizeOfferView(state.offerView);
+        const judged = items.map(item => ({ ...item, verdict: hubRewardFilterVerdict(item.reward, view) }));
+        const passes = item => !item.verdict.startsWith('hidden');
+        const counts = { available: 0, added: 0, all: 0 };
+        for (const item of judged.filter(passes)) {
+            counts.all++;
+            if (item.group in counts) counts[item.group]++;
         }
-        return shown;
+        const tabItems = judged.filter(item => view.show === 'all' || item.group === view.show);
+        const compare = hubCompareOfferRewards(view.sort);
+        const shown = tabItems.filter(passes).sort((left, right) => compare(left.reward, right.reward));
+        const tally = verdict => tabItems.filter(item => item.verdict === verdict).length;
+        const hidden = { small: tally('hidden-small'), unlisted: tally('hidden-unlisted') };
+        hubRenderOfferViewSummary(root, counts, { hidden, kept: tally('kept-unlisted'), view, error: state.offerViewError || '' });
+        let emptyMessage = '';
+        if (!shown.length && items.length) {
+            const others = counts.all - (view.show === 'all' ? counts.all : counts[view.show]);
+            const elsewhere = others ? ` See All for the other ${hubCountOffers(others)}.` : '';
+            emptyMessage = hidden.small + hidden.unlisted
+                ? `All ${hubCountOffers(hidden.small + hidden.unlisted)} here are hidden by your minimum value. Lower it to see them.`
+                : view.show === 'available' ? `Nothing left to add.${elsewhere}`
+                : view.show === 'added' ? `No added offers yet.${elsewhere}` : '';
+        }
+        return { items: shown, emptyMessage };
+    }
+    function hubRenderOfferViewSummary(root, counts, { hidden, kept, view, error }) {
+        if (!root) return;
+        for (const tab of root.querySelectorAll('input[name="hub-view-show"]')) {
+            tab.setAttribute('aria-label', `${HUB_OFFER_VIEW_TAB_NAMES[tab.value]} (${counts[tab.value]})`);
+            tab.closest('label').querySelector('.hub-view-count').textContent = String(counts[tab.value]);
+        }
+        const summary = root.getElementById('hub-view-summary');
+        if (!summary) return;
+        const hiddenTotal = hidden.small + hidden.unlisted;
+        const skipped = view.show === 'added' ? '.' : `; Add skips ${hiddenTotal === 1 ? 'it' : 'them'}.`;
+        const parts = [];
+        if (hidden.small && hidden.unlisted) {
+            parts.push(`${hiddenTotal} hidden (${hidden.small} below your minimum, ${hidden.unlisted} with no listed value)${skipped}`);
+        } else if (hidden.small) {
+            parts.push(`${hubCountOffers(hidden.small)} below your minimum ${hidden.small === 1 ? 'is' : 'are'} hidden${skipped}`);
+        } else if (hidden.unlisted) {
+            parts.push(`${hubCountOffers(hidden.unlisted)} with no listed value ${hidden.unlisted === 1 ? 'is' : 'are'} hidden${skipped}`);
+        }
+        if (kept) parts.push(`${hubCountOffers(kept)} with no listed value ${kept === 1 ? 'is' : 'are'} kept.`);
+        if (error) parts.push(error);
+        summary.textContent = parts.join(' ');
+        summary.hidden = !summary.textContent;
     }
 
     // Source: shared/runtime/request-scheduler.js
@@ -377,49 +473,92 @@
     }
 
     // Source: shared/offers/reward-filter.js
-    // The small-offer filter. It hides rows from the list, and the Add actions skip
-    // what it hides (banks pass it to createHubWorkflow as keepInPlan). An offer whose
-    // rate or total is unknown is never hidden by that threshold, so nothing
-    // disappears because a bank left it out.
-    const HUB_REWARD_FILTER_READ_ERROR = 'Saved filter could not be read and was kept. Changes apply to this visit only.';
-    function hubNormalizeRewardFilter(value) {
+    // The small-offer filter and the other list options of one bank's panel.
+    // minTotal / minRate: the list hides offers below them and every Add action skips
+    // them (banks pass hubRewardPassesFilter to createHubWorkflow as keepInPlan).
+    // An offer whose value the bank does not list is kept unless keepUnlisted is off,
+    // so nothing disappears silently because a bank left a number out.
+    // sort and show only change the list, never what Add takes.
+    const HUB_OFFER_VIEW_SORTS = ['value', 'rate', 'bank'];
+    const HUB_OFFER_VIEW_TABS = ['available', 'added', 'all'];
+    function hubNormalizeOfferView(value) {
         const read = number => typeof number === 'number' && Number.isFinite(number) && number > 0 ? number : 0;
-        return { minRate: Math.min(read(value?.minRate), 100), minTotal: read(value?.minTotal) };
+        return {
+            minRate: Math.min(read(value?.minRate), 100), minTotal: read(value?.minTotal),
+            keepUnlisted: value?.keepUnlisted !== false,
+            sort: HUB_OFFER_VIEW_SORTS.includes(value?.sort) ? value.sort : 'value',
+            show: HUB_OFFER_VIEW_TABS.includes(value?.show) ? value.show : 'available'
+        };
     }
-    // A missing filter (panel not mounted yet) hides nothing.
-    function hubRewardPassesFilter(reward, filter) {
-        filter = hubNormalizeRewardFilter(filter);
-        const rate = hubRewardRate(reward);
-        const total = hubRewardTotal(reward);
-        if (filter.minRate > 0 && rate !== null && rate < filter.minRate) return false;
-        if (filter.minTotal > 0 && total !== null && total < filter.minTotal) return false;
-        return true;
+    function hubOfferViewHasMinimum(view) {
+        return view.minRate > 0 || view.minTotal > 0;
     }
-    // One small key per bank: { schemaVersion: 1, minRate, minTotal }. An unreadable
-    // value is preserved and the filter works for this visit only.
-    function createHubRewardFilterStore({ storage, storageKey }) {
+    // 'shown', 'kept-unlisted', 'hidden-small' or 'hidden-unlisted'.
+    function hubRewardFilterVerdict(reward, view) {
+        view = hubNormalizeOfferView(view);
+        const checks = [];
+        if (view.minRate > 0) checks.push([hubRewardRate(reward), view.minRate]);
+        if (view.minTotal > 0) checks.push([hubRewardTotal(reward), view.minTotal]);
+        if (checks.some(([value, minimum]) => value !== null && value < minimum)) return 'hidden-small';
+        if (checks.some(([value]) => value === null)) return view.keepUnlisted ? 'kept-unlisted' : 'hidden-unlisted';
+        return 'shown';
+    }
+    // A missing view (panel not mounted yet) hides nothing.
+    function hubRewardPassesFilter(reward, view) {
+        return !hubRewardFilterVerdict(reward, view).startsWith('hidden');
+    }
+
+    // Source: shared/offers/offer-sort.js
+    // Display order only; Add keeps the workflow's own order.
+    // value: most total cash back first, then highest rate. rate: highest rate first,
+    // then most total. bank: the bank's order. Unknown values sort after known ones
+    // and ties keep the bank's order (Array.prototype.sort is stable).
+    function hubCompareOfferRewards(sort) {
+        const descending = (left, right) => left === right ? 0 : left === null ? 1 : right === null ? -1 : right - left;
+        const keys = { value: [hubRewardTotal, hubRewardRate], rate: [hubRewardRate, hubRewardTotal] }[sort];
+        if (!keys) return () => 0;
+        return (left, right) => {
+            for (const key of keys) {
+                const order = descending(key(left), key(right));
+                if (order) return order;
+            }
+            return 0;
+        };
+    }
+
+    // Source: shared/persistence/offer-view-storage.js
+    // One key per bank, `${script-id}:reward-filter`:
+    // { schemaVersion: 2, minRate, minTotal, keepUnlisted, sort, show }.
+    // 1.9.0 saved { schemaVersion: 1, minRate, minTotal } under the same key; it reads
+    // forward with the new defaults and is rewritten on the next change. An
+    // unreadable value is kept untouched and the options apply to this visit only.
+    const HUB_OFFER_VIEW_READ_ERROR = 'Saved list options could not be read and were kept. Changes apply to this visit only.';
+    function hubMigrateOfferView(saved) {
+        const hasMinimums = typeof saved?.minRate === 'number' && typeof saved?.minTotal === 'number';
+        if (saved?.schemaVersion === 1 && hasMinimums) return hubNormalizeOfferView({ minRate: saved.minRate, minTotal: saved.minTotal });
+        if (saved?.schemaVersion === 2 && hasMinimums && typeof saved.keepUnlisted === 'boolean'
+            && HUB_OFFER_VIEW_SORTS.includes(saved.sort) && HUB_OFFER_VIEW_TABS.includes(saved.show)) return hubNormalizeOfferView(saved);
+        throw new Error('Unsupported saved list options');
+    }
+    function createHubOfferViewStore({ storage, storageKey }) {
         let readFailed = false;
         return {
             load() {
                 try {
                     const saved = storage.get(storageKey, null);
-                    if (saved === null) return { filter: hubNormalizeRewardFilter(null), error: '' };
-                    if (saved?.schemaVersion !== 1 || typeof saved.minRate !== 'number' || typeof saved.minTotal !== 'number') {
-                        throw new Error('Unsupported saved filter');
-                    }
-                    return { filter: hubNormalizeRewardFilter(saved), error: '' };
+                    return { view: saved === null ? hubNormalizeOfferView(null) : hubMigrateOfferView(saved), error: '' };
                 } catch {
                     readFailed = true;
-                    return { filter: hubNormalizeRewardFilter(null), error: HUB_REWARD_FILTER_READ_ERROR };
+                    return { view: hubNormalizeOfferView(null), error: HUB_OFFER_VIEW_READ_ERROR };
                 }
             },
-            save(filter) {
-                if (readFailed) return HUB_REWARD_FILTER_READ_ERROR;
+            save(view) {
+                if (readFailed) return HUB_OFFER_VIEW_READ_ERROR;
                 try {
-                    storage.set(storageKey, { schemaVersion: 1, ...hubNormalizeRewardFilter(filter) });
+                    storage.set(storageKey, { schemaVersion: 2, ...hubNormalizeOfferView(view) });
                     return '';
                 } catch {
-                    return 'Filter could not be saved. It applies to this visit only.';
+                    return 'List options could not be saved. They apply to this visit only.';
                 }
             }
         };
@@ -875,6 +1014,9 @@
         }
         return Object.freeze({
             type, view: template.view, preview, plan,
+            // The template's plan before keepInPlan, for list labels and counts only.
+            previewBeforeFilter: planEveryOffer,
+            skippedCount: () => planEveryOffer().length - preview().length,
             assertAction(source) {
                 requireActivation();
                 if (!planEveryOffer().some(record => record.source === source)) {
@@ -941,8 +1083,10 @@
     function hubOfferStatusTone(label) {
         return { Available: 'available', Added: 'added', 'Needs review': 'review' }[label] || 'skipped';
     }
-    // One scannable row: merchant and status on top, the offer itself, then card and dates.
-    function hubOfferRow({ merchant = '', title = '', status = '', meta = [], tag = 'div', leading = null, reward = null }) {
+    // One scannable row: merchant and status on top, the offer itself, its value, then card and dates.
+    // reward: a value from reward-value.js, null when the bank lists none ("No listed value"),
+    // or undefined for tools without reward values (no label at all).
+    function hubOfferRow({ merchant = '', title = '', status = '', meta = [], tag = 'div', leading = null, reward = undefined }) {
         const row = document.createElement(tag);
         row.className = 'offer offer-row';
         if (leading) row.append(leading);
@@ -967,12 +1111,7 @@
             value.textContent = title;
             body.append(value);
         }
-        if (reward) {
-            const value = document.createElement('div');
-            value.className = 'offer-reward';
-            value.textContent = hubFormatReward(reward);
-            body.append(value);
-        }
+        if (reward !== undefined) body.append(hubOfferWorthLabel(reward));
         const details = meta.filter(Boolean);
         if (details.length) {
             const small = document.createElement('small');
@@ -984,6 +1123,12 @@
     }
     function hubOfferExpiry(expires) {
         return expires ? `Expires ${expires}` : '';
+    }
+    function hubOfferWorthLabel(reward, tag = 'div') {
+        const label = document.createElement(tag);
+        label.className = reward ? 'offer-worth' : 'offer-worth unlisted';
+        label.textContent = reward ? hubFormatReward(reward) : 'No listed value';
+        return label;
     }
 
     // Source: shared/offers/reward-text.js
@@ -1400,17 +1545,17 @@
 
     // Source: shared/ui/workflow-panel.js
     function createHubWorkflowPanel({ state, settings, bank, styles, scopeMarkup, template, workflow = {},
-        onScan, onAdd, onStop, saveWorkspace, renderOffers, renderPanel = renderOffers, supportsActivation = false, rewardFilterStorage = null }) {
+        onScan, onAdd, onStop, saveWorkspace, renderOffers, renderPanel = renderOffers, supportsActivation = false, offerViewStorage = null }) {
         const host = document.createElement('div');
         host.id = settings.id;
         const panel = host.attachShadow({ mode: 'open' });
         panel.innerHTML = `<style>${styles}</style>` + hubWorkflowMarkup(scopeMarkup,
-            { ...workflow, template, bank, readOnly: !supportsActivation, rewardFilter: Boolean(rewardFilterStorage) });
+            { ...workflow, template, bank, readOnly: !supportsActivation, offerView: Boolean(offerViewStorage) });
         panel.querySelector('h2').textContent = settings.name;
-        if (rewardFilterStorage) {
-            // The filter changes the Add counts too, so the whole panel redraws.
-            hubBindRewardFilter(panel, { state, render: renderPanel,
-                store: createHubRewardFilterStore({ storage: rewardFilterStorage, storageKey: `${settings.id}:reward-filter` }) });
+        if (offerViewStorage) {
+            // The minimums change the Add counts too, so the whole panel redraws.
+            hubBindOfferView(panel, { state, render: renderPanel,
+                store: createHubOfferViewStore({ storage: offerViewStorage, storageKey: `${settings.id}:reward-filter` }) });
         }
         panel.getElementById('scan').addEventListener('click', onScan);
         if (supportsActivation) panel.getElementById('add').addEventListener('click', onAdd);
@@ -1605,7 +1750,7 @@ return readIssuerSavedResults;
     }
 return readIssuerSavedResults;
 })() }];
-const HUB_RELEASE_VERSION = "1.9.0";
+const HUB_RELEASE_VERSION = "1.10.0";
 // Read the existing snapshots directly; search never copies them into another store.
 function hubReadSavedResults() {
     const records = [], coverage = [];
@@ -1948,14 +2093,14 @@ function dispatchIssuer(configuration, startIssuer) {
 }
 
 // --- Issuer dispatches ---
-dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://global.americanexpress.com/offers","version":"1.9.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*americanexpress\\.com/.*$"],"patterns":["^https://global\\.americanexpress\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://global.americanexpress.com/offers","version":"1.10.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*americanexpress\\.com/.*$"],"patterns":["^https://global\\.americanexpress\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: amex-offer-lite ---
 (function () {
     'use strict';
 
     // Source: core/state.js
     const SETTINGS = Object.freeze({
-        version: "1.9.0", capabilities: {"activation":true,"scope":"card"}, workflow: "amex-combination",
+        version: "1.10.0", capabilities: {"activation":true,"scope":"card"}, workflow: "amex-combination",
         requestGapMs: 500,
         rateLimitCooldownMs: 120000,
         requestTimeoutMs: 30000,
@@ -2021,7 +2166,7 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
     const offerWorkflow = createHubWorkflow({
         type: SETTINGS.workflow, capabilities: SETTINGS.capabilities,
         // Add skips offers the small-offer filter hides; Amex states the reward only in its description.
-        keepInPlan: record => hubRewardPassesFilter(amexOfferReward(record.source.description), state.rewardFilter),
+        keepInPlan: record => hubRewardPassesFilter(amexOfferReward(record.source.description), state.offerView),
         readContext: () => ({ selectedCardIds: selectedAccounts().map(account => account.token),
             priorityCardIds: prioritizedAccounts().map(account => account.token) }),
         readRecords: () => selectedAccounts().flatMap(account => (state.offersByAccount.get(account.token) || []).map(offer => ({
@@ -2361,25 +2506,34 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
     }
 
     // Source: core/offer-reward.js
-    // Amex sends no numeric reward, only shortDescription text. Three phrasings are
+    // Amex sends no numeric reward, only shortDescription text. These phrasings are
     // read; anything else (points offers, bundles, wording changes) stays unknown:
     //   "Spend $100 or more, earn $20 back[, up to 3 times (total of $60)]"
+    //   "Spend $1,000 or more, earn $200"  /  "Spend $98 on Example, earn $49 back"
+    //   "Spend $150 or more, earn 20% back[, up to a total of $50]"
     //   "Earn 10% back on ..., up to [a total of] $250 ..."
     //   "Earn 10% back on ..."
-    // Add skips an offer the small-offer filter hides; a parsed reward never adds one.
+    // A capture of 279 real descriptions (2025) had 261 in these forms; the rest were
+    // points, travel benefits and promotions. Add skips an offer the small-offer
+    // filter hides; a parsed reward never adds one.
     function amexRewardDollars(text) {
         return Number(text.replace(/,/g, ''));
     }
     function amexOfferReward(description) {
         const text = typeof description === 'string' ? description.replace(/\s+/g, ' ').trim() : '';
         const money = '\\$(\\d[\\d,]*(?:\\.\\d{1,2})?)';
-        const spend = new RegExp(`^Spend ${money} or more[^,]*, earn ${money} back(?:, up to (\\d+) times(?: \\(total of ${money}\\))?)?`, 'i').exec(text);
+        const spend = new RegExp(`^Spend ${money}[^,]*, earn ${money}(?: back\\b|(?=$|[.,]))(?:,? up to (\\d+) times(?: \\(total of ${money}\\))?)?`, 'i').exec(text);
         if (spend) {
             const amount = amexRewardDollars(spend[2]);
             return hubRewardValue('fixed', amount, {
                 minSpend: amexRewardDollars(spend[1]),
                 maxReward: spend[4] ? amexRewardDollars(spend[4]) : spend[3] ? amount * Number(spend[3]) : null
             });
+        }
+        const spendPercent = new RegExp(`^Spend ${money}[^,]*, earn (\\d+(?:\\.\\d+)?)% back\\b(?:[^.]*?\\bup to (?:a total of )?${money})?`, 'i').exec(text);
+        if (spendPercent) {
+            return hubRewardValue('percent', Number(spendPercent[2]), { minSpend: amexRewardDollars(spendPercent[1]),
+                maxReward: spendPercent[3] ? amexRewardDollars(spendPercent[3]) : null });
         }
         const capped = new RegExp(`^Earn (\\d+(?:\\.\\d+)?)% back\\b[^.]*?\\bup to (?:a total of )?${money}`, 'i').exec(text);
         if (capped) return hubRewardValue('percent', Number(capped[1]), { maxReward: amexRewardDollars(capped[2]) });
@@ -2998,7 +3152,7 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
         const scope = `<div class="actions hub-scope-actions"><button id="btn-detect" aria-label="Detect cards">Detect cards</button><button id="btn-refresh-cards" aria-label="Refresh cards">Refresh cards</button></div>
             <p id="whitelist-summary" class="muted"></p><div id="card-list" class="cards"></div>
             <p class="muted hub-fine-print">Drag cards or use the arrows to change priority.</p><p id="saved-cards-status" class="muted hub-fine-print" role="status"></p>`;
-        let markup = hubWorkflowMarkup(scope, { bank: 'Amex', template: offerWorkflow, rewardFilter: true });
+        let markup = hubWorkflowMarkup(scope, { bank: 'Amex', template: offerWorkflow, offerView: true });
         for (const [from, to] of Object.entries({ body: 'content', scan: 'btn-scan', stop: 'btn-stop', search: 'input-search', add: 'btn-enroll-all', offers: 'offer-list', counts: 'offer-summary', 'workspace-cache': 'saved-offers-status' })) {
             markup = markup.replace(`id="${from}"`, `id="${to}"`);
         }
@@ -3018,7 +3172,7 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
         };
         filter.oninput = updateFilter;
         at('hub-clear-search').onclick = () => { filter.value = ''; updateFilter(); filter.focus(); };
-        hubBindRewardFilter(shadow, { state, render: () => { renderOffers(); renderControls(); }, store: createHubRewardFilterStore({
+        hubBindOfferView(shadow, { state, render: () => { renderOffers(); renderControls(); }, store: createHubOfferViewStore({
             storage: { get: (key, fallback) => GM_getValue(key, fallback), set: (key, value) => GM_setValue(key, value) },
             storageKey: `${"amex-offer-lite"}:reward-filter` }) });
         const toggle = at('collapse');
@@ -3196,13 +3350,20 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
         savedStatus.textContent = state.savedOffersError || (scanTimes.length
             ? `Last scan: ${new Date(Math.max(...scanTimes)).toLocaleString()}. Results stay saved until you refresh manually.` : '');
         savedStatus.className = state.savedOffersError ? 'storage-error' : 'muted';
-        // Hidden small offers are also left out of the plan, so the summary and Add all skip them.
-        const shownGroups = hubApplyRewardFilter(panelRoot?.shadowRoot, groups, state, group => amexOfferReward(group.offer.description));
-        if (!shownGroups.length) {
-            list.append(element('p', state.offersByAccount.size ? 'No offers match this filter.' : 'Scanned offers will appear here.', 'muted'));
+        // To add means planned before the small-offer minimum, or waiting for review;
+        // hidden small offers are also left out of the plan, so Add all skips them.
+        const addable = new Set(offerWorkflow.previewBeforeFilter().map(record => record.groupId));
+        const hasStatus = (group, statuses) => group.accounts.some(({ offer }) => statuses.includes(offer.status));
+        const view = hubOfferListView(panelRoot?.shadowRoot, groups.map(group => ({
+            offer: group, reward: amexOfferReward(group.offer.description),
+            group: hasStatus(group, ['ENROLLED', 'ON_OTHER_CARD']) ? 'added'
+                : addable.has(group.offer.groupKey) || hasStatus(group, ['UNCONFIRMED', 'FAILED']) ? 'available' : 'other'
+        })), state);
+        if (!view.items.length) {
+            list.append(element('p', view.emptyMessage || (state.offersByAccount.size ? 'No offers match this filter.' : 'Scanned offers will appear here.'), 'muted'));
             return;
         }
-        for (const group of shownGroups) {
+        for (const { offer: group, reward } of view.items) {
             const { offer, accounts } = group;
             const plannedOffer = plannedByOffer.get(offer.groupKey);
             const item = element('article', '', 'offer');
@@ -3210,8 +3371,7 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
             title.append(element('strong', offer.name));
             title.append(offerEnrollButton(group, plannedOffer));
             item.append(title, element('p', offer.description, 'muted'));
-            const reward = amexOfferReward(offer.description);
-            if (reward) item.append(element('p', hubFormatReward(reward), 'offer-reward'));
+            item.append(hubOfferWorthLabel(reward, 'p'));
             const counts = offerGroupCounts(accounts);
             item.append(element('p', `Eligible on ${counts.eligibleCards} cards · Added on ${counts.enrolledCards} · Seen on ${counts.seenCards}`, 'offer-counts'));
             const target = offerTargetLine(group, plannedOffer);
@@ -3241,7 +3401,7 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
         const scan = uiElement('btn-scan');
         scan.disabled = Boolean(state.busy) || !state.detected || !selectedAccounts().length || coolingDown || Boolean(state.storageError);
         hubSetActionLabel(scan, 'Scan offers');
-        renderHubWorkflow(panelRoot.shadowRoot, { template: offerWorkflow, readOnly: !SETTINGS.capabilities.activation, count: enrollmentPlan().length,
+        renderHubWorkflow(panelRoot.shadowRoot, { template: offerWorkflow, readOnly: !SETTINGS.capabilities.activation, count: enrollmentPlan().length, skipped: offerWorkflow.skippedCount(),
             hasScope: selectedAccounts().length > 0, busy: Boolean(state.busy), coolingDown,
             storageError: state.storageError || state.savedCardsError || state.savedOffersError,
             needsScan: selectedAccounts().length > 0 && !selectedAccounts().some(account => state.scanReports.get(account.token)?.startsWith('Complete')),
@@ -3299,7 +3459,7 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
 // --- End issuer body: amex-offer-lite ---
 });
 
-dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"https://deals.merchant-rewards.com/","version":"1.9.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*bankofamerica\\.com/.*$","^https://deals\\.merchant-rewards\\.com/.*$"],"patterns":["^https://deals\\.merchant-rewards\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"https://deals.merchant-rewards.com/","version":"1.10.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*bankofamerica\\.com/.*$","^https://deals\\.merchant-rewards\\.com/.*$"],"patterns":["^https://deals\\.merchant-rewards\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: bofa-offer-lite ---
 (function () {
     'use strict';
@@ -3307,7 +3467,7 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "bofa-offer-lite", name: "BankAmeriDeals Lite", version: "1.9.0",
+        id: "bofa-offer-lite", name: "BankAmeriDeals Lite", version: "1.10.0",
         gapMilliseconds: 500, timeoutMilliseconds: 45000, pageSize: 24,
         defaultCooldownMilliseconds: 300000
     };
@@ -3339,7 +3499,7 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
     const offerWorkflow = createHubWorkflow({
         type: SETTINGS.workflow, capabilities: SETTINGS.capabilities,
         // Add skips offers the small-offer filter hides.
-        keepInPlan: record => hubRewardPassesFilter(record.source.reward, state.rewardFilter),
+        keepInPlan: record => hubRewardPassesFilter(record.source.reward, state.offerView),
         readContext: () => ({ accountId: state.workspaceScope, consent: state.consent }),
         readRecords: () => state.offers.map(offer => ({
             accountId: state.workspaceScope, offerId: offer.id, source: offer,
@@ -3612,7 +3772,7 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
             scopeMarkup: "<p class=\"muted\">Activation can start an expiry window; review terms first.</p><label class=\"card\"><input id=\"consent\" type=\"checkbox\" aria-label=\"Confirm activation for current Deals profile\">Allow adding offers to this profile</label>",
             workflow: { bank: "Deals", extraReviewMarkup: "", readOnly: !SETTINGS.capabilities.activation },
             onScan: scanOffers, onAdd: activateOffers, onStop: stopRun,
-            saveWorkspace, renderOffers, renderPanel, supportsActivation: SETTINGS.capabilities.activation, rewardFilterStorage: issuerStorage
+            saveWorkspace, renderOffers, renderPanel, supportsActivation: SETTINGS.capabilities.activation, offerViewStorage: issuerStorage
         });
         panel.getElementById('consent').addEventListener('change', event => {
             if (state.busy) return;
@@ -3628,14 +3788,16 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
         if (!state.panel) return;
         const list = state.panel.getElementById('offers');
         list.replaceChildren();
-        const visible = hubApplyRewardFilter(state.panel, state.offers.filter(offer => hubMatchesSearch(offer, state.search)), state);
-        if (!visible.length) hubShowEmptyOffers(list, state.search);
-        for (const offer of visible) {
+        const view = hubOfferListView(state.panel, state.offers.filter(offer => hubMatchesSearch(offer, state.search)).map(offer => {
             const status = offer.result === 'Unconfirmed' ? 'Needs review' : offer.activated ? 'Added'
                 : offer.result === 'Not added' ? 'Not added' : offer.eligible ? 'Available' : 'Skipped';
+            return { offer, status, reward: offer.reward ?? null, group: hubOfferListGroup(status) };
+        }), state);
+        if (!view.items.length) view.emptyMessage ? hubShowEmptyNote(list, view.emptyMessage) : hubShowEmptyOffers(list, state.search);
+        for (const { offer, status, reward } of view.items) {
             const note = status === 'Skipped' ? offer.reason || 'Not eligible'
                 : status === 'Not added' ? 'Deals did not activate it after a retry. Add tries it again.' : '';
-            list.append(hubOfferRow({ merchant: offer.name, title: offer.headline, status, reward: offer.reward, meta: [note] }));
+            list.append(hubOfferRow({ merchant: offer.name, title: offer.headline, status, reward, meta: [note] }));
         }
     }
     function renderPanel() {
@@ -3653,7 +3815,7 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
         const available = state.offers.filter(offer => offer.eligible && !offer.activated).length;
         panel.getElementById('counts').textContent = `${state.offers.length} offers · ${available} available · ${state.confirmed} added this run`;
         renderHubWorkflow(panel, { template: offerWorkflow, readOnly: !SETTINGS.capabilities.activation, count: offerWorkflow.preview().length, hasScope: state.consent, needsScan: state.needsScan,
-            busy: state.busy, storageError: state.storageError, coolingDown: Date.now() < state.cooldownUntil,
+            busy: state.busy, storageError: state.storageError, coolingDown: Date.now() < state.cooldownUntil, skipped: offerWorkflow.skippedCount(),
             progress: state.activeAction === 'add' && state.total ? { completed: state.completed, total: state.total } : null });
         renderOffers();
     }
@@ -3667,7 +3829,7 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
 // --- End issuer body: bofa-offer-lite ---
 });
 
-dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://secure.chase.com/web/auth/dashboard","version":"1.9.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*chase\\.com/.*$"],"patterns":["^https://secure\\.chase\\.com/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://secure.chase.com/web/auth/dashboard","version":"1.10.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*chase\\.com/.*$"],"patterns":["^https://secure\\.chase\\.com/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: chase-offer-lite ---
 (function () {
     'use strict';
@@ -3675,7 +3837,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"card"}, workflow: "per-card",
-        id: "chase-offer-lite", name: "Chase Offer Lite", version: "1.9.0",
+        id: "chase-offer-lite", name: "Chase Offer Lite", version: "1.10.0",
         gapMilliseconds: 500, timeoutMilliseconds: 45000,
         defaultCooldownMilliseconds: 300000
     };
@@ -3706,7 +3868,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
     const offerWorkflow = createHubWorkflow({
         type: SETTINGS.workflow, capabilities: SETTINGS.capabilities,
         // Add skips offers the small-offer filter hides.
-        keepInPlan: record => hubRewardPassesFilter(record.source.reward, state.rewardFilter),
+        keepInPlan: record => hubRewardPassesFilter(record.source.reward, state.offerView),
         readContext: () => ({ selectedCardIds: [...state.selected] }),
         readRecords: () => state.offers.map(offer => ({
             cardId: offer.accountId, offerId: offer.offerId, source: offer,
@@ -4343,7 +4505,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
             workflow: { bank: 'Chase', scanLabel: 'Load cards & offers' },
             onScan: () => state.accounts.length ? refreshAndAddOffers() : refreshAllCardsAndOffers(),
             onAdd: addSavedOffers, onStop: stopRun,
-            saveWorkspace, renderOffers, renderPanel, supportsActivation: SETTINGS.capabilities.activation, rewardFilterStorage: issuerStorage
+            saveWorkspace, renderOffers, renderPanel, supportsActivation: SETTINGS.capabilities.activation, offerViewStorage: issuerStorage
         });
         document.body.appendChild(host);
         state.panel = panel;
@@ -4381,6 +4543,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
             : coolingDown ? 'Chase is asking us to wait. Try again after the cooldown.'
             : !hasSelection ? 'Choose at least one card above. Your choices stay saved.'
             : unresolved ? `${unresolved} offer(s) need review and will be skipped. Other saved offers can continue. Use Refresh & add offers to check them.`
+            : !savedCount && offerWorkflow.skippedCount() ? hubSkippedOffersReason(offerWorkflow.skippedCount())
             : !savedCount ? 'No saved offers left to add. Refresh & add offers checks for new ones.' : '';
         reason.hidden = !reason.textContent;
         hubRenderTaskProgress(panel, { busy: Boolean(state.busy), completed: state.completed, total: state.total });
@@ -4397,20 +4560,20 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
         const container = state.panel.getElementById('offers');
         container.replaceChildren();
         const search = state.search;
-        const visible = hubApplyRewardFilter(state.panel, state.offers.filter(offer => state.selected.has(offer.accountId))
-            .filter(offer => hubMatchesSearch(offer, search)), state);
+        const view = hubOfferListView(state.panel, state.offers.filter(offer => state.selected.has(offer.accountId))
+            .filter(offer => hubMatchesSearch(offer, search)).map(offer => {
+                const addOnChase = !state.needsScan && ['NEW', 'SERVED'].includes(offer.status) && !offer.activationParameters;
+                const status = addOnChase ? 'Add on Chase' : offer.status === 'SERVED' ? 'Available' : hubOfferStatusLabel(offer.status);
+                return { offer, status, addOnChase, reward: offer.reward ?? null, group: hubOfferListGroup(status) };
+            }), state);
+        const visible = view.items;
         if (!visible.length) {
-            const note = document.createElement('p');
-            note.className = 'muted hub-empty-note';
-            note.textContent = search.trim() ? 'No offers match your search.'
-                : state.selected.size ? 'No saved offers on these cards. Use Refresh & add offers.' : 'Your selected cards’ offers will appear here.';
-            container.appendChild(note);
+            hubShowEmptyNote(container, view.emptyMessage || (search.trim() ? 'No offers match your search.'
+                : state.selected.size ? 'No saved offers on these cards. Use Refresh & add offers.' : 'Your selected cards’ offers will appear here.'));
         }
-        for (const offer of visible.slice(0, 200)) {
+        for (const { offer, status, addOnChase, reward } of visible.slice(0, 200)) {
             const card = state.accounts.find(account => account.accountId === offer.accountId);
-            const addOnChase = !state.needsScan && ['NEW', 'SERVED'].includes(offer.status) && !offer.activationParameters;
-            const statusLabel = addOnChase ? 'Add on Chase' : offer.status === 'SERVED' ? 'Available' : hubOfferStatusLabel(offer.status);
-            container.appendChild(hubOfferRow({ merchant: offer.merchant, title: offer.title, status: statusLabel, reward: offer.reward,
+            container.appendChild(hubOfferRow({ merchant: offer.merchant, title: offer.title, status, reward,
                 meta: [card ? chaseCardDisplayName(card) : 'Card', addOnChase ? 'Click details unavailable' : '', hubOfferExpiry(offer.expires)] }));
         }
         if (visible.length > 200) {
@@ -4473,7 +4636,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
 // --- End issuer body: chase-offer-lite ---
 });
 
-dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://online.citi.com/US/nga/products-offers/merchantoffers","version":"1.9.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*citi\\.com/.*$"],"patterns":["^https://online\\.citi\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://online.citi.com/US/nga/products-offers/merchantoffers","version":"1.10.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*citi\\.com/.*$"],"patterns":["^https://online\\.citi\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: citi-offer-lite ---
 (function () {
     'use strict';
@@ -4481,7 +4644,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"card"}, workflow: "per-card",
-        id: "citi-offer-lite", name: "Citi Offer Lite", version: "1.9.0",
+        id: "citi-offer-lite", name: "Citi Offer Lite", version: "1.10.0",
         apiBase: '/gcgapi/prod/public/v1',
         retrievePath: '/digital/customers/creditCards/merchantOffers/retrieve',
         enrollmentPath: '/digital/customers/creditCards/accounts/rewards/specialOffers/enrollMerchantOffer',
@@ -4518,7 +4681,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
     const offerWorkflow = createHubWorkflow({
         type: SETTINGS.workflow, capabilities: SETTINGS.capabilities,
         // Add skips offers the small-offer filter hides.
-        keepInPlan: record => hubRewardPassesFilter(record.source.reward, state.rewardFilter),
+        keepInPlan: record => hubRewardPassesFilter(record.source.reward, state.offerView),
         readContext: () => ({ selectedCardIds: [...state.selected] }),
         readRecords: () => state.offers.map(offer => ({
             cardId: offer.accountId, offerId: offer.offerId, source: offer,
@@ -4934,7 +5097,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
             workflow: { bank: 'Citi', scanLabel: 'Load cards & offers' },
             onScan: () => state.accounts.length ? refreshAndAddOffers() : refreshAllCardsAndOffers(),
             onAdd: addSavedOffers, onStop: stopRun,
-            saveWorkspace, renderOffers, renderPanel, supportsActivation: SETTINGS.capabilities.activation, rewardFilterStorage: issuerStorage
+            saveWorkspace, renderOffers, renderPanel, supportsActivation: SETTINGS.capabilities.activation, offerViewStorage: issuerStorage
         });
         document.body.appendChild(host);
         state.panel = panel;
@@ -4970,6 +5133,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
             : !hasCards ? ''
             : savedOffersBlockReason() ? savedOffersBlockReason()
             : savedOffersReviewNotice() ? savedOffersReviewNotice()
+            : !savedCount && offerWorkflow.skippedCount() ? hubSkippedOffersReason(offerWorkflow.skippedCount())
             : !savedCount ? 'No saved offers left to add. Refresh & add offers checks for new ones.'
             : '';
         reason.hidden = !reason.textContent;
@@ -4983,18 +5147,19 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
         const container = state.panel.getElementById('offers');
         container.replaceChildren();
         const search = state.search;
-        const visible = hubApplyRewardFilter(state.panel, state.offers.filter(offer => state.selected.has(offer.accountId))
-            .filter(offer => hubMatchesSearch(offer, search)), state);
+        const view = hubOfferListView(state.panel, state.offers.filter(offer => state.selected.has(offer.accountId))
+            .filter(offer => hubMatchesSearch(offer, search)).map(offer => {
+                const status = hubOfferStatusLabel(offer.status);
+                return { offer, status, reward: offer.reward ?? null, group: hubOfferListGroup(status) };
+            }), state);
+        const visible = view.items;
         if (!visible.length) {
-            const note = document.createElement('p');
-            note.className = 'muted hub-empty-note';
-            note.textContent = search.trim() ? 'No offers match your search.'
-                : state.selected.size ? 'No saved offers on these cards. Use Refresh & add offers.' : 'Your selected cards’ offers will appear here.';
-            container.appendChild(note);
+            hubShowEmptyNote(container, view.emptyMessage || (search.trim() ? 'No offers match your search.'
+                : state.selected.size ? 'No saved offers on these cards. Use Refresh & add offers.' : 'Your selected cards’ offers will appear here.'));
         }
-        for (const offer of visible.slice(0, 200)) {
+        for (const { offer, status, reward } of visible.slice(0, 200)) {
             const card = state.accounts.find(account => account.accountId === offer.accountId);
-            container.appendChild(hubOfferRow({ merchant: offer.merchant, title: offer.title, status: hubOfferStatusLabel(offer.status), reward: offer.reward,
+            container.appendChild(hubOfferRow({ merchant: offer.merchant, title: offer.title, status, reward,
                 meta: [card?.name || 'Card', hubOfferExpiry(offer.expires)] }));
         }
         if (visible.length > 200) {
@@ -5050,7 +5215,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
 // --- End issuer body: citi-offer-lite ---
 });
 
-dispatchIssuer({"id":"kroger-coupon-lite","label":"Kroger","offersUrl":"https://www.kroger.com/savings/cl/coupons/","version":"1.9.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*kroger\\.com/.*$"],"patterns":["^https://www\\.kroger\\.com/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"kroger-coupon-lite","label":"Kroger","offersUrl":"https://www.kroger.com/savings/cl/coupons/","version":"1.10.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*kroger\\.com/.*$"],"patterns":["^https://www\\.kroger\\.com/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: kroger-coupon-lite ---
 (function () {
     'use strict';
@@ -5058,7 +5223,7 @@ dispatchIssuer({"id":"kroger-coupon-lite","label":"Kroger","offersUrl":"https://
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "kroger-coupon-lite", name: "Kroger Coupon Lite", version: "1.9.0",
+        id: "kroger-coupon-lite", name: "Kroger Coupon Lite", version: "1.10.0",
         origin: 'https://www.kroger.com',
         gapMilliseconds: 500, timeoutMilliseconds: 30000,
         defaultCooldownMilliseconds: 300000,
@@ -5520,7 +5685,7 @@ dispatchIssuer({"id":"kroger-coupon-lite","label":"Kroger","offersUrl":"https://
 // --- End issuer body: kroger-coupon-lite ---
 });
 
-dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://onlinebanking.usbank.com/digital/servicing/dominjection/cashback-deals","version":"1.9.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*usbank\\.com/.*$"],"patterns":["^https://onlinebanking\\.usbank\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://onlinebanking.usbank.com/digital/servicing/dominjection/cashback-deals","version":"1.10.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*usbank\\.com/.*$"],"patterns":["^https://onlinebanking\\.usbank\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: usbank-offer-lite ---
 (function () {
     'use strict';
@@ -5528,7 +5693,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "usbank-offer-lite", name: "US Bank Offer Lite", version: "1.9.0",
+        id: "usbank-offer-lite", name: "US Bank Offer Lite", version: "1.10.0",
         endpoint: '/digital/api/customer-management/graphql/v2',
         gapMilliseconds: 500, timeoutMilliseconds: 45000,
         defaultCooldownMilliseconds: 300000
@@ -5560,7 +5725,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
     const offerWorkflow = createHubWorkflow({
         type: SETTINGS.workflow, capabilities: SETTINGS.capabilities,
         // Add skips offers the small-offer filter hides.
-        keepInPlan: record => hubRewardPassesFilter(record.source.reward, state.rewardFilter),
+        keepInPlan: record => hubRewardPassesFilter(record.source.reward, state.offerView),
         // The manually clicked Add action is this issuer's account confirmation.
         // Individual offer selection narrows that plan; it is never card selection.
         readContext: () => ({ accountId: state.workspaceScope, consent: true }),
@@ -5654,13 +5819,16 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
 
     // Source: api/queries.js
     // Only fields observed in the captured first-party GraphQL query are requested.
+    // GraphQL returns only what is asked for: the reward amounts must be listed here
+    // or every offer reads as "No listed value" (the 1.9.0 bug).
     const LIST_OFFERS_QUERY = `query getCashbackOffersAds($request: CashbackOffersAdsRequest) {
         getCashbackOffersAds(request: $request) {
             requestId sessionTokenId
             ads { offerId rank ad {
                 adType adServeToken startDate endDate merchantName categoryName
                 activationState visibilityState isAffiliateMarketing
-                reward { activationModel purchaseRequirement { merchantUrlLinkClickRequired } }
+                reward { rewardType rewardAmount maxRewardAmount activationModel
+                    purchaseRequirement { minSpendAmount merchantUrlLinkClickRequired } }
                 assets { copy { value { headline rewardCopy } } }
             } }
         }
@@ -5795,7 +5963,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
         if (state.busy || Boolean(state.storageError)) return;
         // Offers hidden by the small-offer filter are not selected; search does not narrow it.
         state.selected = new Set(state.offers.filter(offer => offer.status === 'AVAILABLE'
-            && hubRewardPassesFilter(offer.reward, state.rewardFilter)).map(offer => offer.offerId));
+            && hubRewardPassesFilter(offer.reward, state.offerView)).map(offer => offer.offerId));
         saveWorkspace();
         renderPanel();
     }
@@ -5924,7 +6092,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
             scopeMarkup: "<p class=\"muted\">Add all available offers, or select individual offers below.</p>",
             workflow: { bank: "US Bank", extraReviewMarkup: "<button id=\"activate\" aria-label=\"Add selected offers\">Add selected offers</button><button id=\"select-all\" aria-label=\"Select all available offers\">Select all</button><button id=\"clear\" aria-label=\"Clear offer selection\">Clear selection</button>", readOnly: !SETTINGS.capabilities.activation },
             onScan: scanOffers, onAdd: addAllOffers, onStop: stopRun,
-            saveWorkspace, renderOffers, renderPanel, supportsActivation: SETTINGS.capabilities.activation, rewardFilterStorage: issuerStorage
+            saveWorkspace, renderOffers, renderPanel, supportsActivation: SETTINGS.capabilities.activation, offerViewStorage: issuerStorage
         });
         panel.getElementById('activate').addEventListener('click', activateSelectedOffers);
         panel.getElementById('select-all').addEventListener('click', selectAllOffers);
@@ -5942,9 +6110,12 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
         const container = state.panel.getElementById('offers');
         container.replaceChildren();
         const search = state.search;
-        const visible = hubApplyRewardFilter(state.panel, state.offers.filter(offer => hubMatchesSearch(offer, search)), state);
-        if (!visible.length) hubShowEmptyOffers(container, search);
-        for (const offer of visible) {
+        const view = hubOfferListView(state.panel, state.offers.filter(offer => hubMatchesSearch(offer, search)).map(offer => {
+            const status = hubOfferStatusLabel(offer.status);
+            return { offer, status, reward: offer.reward ?? null, group: hubOfferListGroup(status) };
+        }), state);
+        if (!view.items.length) view.emptyMessage ? hubShowEmptyNote(container, view.emptyMessage) : hubShowEmptyOffers(container, search);
+        for (const { offer, status, reward } of view.items) {
             const checkbox = document.createElement('input');
             checkbox.type = 'checkbox';
             checkbox.checked = state.selected.has(offer.offerId);
@@ -5953,7 +6124,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
             checkbox.addEventListener('change', () => setOfferSelected(offer.offerId, checkbox.checked));
             const date = typeof offer.expires === 'string' ? hubOfferExpiry(offer.expires.slice(0, 10)) : 'Unknown expiry';
             container.appendChild(hubOfferRow({ tag: 'label', leading: checkbox, merchant: offer.merchant, title: offer.title,
-                status: hubOfferStatusLabel(offer.status), reward: offer.reward, meta: [date] }));
+                status, reward, meta: [date] }));
         }
     }
     function renderPanel() {
@@ -5972,7 +6143,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
         panel.getElementById('status').textContent = state.status;
         panel.getElementById('storage-error').textContent = state.storageError;
         panel.getElementById('counts').textContent = `${state.offers.length} offers · ${available} available · ${state.selected.size} selected · ${state.confirmed}/${state.total} newly confirmed`;
-        renderHubWorkflow(panel, { template: offerWorkflow, readOnly: !SETTINGS.capabilities.activation, count: offerWorkflow.preview().length, needsScan: state.needsScan, busy: state.busy,
+        renderHubWorkflow(panel, { template: offerWorkflow, readOnly: !SETTINGS.capabilities.activation, count: offerWorkflow.preview().length, skipped: offerWorkflow.skippedCount(), needsScan: state.needsScan, busy: state.busy,
             storageError: state.storageError, coolingDown: Date.now() < state.cooldownUntil,
             progress: state.activeAction === 'add' && state.total ? { completed: state.completed, total: state.total } : null });
         hubSetActionLabel(panel.getElementById('activate'), 'Add selected offers', selectedToAdd);
@@ -5988,7 +6159,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
 // --- End issuer body: usbank-offer-lite ---
 });
 
-dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"https://web.secure.wellsfargo.com/auth/deals-portal","version":"1.9.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*wellsfargo\\.com/.*$"],"patterns":["^https://web\\.secure\\.wellsfargo\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"https://web.secure.wellsfargo.com/auth/deals-portal","version":"1.10.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*wellsfargo\\.com/.*$"],"patterns":["^https://web\\.secure\\.wellsfargo\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: wellsfargo-offer-lite ---
 (function () {
     'use strict';
@@ -5996,7 +6167,7 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "wellsfargo-offer-lite", name: "Wells Fargo Offer Lite", version: "1.9.0",
+        id: "wellsfargo-offer-lite", name: "Wells Fargo Offer Lite", version: "1.10.0",
         retrievePath: '/deals-portal/as/getDeals', enrollmentPath: '/deals-portal/as/activateCLDeal',
         gapMilliseconds: 500, timeoutMilliseconds: 45000, defaultCooldownMilliseconds: 300000
     };
@@ -6027,7 +6198,7 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"
     const offerWorkflow = createHubWorkflow({
         type: SETTINGS.workflow, capabilities: SETTINGS.capabilities,
         // Add skips offers the small-offer filter hides.
-        keepInPlan: record => hubRewardPassesFilter(record.source.reward, state.rewardFilter),
+        keepInPlan: record => hubRewardPassesFilter(record.source.reward, state.offerView),
         readContext: () => ({ accountId: state.workspaceScope, consent: state.accountConsent }),
         readRecords: () => state.offers.map(offer => ({
             accountId: state.workspaceScope, offerId: offer.offerId, source: offer,
@@ -6276,7 +6447,7 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"
             scopeMarkup: "<p class=\"muted\">Offers needing an individual card choice are skipped.</p><label class=\"card\"><input id=\"consent\" type=\"checkbox\" aria-label=\"Allow account-wide Wells Fargo activation\">Allow adding offers to this account</label>",
             workflow: { bank: "Wells Fargo", extraReviewMarkup: "", readOnly: !SETTINGS.capabilities.activation },
             onScan: scanOffers, onAdd: addAllOffers, onStop: stopRun,
-            saveWorkspace, renderOffers, renderPanel, supportsActivation: SETTINGS.capabilities.activation, rewardFilterStorage: issuerStorage
+            saveWorkspace, renderOffers, renderPanel, supportsActivation: SETTINGS.capabilities.activation, offerViewStorage: issuerStorage
         });
         panel.getElementById('consent').addEventListener('change', event => {
             if (state.busy) return;
@@ -6293,10 +6464,14 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"
         const container = state.panel.getElementById('offers');
         container.replaceChildren();
         const search = state.search;
-        const visible = hubApplyRewardFilter(state.panel, state.offers.filter(offer => hubMatchesSearch(offer, search)), state);
-        if (!visible.length) hubShowEmptyOffers(container, search);
-        for (const offer of visible.slice(0, 200)) {
-            container.appendChild(hubOfferRow({ merchant: offer.merchant, title: offer.title, status: hubOfferStatusLabel(offer.status), reward: offer.reward,
+        const view = hubOfferListView(state.panel, state.offers.filter(offer => hubMatchesSearch(offer, search)).map(offer => {
+            const status = hubOfferStatusLabel(offer.status);
+            return { offer, status, reward: offer.reward ?? null, group: hubOfferListGroup(status) };
+        }), state);
+        const visible = view.items;
+        if (!visible.length) view.emptyMessage ? hubShowEmptyNote(container, view.emptyMessage) : hubShowEmptyOffers(container, search);
+        for (const { offer, status, reward } of visible.slice(0, 200)) {
+            container.appendChild(hubOfferRow({ merchant: offer.merchant, title: offer.title, status, reward,
                 meta: [hubOfferExpiry(offer.expires)] }));
         }
         if (visible.length > 200) {
@@ -6320,7 +6495,7 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"
         panel.getElementById('status').textContent = state.status;
         panel.getElementById('storage-error').textContent = state.storageError;
         panel.getElementById('counts').textContent = `${state.offers.length} offers · ${state.offers.filter(offer => offer.status === 'AVAILABLE').length} eligible · ${state.offers.filter(offer => ['UNSUPPORTED', 'CONFLICT'].includes(offer.status)).length} skipped · ${state.confirmed}/${state.total} added this run`;
-        renderHubWorkflow(panel, { template: offerWorkflow, count: offerWorkflow.preview().length, hasScope: state.accountConsent,
+        renderHubWorkflow(panel, { template: offerWorkflow, count: offerWorkflow.preview().length, skipped: offerWorkflow.skippedCount(), hasScope: state.accountConsent,
             needsScan: state.needsScan, busy: state.busy, storageError: state.storageError,
             coolingDown: Date.now() < state.cooldownUntil, readOnly: !SETTINGS.capabilities.activation,
             progress: state.activeAction === 'add' && state.total ? { completed: state.completed, total: state.total } : null });

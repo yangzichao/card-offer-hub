@@ -51,13 +51,20 @@ function renderOffers() {
     savedStatus.textContent = state.savedOffersError || (scanTimes.length
         ? `Last scan: ${new Date(Math.max(...scanTimes)).toLocaleString()}. Results stay saved until you refresh manually.` : '');
     savedStatus.className = state.savedOffersError ? 'storage-error' : 'muted';
-    // Hidden small offers are also left out of the plan, so the summary and Add all skip them.
-    const shownGroups = hubApplyRewardFilter(panelRoot?.shadowRoot, groups, state, group => amexOfferReward(group.offer.description));
-    if (!shownGroups.length) {
-        list.append(element('p', state.offersByAccount.size ? 'No offers match this filter.' : 'Scanned offers will appear here.', 'muted'));
+    // To add means planned before the small-offer minimum, or waiting for review;
+    // hidden small offers are also left out of the plan, so Add all skips them.
+    const addable = new Set(offerWorkflow.previewBeforeFilter().map(record => record.groupId));
+    const hasStatus = (group, statuses) => group.accounts.some(({ offer }) => statuses.includes(offer.status));
+    const view = hubOfferListView(panelRoot?.shadowRoot, groups.map(group => ({
+        offer: group, reward: amexOfferReward(group.offer.description),
+        group: hasStatus(group, ['ENROLLED', 'ON_OTHER_CARD']) ? 'added'
+            : addable.has(group.offer.groupKey) || hasStatus(group, ['UNCONFIRMED', 'FAILED']) ? 'available' : 'other'
+    })), state);
+    if (!view.items.length) {
+        list.append(element('p', view.emptyMessage || (state.offersByAccount.size ? 'No offers match this filter.' : 'Scanned offers will appear here.'), 'muted'));
         return;
     }
-    for (const group of shownGroups) {
+    for (const { offer: group, reward } of view.items) {
         const { offer, accounts } = group;
         const plannedOffer = plannedByOffer.get(offer.groupKey);
         const item = element('article', '', 'offer');
@@ -65,8 +72,7 @@ function renderOffers() {
         title.append(element('strong', offer.name));
         title.append(offerEnrollButton(group, plannedOffer));
         item.append(title, element('p', offer.description, 'muted'));
-        const reward = amexOfferReward(offer.description);
-        if (reward) item.append(element('p', hubFormatReward(reward), 'offer-reward'));
+        item.append(hubOfferWorthLabel(reward, 'p'));
         const counts = offerGroupCounts(accounts);
         item.append(element('p', `Eligible on ${counts.eligibleCards} cards · Added on ${counts.enrolledCards} · Seen on ${counts.seenCards}`, 'offer-counts'));
         const target = offerTargetLine(group, plannedOffer);

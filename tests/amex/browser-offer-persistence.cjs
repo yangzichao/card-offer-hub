@@ -5,6 +5,7 @@ const { resolve } = require('node:path');
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE_PATH || 'playwright');
 const { rawOffer, hubResponse, confirmation } = require('./fixtures/synthetic-offers.cjs');
 const { createBrowserStorageFixture } = require('./helpers/browser-storage.cjs');
+const { showAllOffers } = require('../helpers/browser-offer-view.cjs');
 
 const userscript = readPublishedIssuerSource('amex-offer-lite');
 
@@ -81,6 +82,7 @@ async function run() {
         await reload();
         await page.clock.runFor(5000);
         assert.equal(requests.length, 4, 'restoring offers must issue no requests');
+        await showAllOffers(page);
         assert.equal(await page.locator('.offer').count(), 2);
         assert.equal(await page.locator('.card-counts').first().textContent(), '1 eligible · 1 added · 2 total');
         assert.equal(await page.locator('#saved-offers-status').textContent(), scanTimestamp);

@@ -5,7 +5,7 @@ function mountPanel() {
         scopeMarkup: "<p class=\"muted\">Activation can start an expiry window; review terms first.</p><label class=\"card\"><input id=\"consent\" type=\"checkbox\" aria-label=\"Confirm activation for current Deals profile\">Allow adding offers to this profile</label>",
         workflow: { bank: "Deals", extraReviewMarkup: "", readOnly: !SETTINGS.capabilities.activation },
         onScan: scanOffers, onAdd: activateOffers, onStop: stopRun,
-        saveWorkspace, renderOffers, renderPanel, supportsActivation: SETTINGS.capabilities.activation, rewardFilterStorage: issuerStorage
+        saveWorkspace, renderOffers, renderPanel, supportsActivation: SETTINGS.capabilities.activation, offerViewStorage: issuerStorage
     });
     panel.getElementById('consent').addEventListener('change', event => {
         if (state.busy) return;

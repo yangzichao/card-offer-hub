@@ -2,14 +2,16 @@ function renderOffers() {
     if (!state.panel) return;
     const list = state.panel.getElementById('offers');
     list.replaceChildren();
-    const visible = hubApplyRewardFilter(state.panel, state.offers.filter(offer => hubMatchesSearch(offer, state.search)), state);
-    if (!visible.length) hubShowEmptyOffers(list, state.search);
-    for (const offer of visible) {
+    const view = hubOfferListView(state.panel, state.offers.filter(offer => hubMatchesSearch(offer, state.search)).map(offer => {
         const status = offer.result === 'Unconfirmed' ? 'Needs review' : offer.activated ? 'Added'
             : offer.result === 'Not added' ? 'Not added' : offer.eligible ? 'Available' : 'Skipped';
+        return { offer, status, reward: offer.reward ?? null, group: hubOfferListGroup(status) };
+    }), state);
+    if (!view.items.length) view.emptyMessage ? hubShowEmptyNote(list, view.emptyMessage) : hubShowEmptyOffers(list, state.search);
+    for (const { offer, status, reward } of view.items) {
         const note = status === 'Skipped' ? offer.reason || 'Not eligible'
             : status === 'Not added' ? 'Deals did not activate it after a retry. Add tries it again.' : '';
-        list.append(hubOfferRow({ merchant: offer.name, title: offer.headline, status, reward: offer.reward, meta: [note] }));
+        list.append(hubOfferRow({ merchant: offer.name, title: offer.headline, status, reward, meta: [note] }));
     }
 }
 function renderPanel() {
@@ -27,7 +29,7 @@ function renderPanel() {
     const available = state.offers.filter(offer => offer.eligible && !offer.activated).length;
     panel.getElementById('counts').textContent = `${state.offers.length} offers · ${available} available · ${state.confirmed} added this run`;
     renderHubWorkflow(panel, { template: offerWorkflow, readOnly: !SETTINGS.capabilities.activation, count: offerWorkflow.preview().length, hasScope: state.consent, needsScan: state.needsScan,
-        busy: state.busy, storageError: state.storageError, coolingDown: Date.now() < state.cooldownUntil,
+        busy: state.busy, storageError: state.storageError, coolingDown: Date.now() < state.cooldownUntil, skipped: offerWorkflow.skippedCount(),
         progress: state.activeAction === 'add' && state.total ? { completed: state.completed, total: state.total } : null });
     renderOffers();
 }

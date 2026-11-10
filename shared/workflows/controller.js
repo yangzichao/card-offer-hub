@@ -24,6 +24,9 @@ function createHubWorkflow({ type, capabilities, readRecords, readContext, keepI
     }
     return Object.freeze({
         type, view: template.view, preview, plan,
+        // The template's plan before keepInPlan, for list labels and counts only.
+        previewBeforeFilter: planEveryOffer,
+        skippedCount: () => planEveryOffer().length - preview().length,
         assertAction(source) {
             requireActivation();
             if (!planEveryOffer().some(record => record.source === source)) {

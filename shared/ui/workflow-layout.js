@@ -1,4 +1,4 @@
-function hubWorkflowMarkup(scopeMarkup, { bank, template, extraReviewMarkup = '', readOnly = false, rewardFilter = false,
+function hubWorkflowMarkup(scopeMarkup, { bank, template, extraReviewMarkup = '', readOnly = false, offerView = false,
     scanLabel = 'Scan offers', scanDescription = 'Scan to refresh saved offers. Nothing runs until you click.' } = {}) {
     const view = template.view;
     return `<div class="panel" data-workflow="${template.type}">
@@ -18,7 +18,7 @@ function hubWorkflowMarkup(scopeMarkup, { bank, template, extraReviewMarkup = ''
           ${readOnly ? `<p id="enrollment-notice" class="notice">Add offers on the ${bank} website.</p>` : ''}
           <div class="hub-search-field"><input id="search" type="search" aria-label="Search saved offers" placeholder="Search saved offers">
             <button id="hub-clear-search" class="hub-clear-search" aria-label="Clear search" hidden>Clear search</button></div>
-          ${rewardFilter ? hubRewardFilterMarkup() : ''}
+          ${offerView ? hubOfferViewMarkup() : ''}
           <p class="muted hub-search-rule" hidden>${view.searchRule}</p>
           <p id="counts" class="muted hub-counts"></p>${extraReviewMarkup ? `<div class="actions hub-selection-bar">${extraReviewMarkup}</div>` : ''}
           <div id="offers" class="offers"></div>
@@ -36,11 +36,14 @@ function hubOfferStatusLabel(status) {
     if (['UNCONFIRMED', 'UNKNOWN', 'FAILED', 'CONFLICT'].includes(status)) return 'Needs review';
     return 'Skipped';
 }
-function hubShowEmptyOffers(container, query) {
+function hubShowEmptyNote(container, message) {
     const note = document.createElement('p');
     note.className = 'muted hub-empty-note';
-    note.textContent = query.trim() ? 'No offers match your search. Clear search to view all saved offers in this scope.' : 'No offers in this scope yet. Choose your scope and scan to refresh.';
+    note.textContent = message;
     container.append(note);
+}
+function hubShowEmptyOffers(container, query) {
+    hubShowEmptyNote(container, query.trim() ? 'No offers match your search. Clear search to view all saved offers in this scope.' : 'No offers in this scope yet. Choose your scope and scan to refresh.');
 }
 function hubSetActionLabel(control, label, count = null) {
     if (!control) return;
@@ -48,7 +51,7 @@ function hubSetActionLabel(control, label, count = null) {
     control.setAttribute('aria-label', label);
 }
 function renderHubWorkflow(root, { template, count, hasScope = true, needsScan = false, busy = false,
-    storageError = '', readOnly = false, coolingDown = false, progress = null } = {}) {
+    storageError = '', readOnly = false, coolingDown = false, progress = null, skipped = 0 } = {}) {
     const add = root.getElementById('add') || root.getElementById('btn-enroll-all');
     hubSetActionLabel(add, 'Add all offers', busy ? null : count);
     add.disabled = Boolean(busy || storageError || readOnly || coolingDown || !hasScope || needsScan || !count);
@@ -64,6 +67,7 @@ function renderHubWorkflow(root, { template, count, hasScope = true, needsScan =
         : coolingDown ? 'Waiting for the bank cooldown. Start again manually when it ends.'
         : !hasScope ? template.view.emptyScope
         : needsScan ? 'Refresh offers before adding.'
+        : !count && skipped ? hubSkippedOffersReason(skipped)
         : !count ? 'No available offers in this scope. Scan again to refresh.'
         : '';
     reason.hidden = !reason.textContent;
@@ -71,6 +75,11 @@ function renderHubWorkflow(root, { template, count, hasScope = true, needsScan =
     hubRenderSearchControls(root, readOnly);
 }
 
+// Add has nothing to do only because the small-offer minimum hides every offer.
+function hubSkippedOffersReason(skipped) {
+    return skipped === 1 ? 'Your minimum value hides the 1 offer you could add. Lower it below to add it.'
+        : `Your minimum value hides all ${skipped} offers you could add. Lower it below to add them.`;
+}
 function hubRenderSearchControls(root, readOnly = false) {
     const search = root.getElementById('search') || root.getElementById('input-search');
     const hasQuery = Boolean(search.value.trim());

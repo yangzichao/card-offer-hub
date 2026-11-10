@@ -5,6 +5,7 @@ const { resolve } = require('node:path');
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE_PATH || 'playwright');
 const { rawOffer, hubResponse, confirmation } = require('./fixtures/synthetic-offers.cjs');
 const { createBrowserStorageFixture } = require('./helpers/browser-storage.cjs');
+const { showAllOffers } = require('../helpers/browser-offer-view.cjs');
 
 const userscript = readPublishedIssuerSource('amex-offer-lite');
 const screenshotDirectory = resolve(__dirname, '../../work/browser');
@@ -86,6 +87,7 @@ async function run() {
         assert.deepEqual(enrollmentRequests.sort(), ['books', 'cafe', 'market'], 'the run continues past both non-additions, once each');
         assert.equal(await status.innerText(), 'Enrollment complete. 1 offers added · 1 already on another card · 1 declined by Amex.');
 
+        await showAllOffers(page);
         const onOtherCard = page.getByRole('button', { name: 'Added on another card', exact: true });
         assert.equal(await onOtherCard.count(), 1);
         assert.equal(await onOtherCard.isDisabled(), true);

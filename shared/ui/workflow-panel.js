@@ -1,15 +1,15 @@
 function createHubWorkflowPanel({ state, settings, bank, styles, scopeMarkup, template, workflow = {},
-    onScan, onAdd, onStop, saveWorkspace, renderOffers, renderPanel = renderOffers, supportsActivation = false, rewardFilterStorage = null }) {
+    onScan, onAdd, onStop, saveWorkspace, renderOffers, renderPanel = renderOffers, supportsActivation = false, offerViewStorage = null }) {
     const host = document.createElement('div');
     host.id = settings.id;
     const panel = host.attachShadow({ mode: 'open' });
     panel.innerHTML = `<style>${styles}</style>` + hubWorkflowMarkup(scopeMarkup,
-        { ...workflow, template, bank, readOnly: !supportsActivation, rewardFilter: Boolean(rewardFilterStorage) });
+        { ...workflow, template, bank, readOnly: !supportsActivation, offerView: Boolean(offerViewStorage) });
     panel.querySelector('h2').textContent = settings.name;
-    if (rewardFilterStorage) {
-        // The filter changes the Add counts too, so the whole panel redraws.
-        hubBindRewardFilter(panel, { state, render: renderPanel,
-            store: createHubRewardFilterStore({ storage: rewardFilterStorage, storageKey: `${settings.id}:reward-filter` }) });
+    if (offerViewStorage) {
+        // The minimums change the Add counts too, so the whole panel redraws.
+        hubBindOfferView(panel, { state, render: renderPanel,
+            store: createHubOfferViewStore({ storage: offerViewStorage, storageKey: `${settings.id}:reward-filter` }) });
     }
     panel.getElementById('scan').addEventListener('click', onScan);
     if (supportsActivation) panel.getElementById('add').addEventListener('click', onAdd);

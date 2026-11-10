@@ -3,10 +3,14 @@ function renderOffers() {
     const container = state.panel.getElementById('offers');
     container.replaceChildren();
     const search = state.search;
-    const visible = hubApplyRewardFilter(state.panel, state.offers.filter(offer => hubMatchesSearch(offer, search)), state);
-    if (!visible.length) hubShowEmptyOffers(container, search);
-    for (const offer of visible.slice(0, 200)) {
-        container.appendChild(hubOfferRow({ merchant: offer.merchant, title: offer.title, status: hubOfferStatusLabel(offer.status), reward: offer.reward,
+    const view = hubOfferListView(state.panel, state.offers.filter(offer => hubMatchesSearch(offer, search)).map(offer => {
+        const status = hubOfferStatusLabel(offer.status);
+        return { offer, status, reward: offer.reward ?? null, group: hubOfferListGroup(status) };
+    }), state);
+    const visible = view.items;
+    if (!visible.length) view.emptyMessage ? hubShowEmptyNote(container, view.emptyMessage) : hubShowEmptyOffers(container, search);
+    for (const { offer, status, reward } of visible.slice(0, 200)) {
+        container.appendChild(hubOfferRow({ merchant: offer.merchant, title: offer.title, status, reward,
             meta: [hubOfferExpiry(offer.expires)] }));
     }
     if (visible.length > 200) {
@@ -30,7 +34,7 @@ function renderPanel() {
     panel.getElementById('status').textContent = state.status;
     panel.getElementById('storage-error').textContent = state.storageError;
     panel.getElementById('counts').textContent = `${state.offers.length} offers · ${state.offers.filter(offer => offer.status === 'AVAILABLE').length} eligible · ${state.offers.filter(offer => ['UNSUPPORTED', 'CONFLICT'].includes(offer.status)).length} skipped · ${state.confirmed}/${state.total} added this run`;
-    renderHubWorkflow(panel, { template: offerWorkflow, count: offerWorkflow.preview().length, hasScope: state.accountConsent,
+    renderHubWorkflow(panel, { template: offerWorkflow, count: offerWorkflow.preview().length, skipped: offerWorkflow.skippedCount(), hasScope: state.accountConsent,
         needsScan: state.needsScan, busy: state.busy, storageError: state.storageError,
         coolingDown: Date.now() < state.cooldownUntil, readOnly: !SETTINGS.capabilities.activation,
         progress: state.activeAction === 'add' && state.total ? { completed: state.completed, total: state.total } : null });

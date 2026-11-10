@@ -3,9 +3,12 @@ function renderOffers() {
     const container = state.panel.getElementById('offers');
     container.replaceChildren();
     const search = state.search;
-    const visible = hubApplyRewardFilter(state.panel, state.offers.filter(offer => hubMatchesSearch(offer, search)), state);
-    if (!visible.length) hubShowEmptyOffers(container, search);
-    for (const offer of visible) {
+    const view = hubOfferListView(state.panel, state.offers.filter(offer => hubMatchesSearch(offer, search)).map(offer => {
+        const status = hubOfferStatusLabel(offer.status);
+        return { offer, status, reward: offer.reward ?? null, group: hubOfferListGroup(status) };
+    }), state);
+    if (!view.items.length) view.emptyMessage ? hubShowEmptyNote(container, view.emptyMessage) : hubShowEmptyOffers(container, search);
+    for (const { offer, status, reward } of view.items) {
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.checked = state.selected.has(offer.offerId);
@@ -14,7 +17,7 @@ function renderOffers() {
         checkbox.addEventListener('change', () => setOfferSelected(offer.offerId, checkbox.checked));
         const date = typeof offer.expires === 'string' ? hubOfferExpiry(offer.expires.slice(0, 10)) : 'Unknown expiry';
         container.appendChild(hubOfferRow({ tag: 'label', leading: checkbox, merchant: offer.merchant, title: offer.title,
-            status: hubOfferStatusLabel(offer.status), reward: offer.reward, meta: [date] }));
+            status, reward, meta: [date] }));
     }
 }
 function renderPanel() {
@@ -33,7 +36,7 @@ function renderPanel() {
     panel.getElementById('status').textContent = state.status;
     panel.getElementById('storage-error').textContent = state.storageError;
     panel.getElementById('counts').textContent = `${state.offers.length} offers · ${available} available · ${state.selected.size} selected · ${state.confirmed}/${state.total} newly confirmed`;
-    renderHubWorkflow(panel, { template: offerWorkflow, readOnly: !SETTINGS.capabilities.activation, count: offerWorkflow.preview().length, needsScan: state.needsScan, busy: state.busy,
+    renderHubWorkflow(panel, { template: offerWorkflow, readOnly: !SETTINGS.capabilities.activation, count: offerWorkflow.preview().length, skipped: offerWorkflow.skippedCount(), needsScan: state.needsScan, busy: state.busy,
         storageError: state.storageError, coolingDown: Date.now() < state.cooldownUntil,
         progress: state.activeAction === 'add' && state.total ? { completed: state.completed, total: state.total } : null });
     hubSetActionLabel(panel.getElementById('activate'), 'Add selected offers', selectedToAdd);

@@ -5,6 +5,7 @@ const { resolve } = require('node:path');
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE_PATH || 'playwright');
 const { rawOffer, hubResponse, confirmation } = require('./fixtures/synthetic-offers.cjs');
 const { createBrowserStorageFixture } = require('./helpers/browser-storage.cjs');
+const { showAllOffers } = require('../helpers/browser-offer-view.cjs');
 
 const projectRoot = resolve(__dirname, '../..');
 const userscript = readPublishedIssuerSource('amex-offer-lite');
@@ -76,6 +77,8 @@ async function run() {
         assert.equal(requests.length, 2);
         assert.ok(requests[1].time - requests[0].time >= 1000);
         assert.ok(requests.every((request) => request.payload.accountNumberProxy === 'card-a'));
+        assert.equal(await page.locator('.offer').count(), 2, 'To add shows only the offers Add can take');
+        await showAllOffers(page);
         assert.equal(await page.locator('.offer').count(), 4, 'both lists and informational offers should render');
         await page.screenshot({ path: resolve(screenshotDirectory, 'whitelist-scan.png') });
 

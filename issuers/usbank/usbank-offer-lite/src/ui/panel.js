@@ -5,7 +5,7 @@ function mountPanel() {
         scopeMarkup: "<p class=\"muted\">Add all available offers, or select individual offers below.</p>",
         workflow: { bank: "US Bank", extraReviewMarkup: "<button id=\"activate\" aria-label=\"Add selected offers\">Add selected offers</button><button id=\"select-all\" aria-label=\"Select all available offers\">Select all</button><button id=\"clear\" aria-label=\"Clear offer selection\">Clear selection</button>", readOnly: !SETTINGS.capabilities.activation },
         onScan: scanOffers, onAdd: addAllOffers, onStop: stopRun,
-        saveWorkspace, renderOffers, renderPanel, supportsActivation: SETTINGS.capabilities.activation, rewardFilterStorage: issuerStorage
+        saveWorkspace, renderOffers, renderPanel, supportsActivation: SETTINGS.capabilities.activation, offerViewStorage: issuerStorage
     });
     panel.getElementById('activate').addEventListener('click', activateSelectedOffers);
     panel.getElementById('select-all').addEventListener('click', selectAllOffers);

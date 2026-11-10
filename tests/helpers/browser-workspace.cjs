@@ -1,5 +1,6 @@
 const assert = require('node:assert/strict');
 const { createBrowserStorageFixture } = require('../amex/helpers/browser-storage.cjs');
+const { showAllOffers } = require('./browser-offer-view.cjs');
 
 async function verifyWorkspaceReload({ page, script, id, bank, requests, activationName, documentStart = false, restoredStatus = /Saved results and selections restored/, cacheNotice = /Last complete scan/ }) {
     const search = page.getByRole('searchbox');
@@ -30,6 +31,7 @@ async function verifyWorkspaceReload({ page, script, id, bank, requests, activat
         assert.equal(await search.inputValue(), 'saved query');
         await search.fill('');
     }
+    await showAllOffers(page);
     const visibleOffers = before.accounts.length ? before.offers.filter(offer => selectedBefore.includes(offer.accountId)) : before.offers;
     assert.equal(await page.locator('.offer').count(), visibleOffers.length);
     const expectedChecked = selectedBefore.length + Number(before.consent);

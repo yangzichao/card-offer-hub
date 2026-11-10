@@ -5,6 +5,7 @@ const { mkdirSync } = require('node:fs');
 const { resolve } = require('node:path');
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE_PATH || 'playwright');
 const { bootstrap, listing, offer } = require('./helpers/userscript-harness.cjs');
+const { showAllOffers } = require('../helpers/browser-offer-view.cjs');
 const script = readPublishedIssuerSource('wellsfargo-offer-lite');
 const outputDirectory = resolve(__dirname, '../../work/browser');
 mkdirSync(outputDirectory, { recursive: true });
@@ -84,6 +85,7 @@ async function main() {
             assert.deepEqual(Object.values(request.body.offerIdCheckSumMap), ['']);
         }
         await page.getByRole('searchbox', { name: 'Search saved offers' }).fill('');
+        await showAllOffers(page);
         assert.equal(await page.locator('.offer').count(), 4);
         assert.deepEqual(successful.errors, []);
         await page.screenshot({ path: resolve(outputDirectory, 'wellsfargo-enrollment-complete.png') });

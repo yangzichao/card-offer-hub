@@ -5,6 +5,7 @@ const { mkdirSync } = require('node:fs');
 const { resolve } = require('node:path');
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE_PATH || 'playwright');
 const { fixture } = require('./helpers/browser-fixture.cjs');
+const { showAllOffers } = require('../helpers/browser-offer-view.cjs');
 
 const script = readPublishedIssuerSource('citi-offer-lite');
 const outputDirectory = resolve(__dirname, '../../work/browser');
@@ -28,6 +29,9 @@ async function main() {
         assert.ok(successful.requests.filter(request => request.url.endsWith('/enrollMerchantOffer')).every(request => request.body.accountId === 'card-a'));
         assert.ok(successful.requests.slice(1).every((request, index) => request.time - successful.requests[index].time >= 500));
         await page.getByRole('searchbox', { name: 'Search saved offers' }).fill('');
+        assert.equal(await page.locator('.offer').count(), 0, 'To add is empty once both offers are added');
+        assert.match(await page.locator('#offers .hub-empty-note').innerText(), /^Nothing left to add\. See All for the other 3 offers\.$/);
+        await showAllOffers(page);
         assert.equal(await page.locator('.offer').count(), 3);
         assert.deepEqual(successful.errors, []);
         await page.screenshot({ path: resolve(outputDirectory, 'citi-enrollment-complete.png') });

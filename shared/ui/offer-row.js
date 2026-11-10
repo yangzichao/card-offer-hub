@@ -1,8 +1,10 @@
 function hubOfferStatusTone(label) {
     return { Available: 'available', Added: 'added', 'Needs review': 'review' }[label] || 'skipped';
 }
-// One scannable row: merchant and status on top, the offer itself, then card and dates.
-function hubOfferRow({ merchant = '', title = '', status = '', meta = [], tag = 'div', leading = null, reward = null }) {
+// One scannable row: merchant and status on top, the offer itself, its value, then card and dates.
+// reward: a value from reward-value.js, null when the bank lists none ("No listed value"),
+// or undefined for tools without reward values (no label at all).
+function hubOfferRow({ merchant = '', title = '', status = '', meta = [], tag = 'div', leading = null, reward = undefined }) {
     const row = document.createElement(tag);
     row.className = 'offer offer-row';
     if (leading) row.append(leading);
@@ -27,12 +29,7 @@ function hubOfferRow({ merchant = '', title = '', status = '', meta = [], tag = 
         value.textContent = title;
         body.append(value);
     }
-    if (reward) {
-        const value = document.createElement('div');
-        value.className = 'offer-reward';
-        value.textContent = hubFormatReward(reward);
-        body.append(value);
-    }
+    if (reward !== undefined) body.append(hubOfferWorthLabel(reward));
     const details = meta.filter(Boolean);
     if (details.length) {
         const small = document.createElement('small');
@@ -44,4 +41,10 @@ function hubOfferRow({ merchant = '', title = '', status = '', meta = [], tag = 
 }
 function hubOfferExpiry(expires) {
     return expires ? `Expires ${expires}` : '';
+}
+function hubOfferWorthLabel(reward, tag = 'div') {
+    const label = document.createElement(tag);
+    label.className = reward ? 'offer-worth' : 'offer-worth unlisted';
+    label.textContent = reward ? hubFormatReward(reward) : 'No listed value';
+    return label;
 }
