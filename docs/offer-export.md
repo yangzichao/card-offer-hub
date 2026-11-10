@@ -10,7 +10,7 @@
 | --- | --- | --- | --- |
 | Amex | `longDescription` | `terms.details` | 原有 `groupKey` 已包含这两段，搜索时直接解析，不另存 |
 | Chase | `offerDisplayDetails.rewardDescriptionText` | `offerDisplayDetails.termsAndConditionsText` | 列表响应 |
-| US Bank | `ad.assets.copy.value.marketingCopy` | `ad.assets.copy.value.termsAndConditions` | 列表响应 |
+| US Bank | `ad.assets.copy.value.marketingCopy` | `ad.assets.copy.value.termsAndConditions` | 列表响应。GraphQL 只返回点名的字段，1.10.1 之前查询里没有这两项，导出为空 |
 | Wells Fargo | `merchantDealDetails.longDescription` | 无 | 列表响应没有条款字段 |
 | BankAmeriDeals | `description` | `terms_and_conditions` | `offers-search` 列表响应 |
 | Kroger | `longDescription` | `requirementDescription` | 优惠券列表响应 |

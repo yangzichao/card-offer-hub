@@ -60,6 +60,10 @@
 
 1.9.0 在 US Bank 上所有优惠都显示 "No listed value"，筛选什么都藏不掉。原因：US Bank 用 GraphQL，服务端只返回查询里点名的字段，而扫描查询只要了 `reward { rewardType activationModel … }`，没要 `rewardAmount`、`maxRewardAmount`、`purchaseRequirement.minSpendAmount`。离线测试直接往合成响应里塞了这些字段，不看查询内容，所以没发现。修法：按 HAR 里网站自己的查询补上字段；`tests/build/offer-reward-banks.test.cjs` 新增一条回归，检查实际发出的扫描请求里写了这些字段。
 
+1.10.1 发现同一类问题：查询没要 `assets.copy.value.marketingCopy` 和 `termsAndConditions`，所以 1.8.0 起 US Bank 导出没有详情和条款。现在 US Bank 测试 harness（`tests/usbank/helpers/graphql-selection.cjs`）像真实 GraphQL 服务端一样，只返回查询选中的字段；`tests/usbank/graphql-selection.test.cjs` 走完整扫描路径，核对金额、详情、条款和添加判断所需字段都还在。把查询改回 1.9.0 的写法，这条测试会失败。
+
+离线 replay（本机 HAR，不提交）：把 US Bank 真实响应按脚本自己的查询裁剪后喂给发布产物，149 个优惠在 1.9.0 是 0 个有金额，1.10.0 是 149 个有金额、0 个有详情，1.10.1 金额、详情、条款都是 149。
+
 ## 存储
 
 - Amex 以外五家的 workspace 优惠记录新增可选字段 `reward`。schema 版本不变：1.9.0 之前的存档没有这个字段，读取时视为 `null`（未知），下一次扫描后才有金额；字段值不合法时按损坏存档处理，原值保留并提示错误。旧版本读取新存档时忽略这个字段。

@@ -5,6 +5,7 @@ const { mkdirSync } = require('node:fs');
 const { resolve } = require('node:path');
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE_PATH || 'playwright');
 const { sessionFixture, offer, listing, acknowledgement } = require('./helpers/userscript-harness.cjs');
+const { answerSelectedFields } = require('./helpers/graphql-selection.cjs');
 
 const script = readPublishedIssuerSource('usbank-offer-lite');
 const outputDirectory = resolve(__dirname, '../../work/browser');
@@ -53,7 +54,7 @@ async function fixture(browser, mode = 'success') {
             offer('already', 'ACTIVATED'), offer('unknown', null),
             offer('expired', 'NEW', { endDate: '2020-01-01T00:00:00Z' })
         ]);
-        return route.fulfill({ contentType: 'application/json', body: JSON.stringify(payload) });
+        return route.fulfill({ contentType: 'application/json', body: JSON.stringify(answerSelectedFields(payload, body.query)) });
     });
     await page.goto('https://onlinebanking.usbank.com/digital/servicing/dominjection/cashback-deals');
     await page.addScriptTag({ content: script });

@@ -1,6 +1,7 @@
 const { readPublishedIssuerSource } = require('../../helpers/published-issuer-source.cjs');
 const { runInNewContext } = require('node:vm');
 const { webcrypto } = require('node:crypto');
+const { answerSelectedFields } = require('./graphql-selection.cjs');
 
 const sessionFixture = { platformKeyVal: 'OLB', sourceCustomerId: 'synthetic-customer', securityToken: 'synthetic-token' };
 function createHarness(respond, options = {}) {
@@ -44,7 +45,7 @@ function createHarness(respond, options = {}) {
                 const result = await respond(request, context.usbankTestAccess);
                 now += options.responseDelay || 0;
                 request.finishedAt = now;
-                return result;
+                return selectedFieldsOnly(result, request.body.query);
             } finally { active--; }
         }
     };
@@ -57,6 +58,16 @@ function createHarness(respond, options = {}) {
     runInNewContext(source.slice(0, source.indexOf(marker)) + probe, context);
     return { ...context.usbankTestAccess, requests, storage, context, maximumActive: () => maximumActive,
         advance: milliseconds => { now += milliseconds; } };
+}
+// Synthetic answers pass through the query's selection like a real GraphQL server.
+function selectedFieldsOnly(response, query) {
+    if (!response || typeof response.text !== 'function' || typeof query !== 'string') return response;
+    return { ...response, text: async () => {
+        const text = await response.text();
+        let payload;
+        try { payload = JSON.parse(text); } catch { return text; }
+        return JSON.stringify(answerSelectedFields(payload, query));
+    } };
 }
 function jsonResponse(payload, status = 200, retryAfter = null) {
     return { status, ok: status >= 200 && status < 300, headers: { get: () => retryAfter }, text: async () => JSON.stringify(payload) };
