@@ -48,9 +48,9 @@ function createUI() {
     };
     filter.oninput = updateFilter;
     at('hub-clear-search').onclick = () => { filter.value = ''; updateFilter(); filter.focus(); };
+    const amexStorage = { get: (key, fallback) => GM_getValue(key, fallback), set: (key, value) => GM_setValue(key, value) };
     hubBindOfferView(shadow, { state, render: () => { renderOffers(); renderControls(); }, store: createHubOfferViewStore({
-        storage: { get: (key, fallback) => GM_getValue(key, fallback), set: (key, value) => GM_setValue(key, value) },
-        storageKey: `${__USERSCRIPT_ID__}:reward-filter` }) });
+        storage: amexStorage, storageKey: `${__USERSCRIPT_ID__}:reward-filter` }) });
     const toggle = at('collapse');
     toggle.id = 'btn-toggle';
     toggle.onclick = () => { state.minimized = !state.minimized; persistViewSettings(); renderControls(); };
@@ -64,6 +64,7 @@ function createUI() {
     cooldown.id = 'cooldown';
     footer.append(cooldown, activity);
     decorateHubPanel(shadow, SETTINGS.version);
+    hubEnablePanelDrag(shadow, { storage: amexStorage, storageKey: `${__USERSCRIPT_ID__}:panel-position` });
     shadow.getElementById('btn-toggle').setAttribute('aria-label', 'Minimize Amex panel');
     document.body.append(panelRoot);
     render();

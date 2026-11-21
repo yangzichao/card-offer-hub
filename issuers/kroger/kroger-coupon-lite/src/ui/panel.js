@@ -6,7 +6,7 @@ function mountPanel() {
         workflow: { bank: 'Kroger', scanLabel: 'Load coupons',
             scanDescription: 'Load your Kroger coupons without clipping. Nothing runs until you click.' },
         onScan: loadKrogerCoupons, onAdd: clipAllKrogerCoupons, onStop: stopRun,
-        saveWorkspace, renderOffers, supportsActivation: SETTINGS.capabilities.activation
+        saveWorkspace, renderOffers, panelStorage: issuerStorage, supportsActivation: SETTINGS.capabilities.activation
     });
     panel.querySelector('.hub-search-rule').textContent = 'Clip all coupons includes every coupon, including ones hidden by search.';
     document.body.appendChild(host);

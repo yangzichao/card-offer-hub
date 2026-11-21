@@ -37,6 +37,8 @@ function installHubBankEntry(configuration) {
     panel.append(header, content);
     root.append(style, panel);
     decorateHubPanel(root, configuration.version);
+    // Same key as the bank's own panel, so a moved panel stays put across its pages.
+    hubEnablePanelDrag(root, { storage: hubIssuerStorage(configuration), storageKey: `${configuration.id}:panel-position` });
     const mount = () => { if (document.body && !host.isConnected) document.body.append(host); };
     mount();
     // Event-driven repair when a bank's SPA replaces the page shell.

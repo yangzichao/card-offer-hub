@@ -1,5 +1,5 @@
 function createHubWorkflowPanel({ state, settings, bank, styles, scopeMarkup, template, workflow = {},
-    onScan, onAdd, onStop, saveWorkspace, renderOffers, renderPanel = renderOffers, supportsActivation = false, offerViewStorage = null }) {
+    onScan, onAdd, onStop, saveWorkspace, renderOffers, renderPanel = renderOffers, supportsActivation = false, offerViewStorage = null, panelStorage }) {
     const host = document.createElement('div');
     host.id = settings.id;
     const panel = host.attachShadow({ mode: 'open' });
@@ -27,6 +27,7 @@ function createHubWorkflowPanel({ state, settings, bank, styles, scopeMarkup, te
         hubRestoreWorkspacePanel(panel, bank, state);
     });
     decorateHubPanel(panel, settings.version);
+    hubEnablePanelDrag(panel, { storage: panelStorage, storageKey: `${settings.id}:panel-position` });
     hubRestoreWorkspacePanel(panel, bank, state);
     return { host, panel };
 }

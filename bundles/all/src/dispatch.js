@@ -1,4 +1,9 @@
 // All routing is local. Each adapter retains its original IIFE, constants and workflows.
+// Each bank's storage is prefixed, so banks never read or overwrite each other's keys.
+function hubIssuerStorage(configuration) {
+    const storagePrefix = `issuer:${configuration.id}:`;
+    return { get: (key, fallback) => GM_getValue(storagePrefix + key, fallback), set: (key, value) => GM_setValue(storagePrefix + key, value) };
+}
 function dispatchIssuer(configuration, startIssuer) {
     const pageUrl = location.origin + location.pathname + location.search;
     if (!configuration.entryPatterns.some(pattern => new RegExp(pattern).test(pageUrl))) return;
@@ -13,11 +18,8 @@ function dispatchIssuer(configuration, startIssuer) {
         const guardKey = `__cardOfferHubAllStarted_${configuration.id}`;
         if (window[guardKey]) return;
         window[guardKey] = true;
-        const storagePrefix = `issuer:${configuration.id}:`;
-        startIssuer(
-            (key, fallback) => GM_getValue(storagePrefix + key, fallback),
-            (key, value) => GM_setValue(storagePrefix + key, value)
-        );
+        const storage = hubIssuerStorage(configuration);
+        startIssuer(storage.get, storage.set);
         installHubSearchLauncher(configuration);
     };
     // Chase must observe native requests before the page scripts run. The other

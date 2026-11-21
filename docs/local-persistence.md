@@ -29,6 +29,8 @@
 
 Amex 以外五家的 workspace 优惠记录有可选字段 `reward`（1.9.0 起），旧存档没有时读作未知，schema 版本不变；每家另有 `${script-id}:reward-filter` 保存列表选项（最低金额、无标价开关、排序、tab），1.10.0 起是 schema 2，1.9.0 的 schema 1 读取时前向迁移。见[优惠金额与小额筛选](offer-reward-filter.md)。
 
+七个面板（含 Amex 和银行入口页）另有 `${script-id}:panel-position` schema 1 保存拖动后的位置，只在用户移动时写入，见[拖动面板](panel-drag.md)。
+
 Amex 以外的五个银行另有 `${script-id}:offer-details` schema 1，保存扫描带回的详情和条款，只在完整扫描结束时写一次；Citi 不保存全文。格式和读写规则见[优惠导出与本地 AI 读取](offer-export.md)。
 
 原有 `${script-id}:pacing` schema 1 完整保留，不更改等待/冷却期限。旧版没有 workspace 时按首次使用处理，第一次手动操作才创建结果快照，不触发网络迁移。Amex 既有卡片 schema 1 → 2 迁移不变；优惠结果另从 schema 1 → 2，加入 `amex-combination` 标记；`${script-id}:view` schema 1 继续保存视图偏好。详见 [工作流模板](workflow-templates.md)。

@@ -43,7 +43,7 @@ async function verifySurface(browser, script, entry) {
         assert.equal(await update.getAttribute('href'), downloadUrl, 'the update entry uses the published metadata URL');
         assert.equal(await page.locator('.hub-version').innerText(), `v${version}`);
         assert.deepEqual(requests, [], 'no automatic update check on startup or while idle');
-        await page.locator('header button').click();
+        await page.locator('header button:not(.hub-move)').click();
         assert.equal(await update.isVisible(), true, 'updating remains available in the collapsed panel');
         const beforeUpdate = await page.evaluate(() => window.storageWrites);
         const popupPromise = page.waitForEvent('popup');
@@ -56,7 +56,7 @@ async function verifySurface(browser, script, entry) {
         assert.deepEqual(requests, [{ url: downloadUrl, referer: undefined }]);
         assert.deepEqual(await page.evaluate(() => window.storageWrites), beforeUpdate);
         await popup.close();
-        await page.locator('header button').click();
+        await page.locator('header button:not(.hub-move)').click();
         await page.addScriptTag({ content: userscript });
         assert.equal(await update.count(), 1, 'reinjection does not duplicate the entry');
         const bounds = await update.boundingBox();

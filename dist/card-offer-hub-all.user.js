@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Card Offer Hub — All Banks
 // @namespace    https://github.com/yangzichao/card-offer-hub
-// @version      1.10.1
+// @version      1.11.0
 // @description  All seven Card Offer Hub tools in one install; manual scanning and activation on the matching bank or store website
 // @author       Zichao Yang
 // @match        https://*.americanexpress.com/*
@@ -42,6 +42,7 @@
     .hub-update{display:inline-flex;align-items:center;min-height:20px;padding:0 5px;margin:0 -5px;border-radius:5px;color:var(--hub-accent);font-weight:600;text-decoration:none}.hub-update:hover{background:var(--hub-tint);text-decoration:underline}
     h2{font-size:15px;line-height:1.3;letter-spacing:-.01em;margin:0;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     header>button{flex:none;width:32px;height:32px;min-height:32px;padding:0;border-color:transparent;background:transparent;color:var(--hub-muted);font-size:18px;font-weight:400;line-height:1}header>button:not(:disabled):hover{background:var(--hub-hover);border-color:transparent;color:var(--hub-ink)}
+    header.hub-draggable{padding-left:6px;cursor:grab;-webkit-user-select:none;user-select:none;touch-action:none}header.hub-dragging{cursor:grabbing}header>.hub-move{width:18px;margin-right:-6px;color:var(--hub-muted);cursor:inherit}header>.hub-move::before{content:'';display:block;width:8px;height:12px;margin:auto;background:radial-gradient(circle,currentColor 1.2px,transparent 1.6px) 0 0/4px 4px}.hub-position-error{margin:0;padding:6px 14px;border-bottom:1px solid var(--hub-danger-line);background:var(--hub-danger-bg);color:var(--hub-danger);font-size:11.5px}.hub-position-error[hidden]{display:none}
     h3{font-size:11px;letter-spacing:.06em;text-transform:uppercase;margin:0 0 8px;font-weight:650;color:var(--hub-muted)}p{margin:6px 0}
     section,main{padding:14px 16px 16px;border-bottom:1px solid var(--hub-line)}
     .hub-step>h3{display:flex;align-items:center;gap:8px}.hub-step>h3::before{counter-increment:hub-step;content:counter(hub-step);content:counter(hub-step)/'';display:inline-grid;place-items:center;flex:none;width:18px;height:18px;border-radius:50%;background:var(--hub-hover);color:var(--hub-ink-soft);font-size:10px;letter-spacing:0}
@@ -117,6 +118,165 @@
         header.insertBefore(heading, title);
         header.insertBefore(mark, heading);
         heading.append(topline, title);
+    }
+
+    // Source: shared/persistence/panel-position-storage.js
+    // One key per bank, `${script-id}:panel-position`, in the bank's own storage:
+    // { schemaVersion: 1, position: null | { horizontal, x, vertical, y } }.
+    // position is the viewport corner nearest the dragged panel and the gap to it in
+    // px; null is the default bottom-right spot. An unreadable value is kept
+    // untouched and moving the panel applies to this visit only.
+    const HUB_PANEL_POSITION_READ_ERROR = 'Saved panel position could not be read and was kept. Moving the panel applies to this visit only.';
+    function hubIsPanelPosition(value) {
+        return Boolean(value) && typeof value === 'object'
+            && ['left', 'right'].includes(value.horizontal) && ['top', 'bottom'].includes(value.vertical)
+            && Number.isFinite(value.x) && Number.isFinite(value.y) && value.x >= 0 && value.y >= 0;
+    }
+    function hubCopyPanelPosition(value) {
+        return value ? { horizontal: value.horizontal, x: value.x, vertical: value.vertical, y: value.y } : null;
+    }
+    function createHubPanelPositionStore({ storage, storageKey }) {
+        let readFailed = false;
+        return {
+            load() {
+                try {
+                    const saved = storage.get(storageKey, null);
+                    if (saved === null) return { position: null, error: '' };
+                    if (saved?.schemaVersion === 1 && (saved.position === null || hubIsPanelPosition(saved.position))) {
+                        return { position: hubCopyPanelPosition(saved.position), error: '' };
+                    }
+                    throw new Error('Unsupported saved panel position');
+                } catch {
+                    readFailed = true;
+                    return { position: null, error: HUB_PANEL_POSITION_READ_ERROR };
+                }
+            },
+            save(position) {
+                if (readFailed) return HUB_PANEL_POSITION_READ_ERROR;
+                try {
+                    storage.set(storageKey, { schemaVersion: 1, position: hubCopyPanelPosition(position) });
+                    return '';
+                } catch {
+                    return 'Panel position could not be saved. It applies to this visit only.';
+                }
+            }
+        };
+    }
+
+    // Source: shared/ui/panel-drag.js
+    // Drag a panel by its header, or move it with the arrow keys on its Move button.
+    // The spot is saved as the nearest viewport corner plus the gap to it, so a
+    // minimized panel expands away from that corner. Home on the Move button or a
+    // double-click on the header puts the panel back in its default corner. The
+    // shown spot is pulled back inside the window whenever the window or the panel
+    // changes size; the saved spot stays as the user left it. Nothing here sends a
+    // request.
+    const HUB_PANEL_EDGE_GAP = 8;
+    const HUB_PANEL_KEY_STEP = 16;
+    const HUB_PANEL_DRAG_THRESHOLD = 4;
+    function hubClampPanelOffset(value, size, viewport) {
+        return Math.round(Math.min(Math.max(value, HUB_PANEL_EDGE_GAP), Math.max(HUB_PANEL_EDGE_GAP, viewport - size - HUB_PANEL_EDGE_GAP)));
+    }
+    function hubNearestPanelCorner(rect, viewportWidth, viewportHeight) {
+        const horizontal = rect.left + rect.width / 2 < viewportWidth / 2 ? 'left' : 'right';
+        const vertical = rect.top + rect.height / 2 < viewportHeight / 2 ? 'top' : 'bottom';
+        return {
+            horizontal, x: Math.max(0, Math.round(horizontal === 'left' ? rect.left : viewportWidth - rect.right)),
+            vertical, y: Math.max(0, Math.round(vertical === 'top' ? rect.top : viewportHeight - rect.bottom))
+        };
+    }
+    // The default corner comes from the :host rule (right/bottom), so a moved panel
+    // sets its own two sides and turns the other two to auto; otherwise the host
+    // would stretch between both edges.
+    const HUB_PANEL_OPPOSITE_SIDE = { left: 'right', right: 'left', top: 'bottom', bottom: 'top' };
+    function hubPlacePanelHost(host, position) {
+        for (const side of ['left', 'right', 'top', 'bottom']) host.style.removeProperty(side);
+        if (!position) return;
+        host.style.setProperty(position.horizontal, `${position.x}px`);
+        host.style.setProperty(HUB_PANEL_OPPOSITE_SIDE[position.horizontal], 'auto');
+        host.style.setProperty(position.vertical, `${position.y}px`);
+        host.style.setProperty(HUB_PANEL_OPPOSITE_SIDE[position.vertical], 'auto');
+    }
+    function hubShowPanelAt(host, position) {
+        hubPlacePanelHost(host, position);
+        if (!position || !host.isConnected) return;
+        const rect = host.getBoundingClientRect();
+        const left = hubClampPanelOffset(rect.left, rect.width, innerWidth);
+        const top = hubClampPanelOffset(rect.top, rect.height, innerHeight);
+        if (Math.abs(left - rect.left) >= 1 || Math.abs(top - rect.top) >= 1) {
+            hubPlacePanelHost(host, { horizontal: 'left', x: left, vertical: 'top', y: top });
+        }
+    }
+    function hubEnablePanelDrag(root, { storage, storageKey }) {
+        const host = root.host;
+        const header = root.querySelector('header');
+        if (!host || !header || header.querySelector('.hub-move')) return;
+        const store = createHubPanelPositionStore({ storage, storageKey });
+        const loaded = store.load();
+        let position = loaded.position;
+        const move = document.createElement('button');
+        move.type = 'button';
+        move.className = 'hub-move';
+        move.setAttribute('aria-label', 'Move panel');
+        move.title = 'Drag to move the panel. Arrow keys move it; Home puts it back.';
+        header.prepend(move);
+        header.classList.add('hub-draggable');
+        const notice = document.createElement('p');
+        notice.className = 'hub-position-error';
+        notice.setAttribute('role', 'status');
+        header.after(notice);
+        const showError = message => { notice.textContent = message; notice.hidden = !message; };
+        let drag = null;
+        const show = () => { if (!drag?.moved) hubShowPanelAt(host, position); };
+        const remember = next => { position = next; show(); showError(store.save(position)); };
+        const rememberShownSpot = () => remember(hubNearestPanelCorner(host.getBoundingClientRect(), innerWidth, innerHeight));
+        const placeTopLeft = (left, top, rect) => hubPlacePanelHost(host, { horizontal: 'left', x: hubClampPanelOffset(left, rect.width, innerWidth),
+            vertical: 'top', y: hubClampPanelOffset(top, rect.height, innerHeight) });
+        showError(loaded.error);
+        show();
+        // Fires once the host is laid out, and again when the panel expands or collapses.
+        new ResizeObserver(show).observe(host);
+        addEventListener('resize', () => { if (host.isConnected) show(); });
+
+        const startsDrag = target => !target.closest('button, a, input, select, textarea, label, summary') || target.closest('.hub-move');
+        header.addEventListener('pointerdown', event => {
+            if (event.button !== 0 || !startsDrag(event.target)) return;
+            drag = { pointer: event.pointerId, x: event.clientX, y: event.clientY, rect: host.getBoundingClientRect(), moved: false };
+            header.setPointerCapture(event.pointerId);
+        });
+        header.addEventListener('pointermove', event => {
+            if (drag?.pointer !== event.pointerId) return;
+            const dx = event.clientX - drag.x, dy = event.clientY - drag.y;
+            if (!drag.moved && Math.hypot(dx, dy) < HUB_PANEL_DRAG_THRESHOLD) return;
+            drag.moved = true;
+            header.classList.add('hub-dragging');
+            placeTopLeft(drag.rect.left + dx, drag.rect.top + dy, drag.rect);
+            event.preventDefault();
+        });
+        const finishDrag = event => {
+            if (drag?.pointer !== event.pointerId) return;
+            const moved = drag.moved;
+            drag = null;
+            header.classList.remove('hub-dragging');
+            if (moved) rememberShownSpot();
+        };
+        header.addEventListener('pointerup', finishDrag);
+        header.addEventListener('pointercancel', finishDrag);
+        header.addEventListener('dblclick', event => { if (startsDrag(event.target)) remember(null); });
+        move.addEventListener('keydown', event => {
+            if (event.key === 'Home') {
+                event.preventDefault();
+                remember(null);
+                return;
+            }
+            const direction = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[event.key];
+            if (!direction) return;
+            event.preventDefault();
+            const step = event.shiftKey ? HUB_PANEL_KEY_STEP * 4 : HUB_PANEL_KEY_STEP;
+            const rect = host.getBoundingClientRect();
+            placeTopLeft(rect.left + direction[0] * step, rect.top + direction[1] * step, rect);
+            rememberShownSpot();
+        });
     }
 
     // Source: shared/ui/task-progress.js
@@ -1545,7 +1705,7 @@
 
     // Source: shared/ui/workflow-panel.js
     function createHubWorkflowPanel({ state, settings, bank, styles, scopeMarkup, template, workflow = {},
-        onScan, onAdd, onStop, saveWorkspace, renderOffers, renderPanel = renderOffers, supportsActivation = false, offerViewStorage = null }) {
+        onScan, onAdd, onStop, saveWorkspace, renderOffers, renderPanel = renderOffers, supportsActivation = false, offerViewStorage = null, panelStorage }) {
         const host = document.createElement('div');
         host.id = settings.id;
         const panel = host.attachShadow({ mode: 'open' });
@@ -1573,6 +1733,7 @@
             hubRestoreWorkspacePanel(panel, bank, state);
         });
         decorateHubPanel(panel, settings.version);
+        hubEnablePanelDrag(panel, { storage: panelStorage, storageKey: `${settings.id}:panel-position` });
         hubRestoreWorkspacePanel(panel, bank, state);
         return { host, panel };
     }
@@ -1750,7 +1911,7 @@ return readIssuerSavedResults;
     }
 return readIssuerSavedResults;
 })() }];
-const HUB_RELEASE_VERSION = "1.10.1";
+const HUB_RELEASE_VERSION = "1.11.0";
 // Read the existing snapshots directly; search never copies them into another store.
 function hubReadSavedResults() {
     const records = [], coverage = [];
@@ -2058,6 +2219,8 @@ function installHubBankEntry(configuration) {
     panel.append(header, content);
     root.append(style, panel);
     decorateHubPanel(root, configuration.version);
+    // Same key as the bank's own panel, so a moved panel stays put across its pages.
+    hubEnablePanelDrag(root, { storage: hubIssuerStorage(configuration), storageKey: `${configuration.id}:panel-position` });
     const mount = () => { if (document.body && !host.isConnected) document.body.append(host); };
     mount();
     // Event-driven repair when a bank's SPA replaces the page shell.
@@ -2065,6 +2228,11 @@ function installHubBankEntry(configuration) {
 }
 
 // All routing is local. Each adapter retains its original IIFE, constants and workflows.
+// Each bank's storage is prefixed, so banks never read or overwrite each other's keys.
+function hubIssuerStorage(configuration) {
+    const storagePrefix = `issuer:${configuration.id}:`;
+    return { get: (key, fallback) => GM_getValue(storagePrefix + key, fallback), set: (key, value) => GM_setValue(storagePrefix + key, value) };
+}
 function dispatchIssuer(configuration, startIssuer) {
     const pageUrl = location.origin + location.pathname + location.search;
     if (!configuration.entryPatterns.some(pattern => new RegExp(pattern).test(pageUrl))) return;
@@ -2079,11 +2247,8 @@ function dispatchIssuer(configuration, startIssuer) {
         const guardKey = `__cardOfferHubAllStarted_${configuration.id}`;
         if (window[guardKey]) return;
         window[guardKey] = true;
-        const storagePrefix = `issuer:${configuration.id}:`;
-        startIssuer(
-            (key, fallback) => GM_getValue(storagePrefix + key, fallback),
-            (key, value) => GM_setValue(storagePrefix + key, value)
-        );
+        const storage = hubIssuerStorage(configuration);
+        startIssuer(storage.get, storage.set);
         installHubSearchLauncher(configuration);
     };
     // Chase must observe native requests before the page scripts run. The other
@@ -2093,14 +2258,14 @@ function dispatchIssuer(configuration, startIssuer) {
 }
 
 // --- Issuer dispatches ---
-dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://global.americanexpress.com/offers","version":"1.10.1","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*americanexpress\\.com/.*$"],"patterns":["^https://global\\.americanexpress\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://global.americanexpress.com/offers","version":"1.11.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*americanexpress\\.com/.*$"],"patterns":["^https://global\\.americanexpress\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: amex-offer-lite ---
 (function () {
     'use strict';
 
     // Source: core/state.js
     const SETTINGS = Object.freeze({
-        version: "1.10.1", capabilities: {"activation":true,"scope":"card"}, workflow: "amex-combination",
+        version: "1.11.0", capabilities: {"activation":true,"scope":"card"}, workflow: "amex-combination",
         requestGapMs: 500,
         rateLimitCooldownMs: 120000,
         requestTimeoutMs: 30000,
@@ -3172,9 +3337,9 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
         };
         filter.oninput = updateFilter;
         at('hub-clear-search').onclick = () => { filter.value = ''; updateFilter(); filter.focus(); };
+        const amexStorage = { get: (key, fallback) => GM_getValue(key, fallback), set: (key, value) => GM_setValue(key, value) };
         hubBindOfferView(shadow, { state, render: () => { renderOffers(); renderControls(); }, store: createHubOfferViewStore({
-            storage: { get: (key, fallback) => GM_getValue(key, fallback), set: (key, value) => GM_setValue(key, value) },
-            storageKey: `${"amex-offer-lite"}:reward-filter` }) });
+            storage: amexStorage, storageKey: `${"amex-offer-lite"}:reward-filter` }) });
         const toggle = at('collapse');
         toggle.id = 'btn-toggle';
         toggle.onclick = () => { state.minimized = !state.minimized; persistViewSettings(); renderControls(); };
@@ -3188,6 +3353,7 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
         cooldown.id = 'cooldown';
         footer.append(cooldown, activity);
         decorateHubPanel(shadow, SETTINGS.version);
+        hubEnablePanelDrag(shadow, { storage: amexStorage, storageKey: `${"amex-offer-lite"}:panel-position` });
         shadow.getElementById('btn-toggle').setAttribute('aria-label', 'Minimize Amex panel');
         document.body.append(panelRoot);
         render();
@@ -3459,7 +3625,7 @@ dispatchIssuer({"id":"amex-offer-lite","label":"Amex","offersUrl":"https://globa
 // --- End issuer body: amex-offer-lite ---
 });
 
-dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"https://deals.merchant-rewards.com/","version":"1.10.1","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*bankofamerica\\.com/.*$","^https://deals\\.merchant-rewards\\.com/.*$"],"patterns":["^https://deals\\.merchant-rewards\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"https://deals.merchant-rewards.com/","version":"1.11.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*bankofamerica\\.com/.*$","^https://deals\\.merchant-rewards\\.com/.*$"],"patterns":["^https://deals\\.merchant-rewards\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: bofa-offer-lite ---
 (function () {
     'use strict';
@@ -3467,7 +3633,7 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "bofa-offer-lite", name: "BankAmeriDeals Lite", version: "1.10.1",
+        id: "bofa-offer-lite", name: "BankAmeriDeals Lite", version: "1.11.0",
         gapMilliseconds: 500, timeoutMilliseconds: 45000, pageSize: 24,
         defaultCooldownMilliseconds: 300000
     };
@@ -3772,7 +3938,7 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
             scopeMarkup: "<p class=\"muted\">Activation can start an expiry window; review terms first.</p><label class=\"card\"><input id=\"consent\" type=\"checkbox\" aria-label=\"Confirm activation for current Deals profile\">Allow adding offers to this profile</label>",
             workflow: { bank: "Deals", extraReviewMarkup: "", readOnly: !SETTINGS.capabilities.activation },
             onScan: scanOffers, onAdd: activateOffers, onStop: stopRun,
-            saveWorkspace, renderOffers, renderPanel, supportsActivation: SETTINGS.capabilities.activation, offerViewStorage: issuerStorage
+            saveWorkspace, renderOffers, panelStorage: issuerStorage, renderPanel, supportsActivation: SETTINGS.capabilities.activation, offerViewStorage: issuerStorage
         });
         panel.getElementById('consent').addEventListener('change', event => {
             if (state.busy) return;
@@ -3829,7 +3995,7 @@ dispatchIssuer({"id":"bofa-offer-lite","label":"BankAmeriDeals","offersUrl":"htt
 // --- End issuer body: bofa-offer-lite ---
 });
 
-dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://secure.chase.com/web/auth/dashboard","version":"1.10.1","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*chase\\.com/.*$"],"patterns":["^https://secure\\.chase\\.com/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://secure.chase.com/web/auth/dashboard","version":"1.11.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*chase\\.com/.*$"],"patterns":["^https://secure\\.chase\\.com/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: chase-offer-lite ---
 (function () {
     'use strict';
@@ -3837,7 +4003,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"card"}, workflow: "per-card",
-        id: "chase-offer-lite", name: "Chase Offer Lite", version: "1.10.1",
+        id: "chase-offer-lite", name: "Chase Offer Lite", version: "1.11.0",
         gapMilliseconds: 500, timeoutMilliseconds: 45000,
         defaultCooldownMilliseconds: 300000
     };
@@ -4505,7 +4671,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
             workflow: { bank: 'Chase', scanLabel: 'Load cards & offers' },
             onScan: () => state.accounts.length ? refreshAndAddOffers() : refreshAllCardsAndOffers(),
             onAdd: addSavedOffers, onStop: stopRun,
-            saveWorkspace, renderOffers, renderPanel, supportsActivation: SETTINGS.capabilities.activation, offerViewStorage: issuerStorage
+            saveWorkspace, renderOffers, panelStorage: issuerStorage, renderPanel, supportsActivation: SETTINGS.capabilities.activation, offerViewStorage: issuerStorage
         });
         document.body.appendChild(host);
         state.panel = panel;
@@ -4636,7 +4802,7 @@ dispatchIssuer({"id":"chase-offer-lite","label":"Chase","offersUrl":"https://sec
 // --- End issuer body: chase-offer-lite ---
 });
 
-dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://online.citi.com/US/nga/products-offers/merchantoffers","version":"1.10.1","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*citi\\.com/.*$"],"patterns":["^https://online\\.citi\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://online.citi.com/US/nga/products-offers/merchantoffers","version":"1.11.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*citi\\.com/.*$"],"patterns":["^https://online\\.citi\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: citi-offer-lite ---
 (function () {
     'use strict';
@@ -4644,7 +4810,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"card"}, workflow: "per-card",
-        id: "citi-offer-lite", name: "Citi Offer Lite", version: "1.10.1",
+        id: "citi-offer-lite", name: "Citi Offer Lite", version: "1.11.0",
         apiBase: '/gcgapi/prod/public/v1',
         retrievePath: '/digital/customers/creditCards/merchantOffers/retrieve',
         enrollmentPath: '/digital/customers/creditCards/accounts/rewards/specialOffers/enrollMerchantOffer',
@@ -5097,7 +5263,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
             workflow: { bank: 'Citi', scanLabel: 'Load cards & offers' },
             onScan: () => state.accounts.length ? refreshAndAddOffers() : refreshAllCardsAndOffers(),
             onAdd: addSavedOffers, onStop: stopRun,
-            saveWorkspace, renderOffers, renderPanel, supportsActivation: SETTINGS.capabilities.activation, offerViewStorage: issuerStorage
+            saveWorkspace, renderOffers, panelStorage: issuerStorage, renderPanel, supportsActivation: SETTINGS.capabilities.activation, offerViewStorage: issuerStorage
         });
         document.body.appendChild(host);
         state.panel = panel;
@@ -5215,7 +5381,7 @@ dispatchIssuer({"id":"citi-offer-lite","label":"Citi","offersUrl":"https://onlin
 // --- End issuer body: citi-offer-lite ---
 });
 
-dispatchIssuer({"id":"kroger-coupon-lite","label":"Kroger","offersUrl":"https://www.kroger.com/savings/cl/coupons/","version":"1.10.1","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*kroger\\.com/.*$"],"patterns":["^https://www\\.kroger\\.com/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"kroger-coupon-lite","label":"Kroger","offersUrl":"https://www.kroger.com/savings/cl/coupons/","version":"1.11.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*kroger\\.com/.*$"],"patterns":["^https://www\\.kroger\\.com/.*$"],"runAt":"document-start","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: kroger-coupon-lite ---
 (function () {
     'use strict';
@@ -5223,7 +5389,7 @@ dispatchIssuer({"id":"kroger-coupon-lite","label":"Kroger","offersUrl":"https://
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "kroger-coupon-lite", name: "Kroger Coupon Lite", version: "1.10.1",
+        id: "kroger-coupon-lite", name: "Kroger Coupon Lite", version: "1.11.0",
         origin: 'https://www.kroger.com',
         gapMilliseconds: 500, timeoutMilliseconds: 30000,
         defaultCooldownMilliseconds: 300000,
@@ -5637,7 +5803,7 @@ dispatchIssuer({"id":"kroger-coupon-lite","label":"Kroger","offersUrl":"https://
             workflow: { bank: 'Kroger', scanLabel: 'Load coupons',
                 scanDescription: 'Load your Kroger coupons without clipping. Nothing runs until you click.' },
             onScan: loadKrogerCoupons, onAdd: clipAllKrogerCoupons, onStop: stopRun,
-            saveWorkspace, renderOffers, supportsActivation: SETTINGS.capabilities.activation
+            saveWorkspace, renderOffers, panelStorage: issuerStorage, supportsActivation: SETTINGS.capabilities.activation
         });
         panel.querySelector('.hub-search-rule').textContent = 'Clip all coupons includes every coupon, including ones hidden by search.';
         document.body.appendChild(host);
@@ -5685,7 +5851,7 @@ dispatchIssuer({"id":"kroger-coupon-lite","label":"Kroger","offersUrl":"https://
 // --- End issuer body: kroger-coupon-lite ---
 });
 
-dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://onlinebanking.usbank.com/digital/servicing/dominjection/cashback-deals","version":"1.10.1","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*usbank\\.com/.*$"],"patterns":["^https://onlinebanking\\.usbank\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://onlinebanking.usbank.com/digital/servicing/dominjection/cashback-deals","version":"1.11.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*usbank\\.com/.*$"],"patterns":["^https://onlinebanking\\.usbank\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: usbank-offer-lite ---
 (function () {
     'use strict';
@@ -5693,7 +5859,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "usbank-offer-lite", name: "US Bank Offer Lite", version: "1.10.1",
+        id: "usbank-offer-lite", name: "US Bank Offer Lite", version: "1.11.0",
         endpoint: '/digital/api/customer-management/graphql/v2',
         gapMilliseconds: 500, timeoutMilliseconds: 45000,
         defaultCooldownMilliseconds: 300000
@@ -6094,7 +6260,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
             scopeMarkup: "<p class=\"muted\">Add all available offers, or select individual offers below.</p>",
             workflow: { bank: "US Bank", extraReviewMarkup: "<button id=\"activate\" aria-label=\"Add selected offers\">Add selected offers</button><button id=\"select-all\" aria-label=\"Select all available offers\">Select all</button><button id=\"clear\" aria-label=\"Clear offer selection\">Clear selection</button>", readOnly: !SETTINGS.capabilities.activation },
             onScan: scanOffers, onAdd: addAllOffers, onStop: stopRun,
-            saveWorkspace, renderOffers, renderPanel, supportsActivation: SETTINGS.capabilities.activation, offerViewStorage: issuerStorage
+            saveWorkspace, renderOffers, panelStorage: issuerStorage, renderPanel, supportsActivation: SETTINGS.capabilities.activation, offerViewStorage: issuerStorage
         });
         panel.getElementById('activate').addEventListener('click', activateSelectedOffers);
         panel.getElementById('select-all').addEventListener('click', selectAllOffers);
@@ -6161,7 +6327,7 @@ dispatchIssuer({"id":"usbank-offer-lite","label":"US Bank","offersUrl":"https://
 // --- End issuer body: usbank-offer-lite ---
 });
 
-dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"https://web.secure.wellsfargo.com/auth/deals-portal","version":"1.10.1","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*wellsfargo\\.com/.*$"],"patterns":["^https://web\\.secure\\.wellsfargo\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
+dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"https://web.secure.wellsfargo.com/auth/deals-portal","version":"1.11.0","entryPatterns":["^https://(?:[a-z0-9-]+\\.)*wellsfargo\\.com/.*$"],"patterns":["^https://web\\.secure\\.wellsfargo\\.com/.*$"],"runAt":"document-idle","noFrames":true}, function (GM_getValue, GM_setValue) {
 // --- Issuer body: wellsfargo-offer-lite ---
 (function () {
     'use strict';
@@ -6169,7 +6335,7 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"
     // Source: core/state.js
     const SETTINGS = {
         capabilities: {"activation":true,"scope":"account"}, workflow: "account",
-        id: "wellsfargo-offer-lite", name: "Wells Fargo Offer Lite", version: "1.10.1",
+        id: "wellsfargo-offer-lite", name: "Wells Fargo Offer Lite", version: "1.11.0",
         retrievePath: '/deals-portal/as/getDeals', enrollmentPath: '/deals-portal/as/activateCLDeal',
         gapMilliseconds: 500, timeoutMilliseconds: 45000, defaultCooldownMilliseconds: 300000
     };
@@ -6449,7 +6615,7 @@ dispatchIssuer({"id":"wellsfargo-offer-lite","label":"Wells Fargo","offersUrl":"
             scopeMarkup: "<p class=\"muted\">Offers needing an individual card choice are skipped.</p><label class=\"card\"><input id=\"consent\" type=\"checkbox\" aria-label=\"Allow account-wide Wells Fargo activation\">Allow adding offers to this account</label>",
             workflow: { bank: "Wells Fargo", extraReviewMarkup: "", readOnly: !SETTINGS.capabilities.activation },
             onScan: scanOffers, onAdd: addAllOffers, onStop: stopRun,
-            saveWorkspace, renderOffers, renderPanel, supportsActivation: SETTINGS.capabilities.activation, offerViewStorage: issuerStorage
+            saveWorkspace, renderOffers, panelStorage: issuerStorage, renderPanel, supportsActivation: SETTINGS.capabilities.activation, offerViewStorage: issuerStorage
         });
         panel.getElementById('consent').addEventListener('change', event => {
             if (state.busy) return;
